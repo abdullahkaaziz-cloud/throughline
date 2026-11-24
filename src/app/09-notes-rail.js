@@ -48,6 +48,7 @@ function emptyEl() {
     h('p', null, 'Press Review and Claude reads the whole essay, then marks what needs work:'),
     h('ul', {class: 'legend'}, LEGEND.map(([g, name, desc]) => h('li', null, h('span', {class: 'sw', html: SW[g]}), h('span', null, h('b', null, name), desc)))),
     h('p', null, 'Or select any sentence to ask about it. Claude suggests; you decide what changes.'),
+    words(ed.value) < 40 ? h('p', null, 'Not sure where to start? ', h('button', {class: 'lnk', onclick: () => setMode('plan')}, 'Plan it on the brainstorm board')) : null,
     h('p', null, nSrc || nEss ? 'It also checks this essay against ' + [nSrc ? plural(nSrc, 'source') : '', nEss ? 'your ' + plural(nEss, 'other essay') : ''].filter(Boolean).join(' and ') + '. ' : 'Add your brief and sources to check claims and citations too. ',
       h('button', {class: 'lnk', onclick: openSources}, 'Choose sources')));
 }

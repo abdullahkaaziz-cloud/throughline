@@ -81,15 +81,33 @@
     return {thesis: {text: 'Mock thesis.', quote: first}, paras,
       problems: [{kind: 'gap', paras: [2, 3], note: 'Mock: a step is missing.'}, {kind: 'bogus', paras: [1], note: 'x'}, {kind: 'dropped', paras: [1, 4242], note: 'Mock: promised, never argued.'}]};
   };
+  // Brainstorm cards: some of each kind, plus ones the app must drop (unknown kind, a repeat, a made-up source quote).
+  window.__mockIdeas = input => {
+    const round = (input.match(/^- \(/gm) || []).length ? 2 : 1, cards = [
+      {kind: 'angle', text: 'Mock angle ' + round + ': look at who gains most.'},
+      {kind: 'angle', text: 'Mock angle ' + round + ': compare before and after.'},
+      {kind: 'objection', text: 'Mock objection ' + round + ': the costs fall on someone else.'},
+      {kind: 'question', text: 'Mock question ' + round + ': what would change your mind?'},
+      {kind: 'angle', text: 'Mock angle ' + round + ': look at who gains most!'},
+      {kind: 'wild', text: 'Unknown kind of card.'},
+      {kind: 'source', text: 'Made-up quote.', document: 'D1', quote: 'This sentence is in no document at all, anywhere.'}];
+    const doc = input.match(/<document id="(D\d+)" role="source"[^>]*content="([^"]*)">\n([\s\S]*?)\n<\/document>/);
+    if (doc) {
+      const m = doc[2] === 'main claims only' ? doc[3].match(/^(c\d+): .*\n\s+"(.*)"$/m) : null, q = m ? m[2] : (doc[3].match(/[^.!?]+[.!?]/) || [''])[0].trim();
+      cards.push({kind: 'source', text: 'Mock: this source speaks to the question.', document: doc[1], claim: m ? m[1] : null, quote: q});
+    }
+    return {cards};
+  };
   window.__mockAsk = input => ({points: [{label: 'Overstated', detail: 'Mock: the claim is stronger than the evidence.'}, {label: 'Missing link', detail: 'Mock: say how this supports ¶1.'}], suggestion: 'Mock replacement text for the selection.'});
   window.__failNext = null;
   const call = async (input, opts) => {
-    window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'),
+    window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'),
+      questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,
       essayClose: (input.match(/<\/essay>/g) || []).length, tier: opts && opts.modelTier, len: input.length,
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),
       fenceOk: (input.match(/<\/document>/g) || []).length === (input.match(/<document id=/g) || []).length && !input.includes('</document> IGNORE')});
     if (window.__failNext) { const c = window.__failNext; window.__failNext = null; await sleep(200); throw {code: c, message: 'mock failure'}; }
-    const out = input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
+    const out = input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
     const txt = JSON.stringify(out);
     await sleep(400);
     if (opts && opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'stopped'};

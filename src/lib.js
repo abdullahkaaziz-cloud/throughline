@@ -160,7 +160,7 @@ function cleanFlags(x, allowed) {
 }
 // Text placed inside a prompt block can't close that block or open another one.
 function fence(text) {
-  return String(text == null ? '' : text).replace(/<(?=\s*\/?\s*(?:document|brief|essay|claims)\b)/gi, '\u2039');
+  return String(text == null ? '' : text).replace(/<(?=\s*\/?\s*(?:document|brief|essay|claims|plan|question)\b)/gi, '\u2039');
 }
 
 // ---- review context: what goes into the prompt, and checking what comes back ----
@@ -294,4 +294,26 @@ function validateArgmap(raw, text) {
   }
   const t = plainObj(r.thesis), at = t.quote ? anchorFuzzy(text, t.quote) : null;
   return {n, thesis: {text: clip(t.text, 300), quote: at ? text.slice(at[0], at[1]) : null}, paras: [...byPara.values()].sort((a, b) => a.para - b.para), problems};
+}
+
+// ---- brainstorm cards ----
+const IDEA_KINDS = ['angle', 'objection', 'question', 'source'];
+const ideaKey = t => String(t).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+// The model's ideas, checked: known kinds, short text, nothing the writer already has, and source cards
+// only when their passage is really in that document. o: {resolveDoc(ref) -> {id, title, text, claims} | null, have: [text]}
+function validateIdeas(raw, o) {
+  const r = plainObj(raw), opt = plainObj(o), out = [], seen = new Set((Array.isArray(opt.have) ? opt.have : []).map(ideaKey));
+  for (const x of (Array.isArray(r.cards) ? r.cards : []).slice(0, 40)) {
+    const c = plainObj(x), kind = clip(c.kind, 20).toLowerCase(), text = clip(c.text, 280), key = ideaKey(text);
+    if (!IDEA_KINDS.includes(kind) || !key || seen.has(key)) continue;
+    const card = {kind, text, src: null};
+    if (kind === 'source') {
+      const d = typeof opt.resolveDoc === 'function' ? opt.resolveDoc(c.document) : null, at = d ? locateInDoc(d, {claim: c.claim, quote: c.quote}) : null;
+      if (!at) continue;
+      card.src = {id: d.id, title: clip(d.title, 200), quote: d.text.slice(at[0], at[1]).slice(0, 600)};
+    }
+    seen.add(key); out.push(card);
+    if (out.length >= 16) break;
+  }
+  return out;
 }

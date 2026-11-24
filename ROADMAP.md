@@ -62,7 +62,18 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
 - **Why it wins:** argument-mapping tools (Kialo, Rationale) are manual, and chatbots answer in paragraphs. This map is automatic and tied to your own words.
 - **Done when:** the map matches the structure of the four test essays, and every node scrolls to its paragraph.
 
-### 3. Brainstorm board
+### 3. Brainstorm board (shipped in v0.4)
+**Shipped:**
+- Plan mode: a board that starts from the question (or the brief), with cards in four clusters: angles, objections, passages from your sources, and questions back to you;
+- keep, bin, edit and add cards; answer Claude's questions on the card;
+- drag cards into an outline, or onto a point to group them under it, with buttons for every move;
+- "Start writing" adds the outline to the essay as headings, never as prose, and can be undone;
+- source cards open the source at the passage, and only quotes found in the source are kept.
+
+**Next:**
+- the argument flow compares the outline with the draft ("you planned an answer to the objection; it isn't there");
+- free placement on a canvas, with clusters you name yourself.
+
 - **What it does:** start from a question or the brief. The AI asks questions back and offers angles, objections and relevant passages from your sources, as cards. You keep, merge or bin them, then drag them into an outline. "Start writing" turns the outline into headings, never into prose.
 - **What you see:** a card canvas with clusters and an outline column. Later, the argument flow compares your plan with your draft, for example "you planned an answer to the objection in ¶5; it isn't there".
 - **Why it wins:** chatbots write the essay for you, which is an integrity risk. Whiteboard AIs (Miro, Whimsical) aren't connected to your sources or your draft.

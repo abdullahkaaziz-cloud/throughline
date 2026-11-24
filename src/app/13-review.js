@@ -14,24 +14,31 @@ function buildContext(essay, ownBytes) {
   const {plan} = planContext(items, budget, LIMITS.fullTextBytes);
   return docs.filter(d => plan.has(d.id)).map((d, i) => ({doc: d, ref: 'D' + (i + 1), mode: plan.get(d.id)}));
 }
-function reviewPrompt(essay, text, ctx) {
-  const numbered = text.split('\n').map(x => x.trim()).filter(Boolean).map((x, i) => '[' + (i + 1) + '] ' + x).join('\n\n');
-  const brief = essay.brief && essay.brief.text.trim()
-    ? '\n\nBRIEF (the assignment question or marking criteria):\n<brief>\n' + fence(essay.brief.text) + '\n</brief>' : '';
-  const docs = ctx.map(c => '<document id="' + c.ref + '" role="' + (c.doc.role === 'source' ? 'source' : 'essay') + '" title="' + docLabel(c.doc) +
+// The related documents, each in its own fenced block, and a lookup from the model's references back to them.
+function docsBlock(ctx) {
+  return ctx.map(c => '<document id="' + c.ref + '" role="' + (c.doc.role === 'source' ? 'source' : 'essay') + '" title="' + docLabel(c.doc) +
     '" content="' + (c.mode === 'full' ? 'full text' : 'main claims only') + '">\n' + fence(c.mode === 'full' ? c.doc.text : claimsText(c.doc)) + '\n</document>').join('\n\n');
-  return REVIEW_RULES + '\n\nESSAY TITLE: ' + docLabel(essay) + brief +
-    '\n\nESSAY (each paragraph starts with its number in brackets; never include these numbers in a quote):\n' + fence(numbered) + '\n\n' +
-    (ctx.length ? 'OTHER DOCUMENTS (role "essay": the writer’s earlier essays; role "source": material the writer uses):\n' + docs : 'OTHER DOCUMENTS: none.');
 }
-function buildReview(raw, text, ctx, tier) {
+function ctxResolver(ctx) {
   const byRef = new Map(ctx.map(c => [c.ref, c.doc]));
-  const resolveDoc = ref => {
+  return ref => {
     const r = clip(ref, 200);
     if (!r) return null;
     const d = byRef.get(r.toUpperCase()) || (ctx.find(c => (c.doc.title || '').toLowerCase() === r.toLowerCase()) || {}).doc;
     return d ? {id: d.id, title: d.title || 'Untitled', text: d.text, role: d.role, claims: d.index ? d.index.claims : []} : null;
   };
+}
+function reviewPrompt(essay, text, ctx) {
+  const numbered = text.split('\n').map(x => x.trim()).filter(Boolean).map((x, i) => '[' + (i + 1) + '] ' + x).join('\n\n');
+  const brief = essay.brief && essay.brief.text.trim()
+    ? '\n\nBRIEF (the assignment question or marking criteria):\n<brief>\n' + fence(essay.brief.text) + '\n</brief>' : '';
+  const docs = docsBlock(ctx);
+  return REVIEW_RULES + '\n\nESSAY TITLE: ' + docLabel(essay) + brief +
+    '\n\nESSAY (each paragraph starts with its number in brackets; never include these numbers in a quote):\n' + fence(numbered) + '\n\n' +
+    (ctx.length ? 'OTHER DOCUMENTS (role "essay": the writer’s earlier essays; role "source": material the writer uses):\n' + docs : 'OTHER DOCUMENTS: none.');
+}
+function buildReview(raw, text, ctx, tier) {
+  const resolveDoc = ctxResolver(ctx);
   const out = parseReview(raw, {text, types: TYPES, resolveDoc, rid: Date.now().toString(36)});
   const srcN = ctx.filter(c => c.doc.role === 'source').length;
   return Object.assign({at: Date.now(), by: 'Claude', tier, textHash: hash(text), checked: ctx.length - srcN, sources: srcN}, out);
@@ -60,6 +67,7 @@ function errText(e) {
 function noteAiError(e) { if (isHard(e)) { st.ai = 'denied'; st.aiWhy = errText(e); renderAiBtn(); setReviewBtn(); hideSelbar(); } }
 async function runReview() {
   if (st.reviewing) { toast('A review is already running.'); return; }
+  if (st.mode !== 'write') setMode('write');
   const d = st.cur, text = ed.value;
   if (words(text) < 40) { toast('Write or paste at least a paragraph first.'); return; }
   if (st.ai === 'pending') await capsReady;

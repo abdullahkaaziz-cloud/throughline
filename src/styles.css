@@ -317,3 +317,73 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .th.hov .tb,.th.on .tb{opacity:1;stroke-width:4.5}
 .th .tp{fill:var(--paper);stroke:var(--rel);stroke-width:1.6}
 .th .hit{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:pointer}
+/* brainstorm board: Plan mode swaps the paper and the notes for cards and an outline */
+.modes{display:flex;gap:2px;padding:3px;margin-left:2px;border-radius:10px;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.mode{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:0;border-radius:7px;background:none;font-size:14px;font-weight:500;color:var(--ink2)}
+.mode:hover{color:var(--ink)}
+.mode[aria-pressed=true]{background:var(--paper);color:var(--ink);box-shadow:0 1px 2px var(--sh)}
+.layout.planning{grid-template-columns:minmax(0,1fr)}
+.layout.planning .paper,.layout.planning .rail{display:none}
+.board{grid-column:1/-1;min-height:calc(100vh - 160px);margin-bottom:72px;padding:30px 30px 34px;background:var(--paper);border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 2px var(--sh)}
+.bhead{max-width:820px}
+.bq{display:block;width:100%;margin:2px 0 10px;padding:0;border:0;background:none;resize:none;overflow:hidden;outline:none;font:600 26px/1.25 "Source Serif 4",Georgia,serif;color:var(--ink);text-wrap:pretty}
+.bq::placeholder{color:var(--ink3)}
+.bintro{margin:0 0 4px;color:var(--ink2);font-size:15px}
+.bacts{align-items:center;gap:10px}
+.bacts .fine{margin:0}
+.berr{margin:10px 0 0;color:var(--rel);font-size:14px}
+.bgrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start;margin-top:24px}
+.clusters{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;align-items:start}
+.cluster,.outline{--kc:var(--ink);padding:12px 10px 12px;border-radius:12px;background:var(--ground)}
+.chead{display:flex;align-items:center;gap:7px;padding:0 2px;font-size:14px}
+.chead .n{color:var(--ink3);font-size:13px}
+.kdot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--kc)}
+.khint{margin:2px 2px 10px;font-size:12.5px;line-height:1.45;color:var(--ink3)}
+.kcards{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:8px}
+.icard{padding:10px 10px 4px;border:1px solid var(--line);border-top:3px solid var(--kc);border-radius:8px;background:var(--paper);cursor:grab;transition:box-shadow .15s,opacity .15s}
+.icard.kept{box-shadow:0 0 0 1.5px var(--kc)}
+.icard.dragging,.oitem.dragging{opacity:.35}
+.itext{margin:0;padding:1px 2px;border-radius:4px;font-size:14.5px;line-height:1.42;cursor:text}
+.itext:hover{background:var(--hover)}
+.iedit,.ians{display:block;width:100%;padding:6px 8px;border:1px solid var(--line2);border-radius:6px;background:var(--paper);font-size:14.5px;line-height:1.42;resize:vertical}
+.ians{margin-top:8px;border-color:var(--line);font-size:14px;resize:none;overflow:hidden}
+.isrc{--tc:var(--evid);margin:8px 0 0}
+.isrc .qt{font-size:14px}
+.iacts{display:flex;align-items:center;gap:2px;margin-top:4px}
+.ib{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 6px;border:0;border-radius:6px;background:none;color:var(--ink3);font-size:13px}
+.ib:hover{background:var(--hover);color:var(--ink)}
+.ib:disabled{opacity:.3;cursor:default;background:none}
+.ib[aria-pressed=true]{color:var(--kc)}
+.ib[aria-pressed=true] path{fill:currentColor}
+.ib.go{margin-left:auto;color:var(--ink2);font-weight:500}
+.iadd input{width:100%;height:36px;padding:0 10px;border:1px dashed var(--line2);border-radius:8px;background:none;font-size:14px}
+.iadd input:focus{border-style:solid;background:var(--paper);outline:none;border-color:var(--ink3)}
+.outline{position:sticky;top:76px;transition:box-shadow .15s}
+.ohint{margin:6px 2px 14px}
+.oitems{list-style:none;margin:0 0 6px;padding:0;display:grid;gap:6px}
+.oitem{padding:5px 4px 7px 6px;border:1px solid var(--line);border-left:3px solid var(--kc);border-radius:8px;background:var(--paper);cursor:grab}
+.oitem.drop-into{box-shadow:0 0 0 2px var(--clar)}
+.oitem.drop-before{box-shadow:0 -3px 0 0 var(--clar)}
+.outline.drop-end .oitems{box-shadow:0 3px 0 0 var(--clar)}
+.outline.drop-end .oitems:empty,.outline.drop-end .ohint{box-shadow:none}
+.outline.drop-end:not(:has(.oitem)){box-shadow:inset 0 0 0 2px var(--clar)}
+.orow{display:flex;align-items:flex-start;gap:4px}
+.onum{min-width:18px;padding-top:5px;text-align:right;font-size:13px;color:var(--ink3)}
+.olabel{flex:1;min-width:0;padding:4px;border:0;border-radius:4px;background:none;font-size:14.5px;font-weight:600;line-height:1.35;resize:none;overflow:hidden}
+.olabel:focus{background:var(--hover);outline:none}
+.oacts{display:flex}
+.oacts .ib{min-width:26px;height:28px;padding:0 3px}
+.osubs{list-style:none;margin:4px 0 0 24px;padding:0;display:grid;gap:4px}
+.osubs li{display:flex;align-items:flex-start;justify-content:space-between;gap:4px;padding:2px 0 2px 8px;border-left:2px solid var(--kc);font-size:13.5px;line-height:1.4;color:var(--ink2);cursor:grab}
+.outline .acts{margin-top:12px}
+.outline .fine{margin-top:6px}
+.binned{margin-top:20px;font-size:14px;color:var(--ink2)}
+.binned summary{cursor:pointer}
+.binned ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px}
+.binned li{--kc:var(--ink3);display:flex;align-items:center;gap:8px}
+.binned li span{flex:1}
+@media (max-width:1000px){.bgrid{grid-template-columns:minmax(0,1fr)}.outline{position:static}.board{padding:22px 16px 26px;margin-bottom:24px}.bq{font-size:23px}}
+/* the bar: only the essay name gives way on narrow screens, so icons never get squeezed */
+.bar>*:not(.docbtn):not(.spacer){flex:none}
+@media (max-width:760px){.mode span,.srcbtn .srclabel{display:none}.mode{padding:0 9px}}
+@media (max-width:600px){.modes{margin-left:0;padding:0;background:none}.mode[aria-pressed=true]{display:none}.mode{width:40px;padding:0;justify-content:center}.bar .btn{padding:0 9px}.docbtn{padding:0 6px;gap:4px}}
