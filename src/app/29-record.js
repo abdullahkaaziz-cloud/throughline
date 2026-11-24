@@ -5,7 +5,7 @@
 const recEl = $('#record');
 // Categories in fixed order, on the validated chart slots (--s1…--s5); 'Other' folds to gray.
 const SOURCES = [['typed', 'Typed', '--s1'], ['pasted', 'Pasted', '--s2'], ['imported', 'From an imported file', '--s3'],
-  ['ai', 'Claude’s suggestions you accepted', '--s4'], ['outline', 'Headings from your outline', '--s5'], ['other', 'Other edits', '--s0']];
+  ['ai', AI + '’s suggestions you accepted', '--s4'], ['outline', 'Headings from your outline', '--s5'], ['other', 'Other edits', '--s0']];
 const ACT_DAYS = 200, ACT_LIST = 40;
 const dayKey = t => { const x = new Date(t); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
 const heads = t => trunc(String(t || '').replace(/\s+/g, ' ').trim().split(' ').slice(0, 12).join(' '), 80);
@@ -110,11 +110,11 @@ function aiStatement(R) {
     R.cards ? 'suggested ' + plural(R.cards, 'brainstorm card') + (R.kept ? ' (' + R.kept + ' kept)' : '') : '',
     R.vivas.length ? 'examined the writer in ' + plural(R.vivas.length, 'viva') : ''].filter(Boolean);
   const nSug = R.acc || (R.A ? R.A.ai.length : 0), fromApp = R.ins.ai + R.ins.outline;
-  const parts = [R.ins.ai ? (nSug ? plural(nSug, 'suggestion') : 'suggestions') + ' from Claude the writer accepted (' + R.ins.ai.toLocaleString() + ' characters)' : '',
+  const parts = [R.ins.ai ? (nSug ? plural(nSug, 'suggestion') : 'suggestions') + ' from ' + AI + ' the writer accepted (' + R.ins.ai.toLocaleString() + ' characters)' : '',
     R.ins.outline ? 'headings from the brainstorm outline (' + R.ins.outline.toLocaleString() + ' characters)' : ''].filter(Boolean);
-  return {did: did.length ? 'Claude ' + andList(did) + '.' : 'Claude wasn’t used on this essay in Throughline.',
+  return {did: did.length ? AI + ' ' + andList(did) + '.' : AI + ' wasn’t used on this essay in Throughline.',
     text: fromApp ? 'Text that came from Throughline rather than the writer: ' + andList(parts) + ', ' + pct(fromApp, R.total) + '% of the text added here.'
-      : R.total ? 'None of the text added here came from Claude.' : 'No text has been added in Throughline since the record started.',
+      : R.total ? 'None of the text added here came from ' + AI + '.' : 'No text has been added in Throughline since the record started.',
     how: 'Throughline’s reviews mark problems in place and never rewrite the essay. Its text changes only when the writer accepts a suggestion.'};
 }
 
@@ -140,7 +140,7 @@ function renderRecord() {
       R.deleted ? h('p', {class: 'smeta'}, 'Also deleted along the way: ' + R.deleted.toLocaleString() + ' characters.') : null,
       R.A && R.A.pastes.length ? h('details', {class: 'rlist', id: 'recPastes'}, h('summary', null, plural(R.A.pastes.length, 'paste') + ' · ' + R.ins.pasted.toLocaleString() + ' characters'),
         h('ul', null, R.A.pastes.slice().reverse().map(p => h('li', null, h('span', {class: 'smeta'}, fmtWhen(p.at) + ' · ' + plural(p.n, 'character')), p.head ? h('span', null, '“' + p.head + '”') : null)))) : null,
-      R.A && R.A.ai.length ? h('details', {class: 'rlist'}, h('summary', null, plural(R.A.ai.length, 'suggestion') + ' from Claude you accepted'),
+      R.A && R.A.ai.length ? h('details', {class: 'rlist'}, h('summary', null, plural(R.A.ai.length, 'suggestion') + ' from ' + AI + ' you accepted'),
         h('ul', null, R.A.ai.slice().reverse().map(p => h('li', null, h('span', {class: 'smeta'}, fmtWhen(p.at) + ' · ' + plural(p.n, 'character')), p.head ? h('span', null, '“' + p.head + '”') : null)))) : null),
     R.drafts.length ? h('section', {class: 'rsec'}, h('h3', null, 'How it changed'),
       h('div', {class: 'rscroll'}, h('table', {class: 'rtable'}, h('thead', null, h('tr', null, [['Draft'], ['Date'], ['Words'], ['Notes', 'Notes the review found'], ['Fixed', 'Notes fixed since the draft before'], ['New', 'Notes that are new since the draft before']]
@@ -218,7 +218,7 @@ function dayChart(R) {
     h('div', {class: 'raxis'}, h('span', null, fmtDay(days[0].day)), n > 1 ? h('span', null, fmtDay(days[n - 1].day)) : null));
   show(n - 1, false);
   const table = h('details', {class: 'rlist'}, h('summary', null, 'Day by day'),
-    h('div', {class: 'rscroll'}, h('table', {class: 'rtable'}, h('thead', null, h('tr', null, ['Date', 'Minutes', 'Words', 'Typed', 'Pasted', 'From Claude'].map((x, i) => h('th', {class: i ? 'num' : null}, x)))),
+    h('div', {class: 'rscroll'}, h('table', {class: 'rtable'}, h('thead', null, h('tr', null, ['Date', 'Minutes', 'Words', 'Typed', 'Pasted', 'From ' + AI].map((x, i) => h('th', {class: i ? 'num' : null}, x)))),
       h('tbody', null, days.filter(x => !x.gap).reverse().map(x => h('tr', null, h('td', null, fmtDay(x.day)), h('td', {class: 'num'}, Math.round(x.ms / 60000)), h('td', {class: 'num'}, x.w.toLocaleString()),
         h('td', {class: 'num'}, x.typed.toLocaleString()), h('td', {class: 'num'}, x.pasted.toLocaleString()), h('td', {class: 'num'}, x.ai.toLocaleString())))))));
   return h('div', {class: 'rdays'}, fig, read, table);
@@ -265,7 +265,7 @@ function recordHtml(d) {
     (R.A ? '<h2>Time</h2><p>' + (R.ms ? esc(dur(R.ms)) + ' writing, on ' + plural(R.active || 1, 'day') + '.' : 'None recorded yet.') + '</p>' +
       '<h2>Where the words came from</h2>' + (src ? '<ul>' + src + '</ul>' : '<p>Nothing recorded yet.</p>') + (R.deleted ? '<p>Also deleted along the way: ' + R.deleted.toLocaleString() + ' characters.</p>' : '') +
       (pastes ? '<h2>Pastes</h2><ul>' + pastes + '</ul>' : '') +
-      (days ? '<h2>Day by day</h2><table><thead><tr><th>Date</th><th class="n">Minutes</th><th class="n">Words</th><th class="n">Typed</th><th class="n">Pasted</th><th class="n">From Claude</th></tr></thead><tbody>' + days + '</tbody></table>' : '')
+      (days ? '<h2>Day by day</h2><table><thead><tr><th>Date</th><th class="n">Minutes</th><th class="n">Words</th><th class="n">Typed</th><th class="n">Pasted</th><th class="n">From ' + esc(AI) + '</th></tr></thead><tbody>' + days + '</tbody></table>' : '')
       : '<p>This essay was started before Throughline kept writing records, so time and where the words came from aren’t included.</p>') +
     (drafts ? '<h2>Drafts</h2><table><thead><tr><th>Draft</th><th class="n">Words</th><th class="n">Notes found</th><th class="n">Fixed since the draft before</th><th class="n">New since then</th></tr></thead><tbody>' + drafts + '</tbody></table>' : '') +
     (vivas ? '<h2>Vivas</h2><ul>' + vivas + '</ul><p>Answers given out loud: ' + R.spoken + ' · typed: ' + R.typedAns + ' · mostly pasted: ' + R.pastedAns + '</p>' : '') +

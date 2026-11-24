@@ -45,15 +45,30 @@ It suggests; you decide what changes. It never rewrites your essay.
 - **Library check:** every essay you add is checked against your others for clashes, and the clashing passage opens in place.
 - **Fix in one click:** small fixes come with suggested wording you can apply and undo. Notes you've dealt with move out of the way.
 - **Upload:** Word, PDF or text files, several at once.
-- **Your own AI plan:** this version runs inside Claude as a claude.ai artifact and uses the viewer's own Claude plan. ChatGPT and Gemini sign-in are next (see [ROADMAP.md](ROADMAP.md)).
+- **Your own AI plan:** inside Claude it uses the viewer's own Claude plan, and on your computer it uses your ChatGPT plan through Sign in with ChatGPT (see below). Neither needs an API key.
 - **Testing with others:** share the app from Claude with Contributor access. Each tester signs in with their own Claude account, so reviews run on their own plan and their essays stay private to them. Testers get a short welcome and a **Send feedback** box, and the owner reads everything under **Feedback from testers** in the essay menu.
+
+## Use it
+
+**Inside Claude, on your Claude plan.** Open the link to the app while signed in to Claude. Reviews run on your own plan, and your essays are saved in your own private space.
+
+**On your computer, on your ChatGPT plan.** You need [Node.js](https://nodejs.org) 22 or newer and ChatGPT Plus or Pro. Then run:
+
+```sh
+npx github:abdullahkaaziz-cloud/throughline
+```
+
+That opens Throughline at `http://127.0.0.1:4747` in your browser. Press **Continue with ChatGPT** and allow Throughline to use your plan. From a clone of this repo, `npm start` does the same.
+- Your essays are saved in that browser, on your computer.
+- Your ChatGPT sign-in is kept in memory only, so it ends when you stop Throughline (Ctrl+C). On disk, `~/.throughline/chatgpt.json` holds just the computer's sign-in id, Throughline's client id and the model you chose.
+- To see or limit what Throughline uses, go to [ChatGPT → Settings → Usage](https://chatgpt.com/settings/usage). **Disconnect** is in the AI menu.
 
 ## Develop
 
 ```sh
 npm ci --ignore-scripts                     # pdf.js and mammoth, used by the tests
 pip install -r requirements-dev.txt        # Playwright, for the browser tests
-npm test                                    # unit tests, build (dist/index.html), browser tests
+npm test                                    # unit tests, build (dist/index.html), browser tests for both versions
 ```
 
 Every pull request runs the same checks in CI. See [SECURITY.md](SECURITY.md) for how essays, AI output and third-party code are handled.
@@ -64,4 +79,5 @@ Every pull request runs the same checks in CI. See [SECURITY.md](SECURITY.md) fo
 - `src/index.html`, `src/styles.css`: the page shell and styles.
 - `src/lib.js`: pure helpers (PDF reflow, quote anchoring, word diff, checks on the AI's answers), with unit tests in `tests/`.
 - `src/app/`: the app, in numbered files.
+- `local/`: the version that runs on your computer: `throughline.mjs` starts it, `server.mjs` serves the page and talks to OpenAI, `siwc.mjs` is Sign in with ChatGPT.
 - `docs/review-prompt.md`, `docs/argument-prompt.md`, `docs/brainstorm-prompt.md`, `docs/map-prompt.md`, `docs/defend-prompt.md`: the instructions every AI provider gets.

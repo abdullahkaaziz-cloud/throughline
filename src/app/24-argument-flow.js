@@ -63,7 +63,7 @@ async function runArgmap() {
 }
 function argErrText(e) {
   const c = e && e.code;
-  return c === 'prompt_too_large' ? 'This essay is too long to map in one go.' : c === 'refused' ? 'Claude declined to map this text.' : errText(e);
+  return c === 'prompt_too_large' ? 'This essay is too long to map in one go.' : c === 'refused' ? AI + ' declined to map this text.' : errText(e);
 }
 
 // ---- the rail: thesis, the line, and where it breaks ----
@@ -100,9 +100,9 @@ function argEmptyEl() {
   const off = st.ai === 'denied' || st.ai === 'off';
   return h('section', {class: 'empty aempty'}, argSketch(), h('div', null,
     h('h3', null, 'See how the argument develops'),
-    h('p', null, 'Claude reads every paragraph and draws the essay as one line: what each paragraph does for your thesis, which paragraphs back each other up, and where the thread drifts or breaks.'),
+    h('p', null, AI + ' reads every paragraph and draws the essay as one line: what each paragraph does for your thesis, which paragraphs back each other up, and where the thread drifts or breaks.'),
     h('div', {class: 'acts'}, h('button', {class: 'btn sm primary', id: 'argRunBtn', onclick: runArgmap, disabled: off || !!st.argRun}, 'Map the argument')),
-    h('p', {class: 'fine'}, off && st.aiWhy ? st.aiWhy : 'Uses your Claude plan, like a review. Your essay isn’t changed.')));
+    h('p', {class: 'fine'}, off && st.aiWhy ? st.aiWhy : 'Uses your ' + AI + ' plan, like a review. Your essay isn’t changed.')));
 }
 function argMapEls(d, a) {
   const state = argState(d), linked = state !== 'moved', busy = !!st.argRun, probs = new Map();
@@ -122,7 +122,7 @@ function argMapEls(d, a) {
     a.problems.length ? h('section', {class: 'aprobs'}, h('span', {class: 'lbl'}, 'Where the thread breaks'),
       h('ol', null, a.problems.map(pr => probEl(pr, linked))),
       a.at ? h('div', {class: 'acts'}, h('button', {class: 'btn sm', type: 'button', onclick: openDefend}, 'Defend these in a viva')) : null) : h('p', {class: 'clean'}, 'No breaks found: every paragraph connects to the thesis.'),
-    h('p', {class: 'smeta'}, a.at ? 'Mapped by Claude · ' + ago(a.at) + ' · ' : 'Sample map · ', h('button', {class: 'lnk', onclick: runArgmap, disabled: busy}, 'Map again'))];
+    h('p', {class: 'smeta'}, a.at ? 'Mapped by ' + AI + ' · ' + ago(a.at) + ' · ' : 'Sample map · ', h('button', {class: 'lnk', onclick: runArgmap, disabled: busy}, 'Map again'))];
 }
 function nodeEl(a, p, probIdx, linked) {
   const R = roleOf(p.role), quiet = QUIET.includes(p.role), sel = st.argSel.includes(p.para);

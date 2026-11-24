@@ -10,7 +10,7 @@ const read = p => readFileSync(new URL(p, root), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
-  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, hash, words};`, ctx);
+  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, parseJsonReply, hash, words};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -275,6 +275,13 @@ test('validateHabits keeps habits backed by two real notes, with a known group',
     {title: 'Skipped steps', group: 'logic', detail: 'd', tip: 't', notes: ['N3', 'N4', 'N1']}]);
   assert.deepEqual(J(L.validateHabits({habits: [{title: 'A', group: 'gram', notes: ['N1', 'N2']}, {title: 'B', group: 'gram', notes: ['N3', 'N4']}]}, refs, 1)).map(x => x.title), ['A']);
   assert.deepEqual(J(L.validateHabits('nonsense', refs, 5)), []);
+});
+
+test('parseJsonReply reads a bare, fenced or wrapped JSON answer and refuses anything else', () => {
+  assert.deepEqual(J(L.parseJsonReply('{"a":1}')), {a: 1});
+  assert.deepEqual(J(L.parseJsonReply('```json\n{"a":[1,2]}\n```')), {a: [1, 2]});
+  assert.deepEqual(J(L.parseJsonReply('Here you go:\n{"issues":[]}\nHope that helps.')), {issues: []});
+  for (const bad of ['', 'no json here', '{"a":', null]) assert.throws(() => L.parseJsonReply(bad), e => e.code === 'invalid_json');
 });
 
 test('the prompt docs match the prompts the app sends', () => {

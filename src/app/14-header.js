@@ -12,6 +12,6 @@ function renderMeta() {
 function toggleEdit() { st.readOnly = !st.readOnly; ed.readOnly = st.readOnly; renderMeta(); if (!st.readOnly) ed.focus(); }
 function renderAiBtn() {
   $('#aiDot').dataset.s = st.ai;
-  aiBtn.title = st.ai === 'ready' ? 'Reviews run on your Claude plan' : st.ai === 'pending' ? 'Connecting to Claude…' : st.aiWhy;
+  aiBtn.title = st.ai === 'ready' ? 'Reviews run on your ' + AI + ' plan' : st.ai === 'pending' ? 'Connecting to ' + AI + '…' : st.aiWhy;
 }
 

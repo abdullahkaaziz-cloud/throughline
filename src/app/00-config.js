@@ -1,4 +1,8 @@
 
+// The local app (local/server.mjs) runs this page on the person's own computer with their ChatGPT plan; it marks
+// the page with window.TL_LOCAL = {key}. Inside Claude there is no such mark, and Claude does the reviews.
+const LOCAL = (() => { try { const x = window.TL_LOCAL; return x && typeof x.key === 'string' && /^[A-Za-z0-9_-]{20,100}$/.test(x.key) ? {key: x.key} : null; } catch (e) { return null; } })();
+const AI = LOCAL ? 'ChatGPT' : 'Claude';
 const TYPES = {
   contradiction: {label: 'Contradiction', g: 'rel', c: '--rel', rank: 0, rel: true},
   library_clash: {label: 'Library clash', g: 'rel', c: '--rel', rank: 1, src: true},
@@ -121,7 +125,7 @@ if (ios) { back.style.paddingLeft = '3px'; back.style.paddingRight = '3px'; }
 
 const st = {docs: new Map(), cur: null, filter: 'all', active: null, hover: null, anchors: new Map(), pstarts: [],
   asks: new Map(), askHover: null, reviewing: null, reviewError: null, tier: 'complex', store: 'none', importRole: 'essay', indexing: new Map(), supHi: null, view: 'notes', argRun: null, argErr: null, argHover: [], argSel: [], argHere: 0, mode: 'write', ideaRun: null, ideaErr: null, dragId: null, focusAdd: null, tlSel: -1, cmp: null, rmap: null, mapRun: null, mapErr: null, mapSel: null, mapFilter: 'all', viva: null, vivaStyle: 'tutor', vivaN: 5, vivaVoice: true, vivaView: null, dict: null, dictOn: false, tts: null, dl: null,
-  growth: null, habitRun: null, habitErr: null,
+  growth: null, habitRun: null, habitErr: null, gpt: null,
   loaded: false, touched: false, isOwner: false, ai: 'pending', aiWhy: '', tiers: null, sel: null, lastSig: '', readOnly: false, saveText: ''};
 let sampleFn = null, col = null;
 try { const p = JSON.parse(localStorage.getItem(PKEY) || '{}'); if (p.tier === 'default' || p.tier === 'complex') st.tier = p.tier; } catch (e) {}

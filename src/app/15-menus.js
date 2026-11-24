@@ -33,15 +33,16 @@ function renderDocMenu() {
   fill(docMenu, items);
 }
 function renderAiMenu() {
+  if (LOCAL) { renderLocalAiMenu(); return; }
   const tiersOk = !st.tiers || st.tiers.includes('complex');
   const prov = (name, sub, state, mine) => h('div', {class: 'prov' + (mine ? '' : ' off')}, h('span', {class: 'pdot', data: {s: state}}), h('span', {class: 'mt'}, h('b', null, name), h('span', {class: 'sub'}, sub)), mine ? (state === 'ready' ? h('span', {class: 'okmark', 'aria-label': 'In use'}, '✓') : null) : h('span', {class: 'soon'}, 'Soon'));
   const seg = (v, name, sub) => h('button', {'aria-pressed': String(st.tier === v), onclick: () => { st.tier = v; savePrefs(); renderAiMenu(); }}, h('b', null, name), h('span', {class: 'sub'}, sub));
   fill(aiMenu,
     h('div', {class: 'msec'}, 'Who reviews your writing'),
     prov('Claude', st.ai === 'ready' ? 'Your own Claude plan · connected' : st.ai === 'pending' ? 'Connecting…' : st.aiWhy, st.ai, true),
-    prov('ChatGPT', 'Sign in with ChatGPT · standalone app', 'later', false),
+    prov('ChatGPT', 'Run Throughline on your computer and continue with ChatGPT', 'later', false),
     prov('Gemini', 'Sign in with Google · standalone app', 'later', false),
-    h('p', {class: 'mnote'}, 'This preview runs inside Claude, so it can only ask Claude. The standalone Throughline app signs in to each provider with your own account, and every provider gets the same review instructions.'),
+    h('p', {class: 'mnote'}, 'This version runs inside Claude, so reviews use your Claude plan. The version that runs on your computer signs in with ChatGPT and uses your ChatGPT plan instead. Both get the same review instructions.'),
     tiersOk ? h('div', {class: 'msec'}, 'Review depth') : null,
     tiersOk ? h('div', {class: 'seg', role: 'group', 'aria-label': 'Review depth'}, seg('complex', 'Thorough', 'Slower, catches more'), seg('default', 'Faster', 'A quicker first pass')) : null,
     h('button', {class: 'mi', onclick: () => { closeMenus(); openSources(); }}, h('span', {class: 'mt'}, h('b', null, 'Sources and past essays'), h('span', {class: 'sub'}, 'Choose what reviews of this essay check against'))));

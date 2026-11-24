@@ -463,3 +463,14 @@ function validateHabits(raw, refs, max) {
   }
   return out;
 }
+
+// ---- a model's reply as JSON: the whole reply, a fenced block, or the outermost {...} in it ----
+function parseJsonReply(text) {
+  let s = String(text == null ? '' : text).trim();
+  const fenced = s.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced) s = fenced[1];
+  try { return JSON.parse(s); } catch (e) {}
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch (e) {} }
+  throw {code: 'invalid_json', message: 'The answer came back in the wrong shape.'};
+}
