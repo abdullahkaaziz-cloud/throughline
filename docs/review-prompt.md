@@ -1,6 +1,6 @@
 # Review prompt
 
-Every AI provider gets the same instructions. The source of truth is `REVIEW_RULES` in `src/app/00-config.js`; regenerate this file with `node tools/sync-prompt-doc.mjs` (a unit test checks they match).
+Every AI provider gets the same instructions. The source of truth is `REVIEW_RULES` in `src/app/00-config.js`; regenerate this file with `npm run sync-prompt-doc` (a unit test checks they match).
 
 After the rules, the app sends:
 
@@ -21,7 +21,7 @@ OTHER DOCUMENTS (role "essay": the writer's earlier essays; role "source": mater
 </document>
 ```
 
-Text inside every block is "fenced": a "<" that would open or close a document, brief, essay or claims block is replaced with "‹", so a source can't break out of its block. The app then checks every quote in the answer against the real text and drops anything it can't find, any unknown type, and any note with confidence below 0.3.
+Text inside every block is "fenced": a "<" that would open or close a document, brief, essay or claims block is replaced with "‹", so a document can't break out of its block. The app then checks every quote in the answer against the real text and drops anything it can't find, any unknown type, and any note with confidence below 0.3.
 
 ## Rules
 

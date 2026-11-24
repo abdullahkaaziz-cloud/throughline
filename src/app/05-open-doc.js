@@ -2,6 +2,7 @@
 function openDoc(d) {
   if (!srcWrap.hidden) flushBrief();
   st.cur = d; st.active = null; st.hover = null; st.filter = 'all'; st.anchors = new Map(); st.reviewError = null;
+  st.argHover = []; st.argSel = []; st.argHere = 0;
   hideSelbar(); closeMenus();
   loadEditor();
   if (!srcWrap.hidden) buildSources();

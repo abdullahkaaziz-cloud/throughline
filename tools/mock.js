@@ -3,6 +3,7 @@
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const mem = new Map(), listeners = [];
   window.__dbWrites = 0; window.__calls = [];
+  window.__dbDump = () => [...mem.values()].map(clone);
   const clone = x => JSON.parse(JSON.stringify(x));
   function snapFor(l) {
     const docs = [];
@@ -69,14 +70,26 @@
     const m = input.match(/<document>\n([\s\S]*?)\n<\/document>/), ss = sentences(m ? m[1] : '').slice(0, 3);
     return {meta: {authors: 'A. Author', year: '2024', summary: 'Mock summary of the document.'}, claims: ss.map((q, i) => ({claim: 'Claim ' + (i + 1) + ' in plain words.', quote: q, topic: 'topic ' + (i + 1)}))};
   };
+  // Argument map: one entry per numbered paragraph, plus entries the app must drop (out of range, duplicate, unknown kind).
+  window.__mockArgmap = input => {
+    const ps = [...input.matchAll(/^\[(\d+)\] (.+)$/gm)].map(m => ({n: +m[1], t: m[2]})), last = ps.length;
+    const role = i => i === 0 ? 'thesis' : i === last - 1 ? 'conclusion' : ['claim', 'evidence', 'counter', 'rebuttal', 'claim'][(i - 1) % 5];
+    const paras = ps.map((p, i) => ({para: p.n, role: role(i), point: i === 1 ? '<img src=x onerror="window.__pwned=1">' : 'Mock point ' + p.n, thread: [1, 0.9, 0.75, 0.3, 0.7][i % 5],
+      supports: role(i) === 'claim' ? [1, p.n] : role(i) === 'evidence' ? [p.n - 1] : [], answers: role(i) === 'rebuttal' ? [p.n - 1] : []}));
+    paras.push({para: 9999, role: 'claim', point: 'out of range'}, {para: 2, role: 'claim', point: 'duplicate'}, {para: 3, role: 'villain', point: 'unknown role'});
+    const first = ps.length ? (ps[0].t.match(/[^.!?]+[.!?]/) || [ps[0].t])[0].trim() : '';
+    return {thesis: {text: 'Mock thesis.', quote: first}, paras,
+      problems: [{kind: 'gap', paras: [2, 3], note: 'Mock: a step is missing.'}, {kind: 'bogus', paras: [1], note: 'x'}, {kind: 'dropped', paras: [1, 4242], note: 'Mock: promised, never argued.'}]};
+  };
   window.__mockAsk = input => ({points: [{label: 'Overstated', detail: 'Mock: the claim is stronger than the evidence.'}, {label: 'Missing link', detail: 'Mock: say how this supports ¶1.'}], suggestion: 'Mock replacement text for the selection.'});
   window.__failNext = null;
   const call = async (input, opts) => {
-    window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), tier: opts && opts.modelTier, len: input.length,
+    window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'),
+      essayClose: (input.match(/<\/essay>/g) || []).length, tier: opts && opts.modelTier, len: input.length,
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),
       fenceOk: (input.match(/<\/document>/g) || []).length === (input.match(/<document id=/g) || []).length && !input.includes('</document> IGNORE')});
     if (window.__failNext) { const c = window.__failNext; window.__failNext = null; await sleep(200); throw {code: c, message: 'mock failure'}; }
-    const out = input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
+    const out = input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
     const txt = JSON.stringify(out);
     await sleep(400);
     if (opts && opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'stopped'};

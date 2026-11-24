@@ -41,7 +41,7 @@ $('#selform').addEventListener('submit', e => { e.preventDefault(); const q = se
 reviewBtn.addEventListener('click', runReview);
 docBtn.addEventListener('click', () => openMenu(docMenu, docBtn, false));
 aiBtn.addEventListener('click', () => openMenu(aiMenu, aiBtn, true));
-$('#rhead').addEventListener('click', e => { if (narrow.matches && !e.target.closest('.chip')) rail.classList.toggle('open'); });
+$('#rhead').addEventListener('click', e => { if (narrow.matches && !e.target.closest('.chip, .rtab')) rail.classList.toggle('open'); });
 fileIn.addEventListener('change', () => { const fs = [...fileIn.files], role = st.importRole; fileIn.value = ''; st.importRole = 'essay'; if (fs.length) importFiles(fs, role); });
 $('#readerClose').addEventListener('click', closeReader);
 $('#readerOpen').addEventListener('click', () => { const d = readerDoc; closeReader(); if (d) openDoc(d); });
@@ -59,6 +59,7 @@ addEventListener('keydown', e => {
     else if (!docMenu.hidden || !aiMenu.hidden) closeMenus();
     else if (!selbar.hidden) hideSelbar();
     else if (st.active) setActive(null);
+    else if (st.argSel.length) setArgSel([]);
     else closeSheet();
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); runReview(); }

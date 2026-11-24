@@ -1,6 +1,7 @@
 // ---- focus and hover ----
 function setHover(id) { if (st.hover === id) return; st.hover = id; applyStates(); }
 function setActive(id, scroll) {
+  if (id && st.view !== 'notes') setView('notes');
   st.active = id; renderRail(); applyStates();
   if (!id) return;
   if (scroll === 'text' && !narrow.matches) scrollToIssue(id);

@@ -9,6 +9,11 @@ An essay editor that shows your reasoning. Press **Review** and the AI reads the
 
 It suggests; you decide what changes. It never rewrites your essay.
 
+- **Argument flow:** the Argument tab draws the essay as one line through its paragraphs.
+  - Each paragraph is labelled by what it does for the thesis: claim, evidence, objection, reply and so on.
+  - Arcs join paragraphs that back up or answer each other.
+  - The line drifts left where a paragraph strays from the thesis and breaks where a step is missing. Dropped threads and unanswered objections are listed.
+  - The same line runs in the margin beside the text. Hover either one to light up the paragraph.
 - **Ask about any passage:** select text and ask "What's wrong?", "Make it stronger", "Does it follow?" or your own question.
 - **Sources and brief:** add the papers you're using and your assignment brief. For each essay, switch sources on or off.
   - Reviews flag claims a source contradicts and citations a source doesn't back up.
@@ -35,4 +40,4 @@ Every pull request runs the same checks in CI. See [SECURITY.md](SECURITY.md) fo
 - `src/index.html`, `src/styles.css`: the page shell and styles.
 - `src/lib.js`: pure helpers (PDF reflow, quote anchoring, word diff, checks on the AI's answers), with unit tests in `tests/`.
 - `src/app/`: the app, in numbered files.
-- `docs/review-prompt.md`: the review instructions every AI provider gets.
+- `docs/review-prompt.md`, `docs/argument-prompt.md`: the instructions every AI provider gets.

@@ -19,6 +19,6 @@ function openIssues() {
 const visibleIssues = () => openIssues().filter(is => st.filter === 'all' || TYPES[is.type].g === st.filter);
 function changedSinceReview() { const rv = st.cur.review; return !!(rv && rv.textHash && rv.textHash !== hash(ed.value)); }
 function openSig() {
-  return openIssues().map(is => { const an = st.anchors.get(is.id); return is.id + ':' + para(an.a[0]) + (an.b ? '-' + para(an.b[0]) : ''); }).join('|') + '#' + Object.keys(st.cur.marks || {}).length + (changedSinceReview() ? '*' : '');
+  return openIssues().map(is => { const an = st.anchors.get(is.id); return is.id + ':' + para(an.a[0]) + (an.b ? '-' + para(an.b[0]) : ''); }).join('|') + '#' + Object.keys(st.cur.marks || {}).length + (changedSinceReview() ? '*' : '') + (st.view === 'argument' ? '~' + argState(st.cur) : '');
 }
 

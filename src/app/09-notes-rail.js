@@ -2,8 +2,9 @@
 function renderHead() {
   const rv = st.cur.review, open = rv ? openIssues() : [], busy = st.reviewing && st.reviewing.doc === st.cur;
   rcount.textContent = busy ? 'reviewing…' : rv ? (open.length ? open.length + ' open' : 'all clear') : '';
+  $('#acount').textContent = st.argRun && st.argRun.doc === st.cur ? 'mapping…' : '';
   chipsEl.replaceChildren();
-  chipsEl.hidden = !rv || !open.length;
+  chipsEl.hidden = st.view !== 'notes' || !rv || !open.length;
   if (chipsEl.hidden) return;
   for (const [g, label] of GROUPS) {
     const n = g === 'all' ? open.length : open.filter(is => TYPES[is.type].g === g).length;
@@ -15,6 +16,7 @@ function renderHead() {
 function renderRail() {
   if (!st.cur) return;
   renderHead();
+  if (st.view === 'argument') { renderArg(); return; }
   const keep = rbody.scrollTop, d = st.cur, rv = d.review, kids = [];
   const busy = st.reviewing && st.reviewing.doc === d;
   if (busy) kids.push(progressEl());

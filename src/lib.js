@@ -262,3 +262,36 @@ function parseReview(raw, o) {
   const s = plainObj(r.summary);
   return {summary: {thesis: clip(s.thesis, 400), start_with: clip(s.start_with, 400)}, issues, links, brief};
 }
+
+// ---- argument map: what each paragraph does, and how the argument hangs together ----
+const ARG_ROLES = ['thesis', 'claim', 'evidence', 'counter', 'rebuttal', 'context', 'conclusion', 'heading', 'aside'];
+const ARG_PROBLEMS = ['dropped', 'circular', 'gap', 'unanswered'];
+function paraList(v, n, self) {
+  const out = [];
+  for (const x of Array.isArray(v) ? v : []) {
+    const k = Number(x);
+    if (Number.isInteger(k) && k >= 1 && k <= n && k !== self && !out.includes(k)) out.push(k);
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+// The model's map, checked against the essay: paragraph numbers in range, known roles and problem kinds, bounded text.
+function validateArgmap(raw, text) {
+  const r = plainObj(raw), n = paraStarts(text).length, byPara = new Map();
+  for (const x of (Array.isArray(r.paras) ? r.paras : []).slice(0, 800)) {
+    if (byPara.size >= 400) break;
+    const o = plainObj(x), p = Number(o.para);
+    if (!Number.isInteger(p) || p < 1 || p > n || byPara.has(p)) continue;
+    const role = clip(o.role, 20).toLowerCase(), th = Number(o.thread);
+    byPara.set(p, {para: p, role: ARG_ROLES.includes(role) ? role : 'context', point: clip(o.point, 140),
+      thread: Number.isFinite(th) ? Math.max(0, Math.min(1, th)) : 0.5, supports: paraList(o.supports, n, p), answers: paraList(o.answers, n, p)});
+  }
+  const problems = [];
+  for (const x of (Array.isArray(r.problems) ? r.problems : []).slice(0, 12)) {
+    const o = plainObj(x), kind = clip(o.kind, 20).toLowerCase(), ps = paraList(o.paras, n, 0).slice(0, 4);
+    if (ARG_PROBLEMS.includes(kind) && ps.length) problems.push({kind, paras: ps, note: clip(o.note, 220)});
+    if (problems.length >= 8) break;
+  }
+  const t = plainObj(r.thesis), at = t.quote ? anchorFuzzy(text, t.quote) : null;
+  return {n, thesis: {text: clip(t.text, 300), quote: at ? text.slice(at[0], at[1]) : null}, paras: [...byPara.values()].sort((a, b) => a.para - b.para), problems};
+}

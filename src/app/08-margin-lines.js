@@ -4,6 +4,7 @@ function scheduleLines() { if (!lineRAF) lineRAF = requestAnimationFrame(() => {
 function drawLines() {
   gut.replaceChildren();
   const box = gut.getBoundingClientRect(), W = box.width; if (!W) return;
+  if (st.view === 'argument') { drawThread(); drawChips(); drawArgMap(); return; }
   const items = [];
   for (const is of visibleIssues()) {
     const an = st.anchors.get(is.id);
@@ -38,7 +39,7 @@ function drawLines() {
   drawChips();
 }
 function styleLines() {
-  for (const g of gut.children) {
+  for (const g of gut.querySelectorAll('g.rl')) {
     const id = g.getAttribute('data-id');
     g.classList.toggle('on', id === st.active);
     g.classList.toggle('hov', id === st.hover);
