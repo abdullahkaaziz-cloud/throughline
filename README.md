@@ -46,7 +46,6 @@ It suggests; you decide what changes. It never rewrites your essay.
 - **Fix in one click:** small fixes come with suggested wording you can apply and undo. Notes you've dealt with move out of the way.
 - **Upload:** Word, PDF or text files, several at once.
 - **Your own AI plan:** this version runs inside Claude as a claude.ai artifact and uses the viewer's own Claude plan. ChatGPT and Gemini sign-in are next (see [ROADMAP.md](ROADMAP.md)).
-
 - **Testing with others:** share the app from Claude with Contributor access. Each tester signs in with their own Claude account, so reviews run on their own plan and their essays stay private to them. Testers get a short welcome and a **Send feedback** box, and the owner reads everything under **Feedback from testers** in the essay menu.
 
 ## Develop
