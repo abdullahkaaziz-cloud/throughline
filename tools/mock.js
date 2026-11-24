@@ -106,10 +106,30 @@
     }
     return {cards};
   };
+  // Research map: two themes, a clash between the first two essays, a source that supports an essay, a citation,
+  // and links and threads the app must drop (unknown document, made-up quote, unknown kind).
+  window.__mockRmap = input => {
+    const docs = [...input.matchAll(/<document id="(D\d+)" role="(\w+)" title="([^"]*)" content="([^"]*)">\n([\s\S]*?)\n<\/document>/g)]
+      .map(m => ({id: m[1], role: m[2], mode: m[4], body: m[5]}));
+    const pick = d => {
+      if (d.mode === 'main claims only') { const m = d.body.match(/^(c\d+): .*\n\s+"(.*)"$/m); return m ? {claim: m[1], quote: m[2]} : {}; }
+      return {quote: sentences(d.body.split('\n').find(l => l.split(' ').length > 8) || d.body)[0]};
+    };
+    const E = docs.filter(d => d.role === 'essay'), S = docs.filter(d => d.role === 'source'), links = [];
+    if (E.length > 1) { const a = pick(E[0]), b = pick(E[1]); links.push({from: E[0].id, to: E[1].id, kind: 'clash', from_claim: a.claim, from_quote: a.quote, to_claim: b.claim, to_quote: b.quote, note: 'Mock: these two essays disagree.', try: 'Mock: narrow one of the claims.'}); }
+    if (S.length && E.length) {
+      const a = pick(S[0]), b = pick(E[0]);
+      links.push({from: S[0].id, to: E[0].id, kind: 'supports', from_claim: a.claim, from_quote: a.quote, to_claim: b.claim, to_quote: b.quote, note: 'Mock: the source backs the essay up.'});
+      links.push({from: E[0].id, to: S[0].id, kind: 'cites', from_claim: b.claim, from_quote: b.quote, note: 'Mock: the essay relies on the source.'});
+    }
+    if (E.length) links.push({from: E[0].id, to: 'D99', kind: 'cites', from_quote: 'x'}, {from: E[0].id, to: (E[1] || S[0] || E[0]).id, kind: 'supports', from_quote: 'Words that appear in no document anywhere at all.', to_quote: 'More words that appear nowhere.'}, {from: E[0].id, to: (E[1] || S[0] || E[0]).id, kind: 'adores', from_quote: 'x', to_quote: 'y'});
+    return {themes: [{name: 'Mock theme: your essays', docs: E.map(d => d.id)}, {name: 'Mock theme: sources', docs: S.map(d => d.id).concat(['D99'])}, {name: 'Ghosts', docs: ['D99']}], links,
+      threads: [{question: 'Mock: is the open question ever settled?', docs: E.slice(0, 2).map(d => d.id), note: 'Mock: the essays answer differently.'}, {question: 'Mock ghost thread', docs: ['D99']}]};
+  };
   window.__mockAsk = input => ({points: [{label: 'Overstated', detail: 'Mock: the claim is stronger than the evidence.'}, {label: 'Missing link', detail: 'Mock: say how this supports ¶1.'}], suggestion: 'Mock replacement text for the selection.'});
   window.__failNext = null;
   const call = async (input, opts) => {
-    window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'),
+    window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'), rmap: input.includes('You map how a writer'), docs: (input.match(/<document id=/g) || []).length,
       recheck: input.includes('THIS IS A RE-CHECK'), starred: (input.match(/^\[\d+\*\] /gm) || []).length,
       essayLen: input.includes('\n\nESSAY (') ? input.slice(input.indexOf('\n\nESSAY ('), input.indexOf('OTHER DOCUMENTS')).length : 0,
       questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,
@@ -117,7 +137,7 @@
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),
       fenceOk: (input.match(/<\/document>/g) || []).length === (input.match(/<document id=/g) || []).length && !input.includes('</document> IGNORE')});
     if (window.__failNext) { const c = window.__failNext; window.__failNext = null; await sleep(200); throw {code: c, message: 'mock failure'}; }
-    const out = input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
+    const out = input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
     const txt = JSON.stringify(out);
     await sleep(400);
     if (opts && opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'stopped'};

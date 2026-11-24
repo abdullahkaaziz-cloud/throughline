@@ -94,7 +94,19 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
 - **Efficiency:** re-checks only re-read the paragraphs you changed and whatever they connect to, so they're faster and use less of your plan.
 - **Why it wins:** version history shows text, not reasoning. The timeline also shows your own writing process, which is useful evidence that you did the work.
 
-### 5. Research map (the last feature)
+### 5. Research map (the last feature, shipped in v0.6)
+**Shipped:**
+- Map mode: every essay and source as a card, grouped into themes Claude names, read from each document's claims index;
+- links down to the passage: clash, supports, builds on, critiques and cites, with filters and counts;
+- choose a line to read the two passages side by side, with a way to resolve a clash; open both (essay in the editor, the other in the reader), brainstorm it, or hide it;
+- choose a card to see its links, open it, see its argument flow, start a brainstorm, or switch it in or out of each essay's reviews;
+- open threads: questions your work raises but never settles, each a one-click brainstorm;
+- the map is saved beside your documents and says when the library has changed since.
+
+**Next:**
+- re-map only the documents that changed;
+- drag cards to arrange the map yourself, and name or merge themes.
+
 - **What it does:** a living map of everything you've written and read.
   - Essays and sources are nodes, and lines show how they connect: builds on, supports or clashes. Themes cluster on their own.
   - Click a line to see the two passages side by side. Click a node to switch it in or out of reviews, open it, or see its argument flow.

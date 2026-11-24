@@ -1,4 +1,4 @@
-// Regenerates docs/review-prompt.md, docs/argument-prompt.md and docs/brainstorm-prompt.md from the prompts in src/app/00-config.js
+// Regenerates docs/review-prompt.md, docs/argument-prompt.md, docs/brainstorm-prompt.md and docs/map-prompt.md from the prompts in src/app/00-config.js
 // (the code is the source of truth). Run: npm run sync-prompt-doc. A unit test checks they match.
 import fs from 'node:fs';
 const root = new URL('../', import.meta.url);
@@ -109,5 +109,27 @@ ${rules('IDEA_RULES')}
 `;
 fs.writeFileSync(new URL('docs/review-prompt.md', root), review);
 fs.writeFileSync(new URL('docs/argument-prompt.md', root), argument);
+const map = `# Research map prompt
+
+The research map asks for a map only when the writer presses "Map my work" or "Map again". The source of truth is \`MAP_RULES\` in \`src/app/00-config.js\`; regenerate this file with \`npm run sync-prompt-doc\` (a unit test checks they match).
+
+Long documents are first read once into their claims index (cached by text hash). After the rules, the app sends every essay and source, each in its own block:
+
+\`\`\`
+DOCUMENTS (role "essay": the writer's own essays; role "source": material they use):
+<document id="D1" role="essay" title="<title>" content="full text | main claims only">
+<the text, or the document's claims index: "c1: claim" lines with exact quotes>
+</document>
+\`\`\`
+
+${FENCE} The app keeps only documents it sent, puts each document in at most one theme, keeps link kinds from a fixed list, and keeps a link only when its passages are really in those documents (a "cites" or "builds_on" link may name only its own side). It also caps every field (\`validateRmap\` in \`src/lib.js\`).
+
+## Rules
+
+\`\`\`
+${rules('MAP_RULES')}
+\`\`\`
+`;
 fs.writeFileSync(new URL('docs/brainstorm-prompt.md', root), brainstorm);
-console.log('docs/review-prompt.md, docs/argument-prompt.md and docs/brainstorm-prompt.md updated');
+fs.writeFileSync(new URL('docs/map-prompt.md', root), map);
+console.log('docs/review-prompt.md, docs/argument-prompt.md, docs/brainstorm-prompt.md and docs/map-prompt.md updated');

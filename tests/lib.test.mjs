@@ -10,7 +10,7 @@ const read = p => readFileSync(new URL(p, root), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
-  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, hash, words};`, ctx);
+  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, hash, words};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -202,9 +202,39 @@ test('recheckPlan reads changed paragraphs, their neighbours and what the last r
   assert.equal(L.recheckPlan(prev, ['a', 'b', 'c', 'd', 'e', 'p6', 'p7', 'p8', 'p9', 'p10'], []), null);   // too much changed
 });
 
+test('validateRmap keeps real documents, known link kinds and passages that are really there', () => {
+  const docs = {
+    D1: {id: 'e1', title: 'Essay one', text: 'Creating is always better for God. So God must create.', claims: []},
+    D2: {id: 'e2', title: 'Essay two', text: 'A merciful God might prefer not to create at all.', claims: []},
+    D3: {id: 's1', title: 'A source', text: 'Activity is the most perfect state.', claims: [{id: 'c1', quote: 'Activity is the most perfect state.'}]}};
+  const resolveDoc = ref => Object.prototype.hasOwnProperty.call(docs, ref) ? docs[ref] : null;
+  const raw = JSON.parse(JSON.stringify({
+    themes: [{name: 'God and creation', docs: ['D1', 'D2', 'D3', 'D1']}, {name: 'Repeats', docs: ['D2']}, {name: 'Nobody', docs: ['D9']}, {name: '', docs: ['D3']}],
+    links: [
+      {from: 'D1', to: 'D2', kind: 'Clash', from_quote: 'creating is always better for God', to_quote: 'prefer not to create at all', note: 'They disagree.', try: 'Limit the claim.'},
+      {from: 'D3', to: 'D1', kind: 'supports', from_claim: 'c1', to_quote: 'So God must create.', note: 'Backs it up.', try: 'ignored'},
+      {from: 'D1', to: 'D3', kind: 'cites', from_quote: 'So God must create.', note: 'Relies on it.'},
+      {from: 'D2', to: 'D1', kind: 'clash', from_quote: 'A merciful God', to_quote: 'So God must create.'},
+      {from: 'D1', to: 'D2', kind: 'supports', from_quote: 'Made up words that are nowhere.', to_quote: 'A merciful God'},
+      {from: 'D1', to: 'D1', kind: 'clash', from_quote: 'So God', to_quote: 'So God'},
+      {from: 'D1', to: 'D9', kind: 'cites', from_quote: 'So God'},
+      {from: 'D1', to: 'D2', kind: 'loves', from_quote: 'So God', to_quote: 'A merciful God'}],
+    threads: [{question: 'Is creating always better for God?', docs: ['D1', 'D2', 'D2'], note: 'They answer differently.'}, {question: 'Ghost', docs: ['D9']}, {question: '', docs: ['D1']}]}));
+  const m = J(L.validateRmap(raw, {resolveDoc}));
+  assert.deepEqual(m.themes, [{name: 'God and creation', docs: ['e1', 'e2', 's1']}]);
+  assert.deepEqual(m.links.map(l => [l.from, l.to, l.kind]), [['e1', 'e2', 'clash'], ['s1', 'e1', 'supports'], ['e1', 's1', 'cites']]);
+  assert.equal(m.links[0].qa, 'Creating is always better for God');
+  assert.equal(m.links[0].fix, 'Limit the claim.');
+  assert.equal(m.links[1].qa, 'Activity is the most perfect state.');
+  assert.equal(m.links[1].fix, '');
+  assert.equal(m.links[2].qb, null);
+  assert.deepEqual(m.threads, [{q: 'Is creating always better for God?', docs: ['e1', 'e2'], note: 'They answer differently.'}]);
+  assert.deepEqual(J(L.validateRmap('nonsense', {})), {themes: [], links: [], threads: []});
+});
+
 test('the prompt docs match the prompts the app sends', () => {
   const cfg = read('src/app/00-config.js');
-  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md']]) {
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md']]) {
     const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
     assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
   }

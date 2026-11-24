@@ -22,6 +22,11 @@ It suggests; you decide what changes. It never rewrites your essay.
   - A strip of drafts in the Notes view shows the open notes by colour, the ones you dealt with, and what each review fixed (−) and found (+).
   - **Compare** lines two drafts up paragraph by paragraph: unchanged paragraphs fold away, edits show word by word, and the notes are sorted into fixed, still open, new and dismissed.
   - After small edits, **Review again** re-checks only the changed paragraphs, their neighbours and what they connect to, so it's quicker and uses less of your plan. **Review everything** runs a full review.
+- **Research map:** press **Map** to see everything you've written and read.
+  - Your essays and sources are grouped by theme, with lines for what builds on, supports, critiques, cites or clashes with what.
+  - Choose a line to read the two passages side by side, with a way to resolve a clash. Open both, brainstorm it, or hide it.
+  - Choose a card to see its links, open it, see its argument flow, or switch it in or out of each essay's reviews.
+  - **Open threads** lists questions your work raises but never settles; each one can start a brainstorm.
 - **Ask about any passage:** select text and ask "What's wrong?", "Make it stronger", "Does it follow?" or your own question.
 - **Sources and brief:** add the papers you're using and your assignment brief. For each essay, switch sources on or off.
   - Reviews flag claims a source contradicts and citations a source doesn't back up.
@@ -48,4 +53,4 @@ Every pull request runs the same checks in CI. See [SECURITY.md](SECURITY.md) fo
 - `src/index.html`, `src/styles.css`: the page shell and styles.
 - `src/lib.js`: pure helpers (PDF reflow, quote anchoring, word diff, checks on the AI's answers), with unit tests in `tests/`.
 - `src/app/`: the app, in numbered files.
-- `docs/review-prompt.md`, `docs/argument-prompt.md`, `docs/brainstorm-prompt.md`: the instructions every AI provider gets.
+- `docs/review-prompt.md`, `docs/argument-prompt.md`, `docs/brainstorm-prompt.md`, `docs/map-prompt.md`: the instructions every AI provider gets.

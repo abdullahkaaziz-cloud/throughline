@@ -386,7 +386,7 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 /* the bar: only the essay name gives way on narrow screens, so icons never get squeezed */
 .bar>*:not(.docbtn):not(.spacer){flex:none}
 @media (max-width:760px){.mode span,.srcbtn .srclabel{display:none}.mode{padding:0 9px}}
-@media (max-width:600px){.modes{margin-left:0;padding:0;background:none}.mode[aria-pressed=true]{display:none}.mode{width:40px;padding:0;justify-content:center}.bar .btn{padding:0 9px}.docbtn{padding:0 6px;gap:4px}}
+@media (max-width:600px){.brand{display:none}.modes{margin-left:0;padding:0;background:none}.mode[aria-pressed=true]{display:none}.mode{width:40px;padding:0;justify-content:center}.bar .btn{padding:0 9px}.docbtn{padding:0 6px;gap:4px}}
 /* draft timeline: the strip in the Notes view, and Compare */
 .tline{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
 .thead{display:flex;align-items:center;justify-content:space-between}
@@ -437,3 +437,66 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 @media (max-width:760px){.crow,.ccols{grid-template-columns:1fr;gap:8px}.ccols{display:none}.cpara.none{display:none}.cpara{font-size:16px}
  .crow .cpara.old::before,.crow .cpara.new::before{display:block;margin-bottom:2px;font:600 11.5px/1.4 Inter,system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
  .crow .cpara.old::before{content:'Before'}.crow .cpara.new::before{content:'After'}}
+/* research map: the whole library as themes, cards and links */
+.layout.mapping{grid-template-columns:minmax(0,1fr)}
+.layout.mapping .paper,.layout.mapping .rail{display:none}
+.mhead h2{margin:0;font:600 26px/1.25 "Source Serif 4",Georgia,serif}
+.mintro{margin:4px 0 16px;color:var(--ink2);font-size:15px}
+.mbar{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 10px}
+.mbar .chip .n{margin-left:6px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.mbar .chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.mbar .chip[aria-pressed=true] .n{color:inherit;opacity:.75}
+.mcanvas{position:relative;isolation:isolate;margin:10px 0 22px}
+.mcanvas .mlines{position:absolute;left:0;top:0;z-index:1;overflow:visible;pointer-events:none}
+.mlabels{position:absolute;inset:0;z-index:3;pointer-events:none}
+.mthemes{display:grid;gap:26px}
+.mtheme{padding:14px 16px 20px;border:1.5px dashed var(--line2);border-radius:16px}
+.mtheme.later{border-style:dotted}
+.mtheme h3{margin:0 0 30px;font-size:12.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink3)}
+.mnodes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:46px 44px}
+.mnode{position:relative;z-index:2;display:grid;grid-template-columns:auto minmax(0,1fr);gap:1px 7px;align-items:start;padding:9px 12px 10px 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);box-shadow:0 1px 2px var(--sh);text-align:left;color:var(--ink);transition:box-shadow .15s,border-color .15s}
+.mnode:hover{border-color:var(--line2);box-shadow:0 2px 8px var(--sh)}
+.mnode.ess{border-top:3px solid var(--ink)}
+.mnode.src{border-radius:18px;background:color-mix(in srgb,var(--evid) 5%,var(--paper))}
+.mnode.src .mic{color:var(--evid)}
+.mnode.off{opacity:.62;border-style:dashed}
+.mnode.cur{outline:2px solid color-mix(in srgb,var(--ink) 25%,transparent);outline-offset:2px}
+.mnode.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.mic{grid-row:span 2;padding-top:2px;color:var(--ink2)}
+.mtitle{font-weight:600;font-size:14.5px;line-height:1.3;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.mnode.src .mtitle{font-weight:500;font-size:14px}
+.mmeta{font-size:12.5px;color:var(--ink3);line-height:1.35}
+.mlink .ml{fill:none;stroke:var(--ink3);stroke-width:1.6;opacity:.7;transition:stroke-width .15s}
+.mlink.k-cites .ml{stroke-dasharray:2 4}
+.mlink.k-supports .ml{stroke:var(--evid);stroke-width:2;opacity:.9}
+.mlink.k-critiques .ml{stroke:var(--logic);stroke-dasharray:6 4;opacity:.9}
+.mlink.k-clash .ml{stroke:var(--rel);stroke-width:2.6;opacity:1}
+.mlink .hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}
+.mlink:hover .ml,.mlink.hov .ml,.mlink.on .ml{stroke-width:4;opacity:1}
+.mlab{--lc:var(--ink2);position:absolute;transform:translate(-50%,-50%);pointer-events:auto;padding:1px 8px 2px;border:1px solid color-mix(in srgb,var(--lc) 35%,var(--line));border-radius:999px;background:var(--paper);font-size:11.5px;font-weight:500;line-height:1.5;color:var(--lc);white-space:nowrap;box-shadow:0 1px 2px var(--sh)}
+.mlab.k-clash{--lc:var(--rel);font-weight:600}
+.mlab.k-supports{--lc:var(--evid)}
+.mlab.k-critiques{--lc:var(--logic)}
+.mlab:hover{border-color:var(--lc)}
+.mlab.on{background:var(--lc);border-color:var(--lc);color:var(--paper)}
+.mdetail{display:grid;gap:10px;margin:0 0 22px;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--ground)}
+.mdetail h3{margin:0;font:600 20px/1.3 "Source Serif 4",Georgia,serif}
+.mpair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mq{margin:0;background:var(--paper)}
+.mnote{margin:0;font-size:15px;line-height:1.5}
+.mrel{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.mrel li{display:flex;align-items:center;gap:8px;font-size:14px}
+.mrel .dot{width:8px;height:8px;border-radius:50%;background:var(--tc)}
+.mswitches{display:grid;gap:6px}
+.mswitch{display:flex;align-items:center;gap:10px;font-size:14px}
+.mthreads{display:grid;gap:4px;margin-bottom:18px}
+.mthreads h3{margin:0;font:600 18px/1.3 "Source Serif 4",Georgia,serif}
+.mthreads ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:8px}
+.mthreads li{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--clar);border-radius:10px;background:var(--paper)}
+.mtx{display:grid;gap:2px}
+.mq2{margin:0;font-weight:600;font-size:15px}
+.mdocs{margin:0;font-size:12.5px;color:var(--ink3)}
+.mthreads .khint{margin:0}
+.mempty{display:grid;grid-template-columns:64px minmax(0,1fr);gap:18px;align-items:start;max-width:720px}
+.mempty h3{margin-top:0}
+@media (max-width:760px){.mpair{grid-template-columns:1fr}.mnodes{grid-template-columns:1fr;gap:40px}.mthreads li{flex-direction:column;align-items:flex-start}.mempty{grid-template-columns:1fr}}
