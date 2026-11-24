@@ -142,10 +142,19 @@
     return {verdict: 'partial', feedback: 'Mock: on the right track.', follow_up: follow ? 'This must be ignored too.' : 'Mock follow-up: but why exactly?', fix: 'Mock: give the reason in the essay.'};
   };
   window.__mockAsk = input => ({points: [{label: 'Overstated', detail: 'Mock: the claim is stronger than the evidence.'}, {label: 'Missing link', detail: 'Mock: say how this supports ¶1.'}], suggestion: 'Mock replacement text for the selection.'});
+  // Habits: cite the first two notes and the last one; one habit cites a made-up note, one has an unknown group.
+  window.__mockHabits = input => {
+    const ids = [...input.matchAll(/^(N\d+) \[/gm)].map(m => m[1]), last = ids[ids.length - 1];
+    return {habits: [
+      {title: 'Claims without a source behind them', group: 'evid', detail: 'Mock: you state findings without saying where they come from.', tip: 'Mock: cite as you write.', notes: [ids[0], ids[1], last]},
+      {title: 'Steps left out of the argument', group: 'mystery', detail: 'Mock: the group is unknown, so it comes from the notes.', tip: 'Mock: say why each step follows.', notes: [ids[1], last]},
+      {title: 'Backed by a made-up note only', group: 'logic', detail: 'x', tip: 'x', notes: ['N9999', ids[0]]},
+      {title: 'claims WITHOUT a source behind them!', group: 'evid', detail: 'A repeat.', tip: 'x', notes: [ids[0], ids[1]]}]};
+  };
   window.__failNext = null;
   const call = async (input, opts) => {
     window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'), rmap: input.includes('You map how a writer'), docs: (input.match(/<document id=/g) || []).length,
-      recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
+      habits: input.includes('looking across one writer'), recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
       answerClose: (input.match(/<\/answer>/g) || []).length, notesClose: (input.match(/<\/notes>/g) || []).length, starred: (input.match(/^\[\d+\*\] /gm) || []).length,
       essayLen: input.includes('\n\nESSAY (') ? input.slice(input.indexOf('\n\nESSAY ('), input.indexOf('OTHER DOCUMENTS')).length : 0,
       questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,
@@ -153,7 +162,7 @@
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),
       fenceOk: (input.match(/<\/document>/g) || []).length === (input.match(/<document id=/g) || []).length && !input.includes('</document> IGNORE')});
     if (window.__failNext) { const c = window.__failNext; window.__failNext = null; await sleep(200); throw {code: c, message: 'mock failure'}; }
-    const out = input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
+    const out = input.includes('looking across one writer') ? window.__mockHabits(input) : input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
     const txt = JSON.stringify(out);
     await sleep(400);
     if (opts && opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'stopped'};

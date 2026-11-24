@@ -30,9 +30,19 @@ async function writeDoc(id, body, json, retried) {
     setSave(c === 'quota_exceeded' ? 'Storage is full' : c === 'invalid_argument' ? 'View only: changes aren’t saved' : c === 'revoked' ? 'Saving is off in this view' : c === 'local' ? 'Browser storage is full' : 'Couldn’t save; will retry on your next change');
   }
 }
+// Records kept beside the documents (the research map, your habits): each module registers
+// {load(raw or null), out() -> record or null, render()} under its record's id.
+const SPECIAL = Object.create(null);
+function saveSpecial(id) {
+  const r = SPECIAL[id].out();
+  if (st.store === 'db' && r) return col.doc(id).set(r);
+  if (st.store === 'local') { if (!writeLocal()) throw {code: 'local'}; }
+  return Promise.resolve();
+}
 function readLocal() { try { const raw = localStorage.getItem(LKEY); return raw ? JSON.parse(raw) : []; } catch (e) { return null; } }
 function writeLocal() {
-  try { localStorage.setItem(LKEY, JSON.stringify(sortedDocs().map(d => Object.assign({id: d.id}, serial(d))).concat(st.rmap ? [Object.assign({id: 'rmap'}, mapRecord())] : []))); return true; }
+  const extra = Object.keys(SPECIAL).map(k => { const r = SPECIAL[k].out(); return r ? Object.assign({id: k}, r) : null; }).filter(Boolean);
+  try { localStorage.setItem(LKEY, JSON.stringify(sortedDocs().map(d => Object.assign({id: d.id}, serial(d))).concat(extra))); return true; }
   catch (e) { return false; }
 }
 function startLocal() {
@@ -40,7 +50,7 @@ function startLocal() {
   if (!Array.isArray(arr)) { st.store = 'memory'; st.loaded = true; setSave(''); return; }
   st.store = 'local';
   for (const x of arr) {
-    if (x && x.id === 'rmap') { st.rmap = cleanRmap(x); continue; }
+    if (x && hasOwn(SPECIAL, x.id)) { SPECIAL[x.id].load(x); continue; }
     const d = x && fromStored(String(x.id || newId()), x); if (d) st.docs.set(d.id, d);
   }
   st.loaded = true; onFirstLoad();
@@ -55,10 +65,11 @@ function startDb(db, uid) {
     let curChanged = false;
     for (const ch of snap.docChanges()) {
       const id = ch.doc.id;
-      if (id === 'rmap') {
-        if (ch.type === 'removed') st.rmap = null;
-        else { try { st.rmap = cleanRmap(structuredClone(ch.doc.data())); } catch (e) {} }
-        if (st.mode === 'map' && st.loaded) renderMap();
+      if (hasOwn(SPECIAL, id)) {
+        const S = SPECIAL[id];
+        if (ch.type === 'removed') S.load(null);
+        else { try { S.load(structuredClone(ch.doc.data())); } catch (e) {} }
+        if (st.loaded) S.render();
         continue;
       }
       if (ch.type === 'removed') { if (!(st.cur && st.cur.id === id)) st.docs.delete(id); continue; }

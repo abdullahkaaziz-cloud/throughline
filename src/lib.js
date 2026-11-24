@@ -435,3 +435,31 @@ function validateJudge(raw, isFollowUp) {
   if (!VERDICTS.includes(verdict) || !feedback) return null;
   return {verdict, feedback, follow: isFollowUp || verdict === 'strong' ? '' : clip(r.follow_up, 240), fix: clip(r.fix, 240)};
 }
+
+// ---- your progress: habits found across essays, each backed by real notes ----
+const HABIT_GROUPS = ['rel', 'logic', 'evid', 'clar', 'gram'];
+// refs maps the note ids the prompt used ("N1"…) to {g}: a habit must cite at least two of them, and its group is
+// one of the known ones (or, failing that, its notes' most common group). No repeats, at most `max`.
+function validateHabits(raw, refs, max) {
+  const r = plainObj(raw), out = [], seen = new Set();
+  for (const x of (Array.isArray(r.habits) ? r.habits : []).slice(0, 20)) {
+    const o = plainObj(x), title = clip(o.title, 80), key = ideaKey(title), notes = [];
+    if (!key || seen.has(key)) continue;
+    for (const n of (Array.isArray(o.notes) ? o.notes : []).slice(0, 12)) {
+      const id = typeof n === 'number' ? 'N' + n : typeof n === 'string' ? n.trim().toUpperCase().replace(/^(\d+)$/, 'N$1') : '';
+      if (/^N\d{1,4}$/.test(id) && hasOwn(refs, id) && !notes.includes(id)) notes.push(id);
+      if (notes.length >= 4) break;
+    }
+    if (notes.length < 2) continue;
+    let group = clip(o.group, 10);
+    if (!HABIT_GROUPS.includes(group)) {
+      const count = {}; for (const id of notes) { const g = plainObj(refs[id]).g; if (HABIT_GROUPS.includes(g)) count[g] = (count[g] || 0) + 1; }
+      group = Object.keys(count).sort((a, b) => count[b] - count[a])[0];
+      if (!group) continue;
+    }
+    seen.add(key);
+    out.push({title, group, detail: clip(o.detail, 300), tip: clip(o.tip, 240), notes});
+    if (out.length >= (max || 5)) break;
+  }
+  return out;
+}

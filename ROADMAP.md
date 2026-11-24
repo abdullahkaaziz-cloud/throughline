@@ -129,8 +129,10 @@ From the November 2026 review of what would make Throughline stand out: Grammarl
 - The drafts and what each fixed, the vivas and how each answer was given, and a plain statement of how AI was used.
 - Download it as a web page or copy it as text to hand in. It says what it covers: work done in Throughline, nothing else.
 
-### 8. Your progress (next)
-Every review across every essay: how each kind of note changes over time, and the habits behind them, with examples and tips.
+### 8. Your progress (shipped in v0.9)
+- Every reviewed essay, compared first draft to first draft: notes per 1,000 words for each kind of note, on small multiples with one shared scale, and the notes later drafts fixed.
+- **Find my habits** sends the notes (fenced, with ids) to Claude and keeps only habits backed by at least two real notes. Each habit links to the passages that show it and gives one tip. The answer is kept in a `growth` record and says when newer reviews have made it out of date.
+- Copies of the sample essay don't count.
 
 ## Order
 The claims index and feature 1 come first, because features 2, 3 and 5 all read from them. Feature 4 makes the core loop sticky and cheaper. Feature 5 ties everything together: it is where planning, writing and checking meet.
