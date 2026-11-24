@@ -10,11 +10,24 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
 
 - **Bring your own AI:** a standalone web app where people sign in with ChatGPT, Google (Gemini) or Claude. Every provider gets the same prompts through one adapter (`review(prompt) → JSON`).
 - **Real documents:** headings, footnotes and citations, plus Word and PDF import and export. Later, a Google Docs and Word add-on so people can use Throughline where they already write.
-- **Claims index:** the shared data layer. Every essay and source is broken into claims, with their positions and stances, and cached, so re-checks only re-read what changed. Features 1–5 all read from it, and the cache keeps AI usage down.
+- **Claims index (shipped in v0.2):** the shared data layer. Every essay and source is broken into claims, with their positions and stances, and cached, so re-checks only re-read what changed. Features 1–5 all read from it, and the cache keeps AI usage down.
 
 ## The five features
 
-### 1. Sources: choose what counts
+### 1. Sources: choose what counts (shipped in v0.2)
+**Shipped:**
+- the brief;
+- sources (upload or paste) with per-essay switches;
+- source clash and citation notes;
+- brief coverage;
+- margin chips for supported passages;
+- the claims index for long documents.
+
+**Next:**
+- import from links once the page can fetch;
+- matching citation styles to sources;
+- page numbers for PDF passages.
+
 - **What it does:** a Sources panel holds your assignment brief, the papers you're using and your past essays. Each one has an in/out switch for reviews and a role: my writing, a source, or an opposing view.
 - **What reviews add:**
   - claims with no support in your sources;
