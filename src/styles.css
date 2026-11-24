@@ -265,3 +265,55 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 }
 @media (pointer:coarse){.btn,.docbtn,.chip,.selbar button,.selbar input{min-height:44px}.btn.sm{min-height:44px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}.pbar i{animation:none;width:100%;opacity:.5}.spin{animation:none}}
+/* argument flow: the rail's second view, and the same line in the essay's margin */
+.rtabs{display:flex;gap:2px;padding:3px;border-radius:10px;background:var(--ground)}
+.rtab{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border:0;border-radius:7px;background:none;font-size:14px;font-weight:500;color:var(--ink2);white-space:nowrap}
+.rtab:hover{color:var(--ink)}
+.rtab[aria-selected=true]{background:var(--paper);color:var(--ink);box-shadow:0 1px 2px var(--sh)}
+.rtab small:empty{display:none}
+.aempty{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;align-items:start}
+.aempty h3{margin-top:0}
+.fine{margin:10px 0 0;font-size:13px;color:var(--ink3)}
+.warnp{margin:0;font-size:14px;color:var(--warn)}
+.athesis .lnk{justify-self:start;min-height:24px}
+.athesis .srow{display:grid;gap:4px}
+.athesis p{margin:0}
+.astale{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;border-radius:10px;background:color-mix(in srgb,var(--warn) 11%,transparent);font-size:14px;color:var(--ink2)}
+.astale .btn{flex:none}
+.akey{margin:2px 2px 0;font-size:12.5px;line-height:1.45;color:var(--ink3)}
+.amap{position:relative}
+.amap .aline{position:absolute;left:0;top:0;z-index:1;overflow:visible;pointer-events:none}
+.anodes{list-style:none;margin:0;padding:0}
+.anode{position:relative}
+.abtn{display:block;width:100%;padding:7px 8px 9px 70px;border:0;border-radius:8px;background:none;text-align:left;color:var(--ink)}
+.abtn:hover,.anode.hov .abtn{background:var(--hover)}
+.anode.on .abtn{background:color-mix(in srgb,var(--rc) 10%,transparent)}
+.amap.off .abtn{cursor:default;opacity:.7}
+.akind{display:flex;flex-wrap:wrap;align-items:center;gap:3px 7px;font-size:12.5px;line-height:18px;font-weight:600;color:var(--rc)}
+.akind .where{font-weight:400;color:var(--ink3)}
+.abadge{padding:0 7px;border-radius:999px;font-weight:500;color:var(--rel);background:color-mix(in srgb,var(--rel) 11%,transparent)}
+.apoint{display:block;margin-top:1px;font-size:14px;line-height:1.4}
+.anode.r-heading .apoint{font-weight:600}
+.anode.r-aside .apoint{font-size:13px;color:var(--ink3)}
+.anode.here::before{content:'';position:absolute;left:0;top:12px;border:4px solid transparent;border-left:6px solid var(--ink)}
+.aline .axis,.sketch .axis{fill:none;stroke:var(--line2);stroke-width:1.5;stroke-dasharray:2 4}
+.aline .seg,.sketch .seg{fill:none;stroke:var(--ink3);stroke-width:2;stroke-linecap:round;opacity:.75}
+.aline .seg.gap{stroke:var(--rel);stroke-dasharray:3 5;opacity:1}
+.aline .arc{fill:none;stroke:var(--ink3);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+.aline .arc.ans{stroke:var(--logic);stroke-dasharray:3 3;opacity:.85}
+.aline .arc.hd{stroke-dasharray:none}
+.aline .dot,.sketch .dot{fill:var(--rc);stroke:var(--paper);stroke-width:2;transition:stroke-width .15s}
+.aline .dot.hov,.aline .dot.on{stroke:color-mix(in srgb,var(--rc) 35%,transparent);stroke-width:7}
+.aline .pring{fill:none;stroke:var(--rel);stroke-width:1.5;stroke-dasharray:2.5 2.5}
+.aprobs{display:grid;gap:6px}
+.aprobs ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.aprob{--rc:var(--rel);display:block;width:100%;padding:9px 12px 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);text-align:left;color:var(--ink)}
+.aprob:hover{border-color:var(--line2);background:var(--hover)}
+.parahi{position:absolute;inset:0;pointer-events:none}
+.parahi i{position:absolute;left:-10px;right:-10px;border-radius:6px;background:color-mix(in srgb,var(--rc) 9%,transparent);box-shadow:inset 3px 0 0 color-mix(in srgb,var(--rc) 75%,transparent)}
+#gutter .tc{fill:none;stroke:var(--line2);stroke-width:1.5}
+#gutter .tc.gap{stroke:var(--rel);stroke-dasharray:3 4}
+.th .tb{fill:none;stroke:var(--rc);stroke-width:3;stroke-linecap:round;opacity:.7;transition:opacity .15s,stroke-width .15s}
+.th.hov .tb,.th.on .tb{opacity:1;stroke-width:4.5}
+.th .tp{fill:var(--paper);stroke:var(--rel);stroke-width:1.6}
+.th .hit{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:pointer}

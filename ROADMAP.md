@@ -38,7 +38,20 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
 - **Why it wins:** grammar tools don't read your sources, and research tools (Elicit, Consensus, scite) don't check your essay against them.
 - **Done when:** reviews respect the switches, and every flagged citation links to the passage in the source.
 
-### 2. Argument flow
+### 2. Argument flow (shipped in v0.3)
+**Shipped:**
+- the Argument tab: the thesis, then every paragraph on one line, labelled by its role, with arcs for paragraphs that back up or answer each other;
+- drift: a paragraph that strays from the thesis pulls the line away from the text;
+- weak points (dropped thread, circular step, missing step, unanswered objection) ringed on the line and listed; a missing step breaks the line;
+- the same line in the essay's margin, linked both ways: hover or click a paragraph in either place;
+- a map that goes out of date when you edit, and stops linking when paragraphs are added or removed;
+- a ready-made map on the sample essay, so the view works before any AI call.
+
+**Next:**
+- run it on the four test essays with a real model and tune the prompt (the "done when" check below);
+- draw dropped threads as loose ends and circular steps as loops;
+- re-map only the paragraphs that changed.
+
 - **What it does:** one click turns the essay into its argument. The thesis sits at the top, each paragraph's claim follows in order, and arrows show what supports, answers or leads to what.
 - **What you see:** a vertical map beside the text, with the throughline running down it:
   - paragraphs that drift from the thesis bend away from the line;

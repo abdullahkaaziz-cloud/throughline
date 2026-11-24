@@ -67,6 +67,7 @@ async function runReview() {
   const tier = pickTier();
   const R = st.reviewing = {doc: d, ctl: new AbortController(), t0: Date.now(), found: 0, writing: false, lib: 0, src: 0, tier: tier || 'default', stage: ''};
   st.reviewError = null; st.active = null;
+  if (st.view !== 'notes') setView('notes');
   setReviewBtn(); renderRail(); openSheet(); rbody.scrollTop = 0;
   const tick = setInterval(updateProgress, 1000);
   try {

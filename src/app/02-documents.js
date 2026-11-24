@@ -5,19 +5,23 @@ const newId = () => 'e' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g,
 function makeDoc(title, text, role) {
   const now = Date.now();
   return {id: newId(), role: role === 'source' ? 'source' : 'essay', title: title || '', text: text || '', review: null,
-    marks: Object.create(null), brief: null, use: Object.create(null), index: null, createdAt: now, updatedAt: now};
+    marks: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, createdAt: now, updatedAt: now};
 }
 function makeSample() {
   return Object.assign(makeDoc('Should remote work become the default?', SAMPLE_TEXT),
-    {id: 'sample', isSample: true, unsaved: true, review: cleanReview(JSON.parse(JSON.stringify(SAMPLE_REVIEW))), createdAt: 0, updatedAt: 0});
+    {id: 'sample', isSample: true, unsaved: true, review: cleanReview(JSON.parse(JSON.stringify(SAMPLE_REVIEW))),
+      argmap: cleanArgmap(Object.assign({at: 0, hash: hash(SAMPLE_TEXT), n: paraStarts(SAMPLE_TEXT).length}, JSON.parse(JSON.stringify(SAMPLE_ARGMAP)))), createdAt: 0, updatedAt: 0});
 }
 function sortedDocs() { return [...st.docs.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)); }
 function essayDocs() { return sortedDocs().filter(d => d.role !== 'source'); }
 function sourceDocs() { return sortedDocs().filter(d => d.role === 'source'); }
 function serial(d) {
-  return {kind: 'doc', v: 2, role: d.role === 'source' ? 'source' : 'essay', title: d.title || '', text: d.text || '',
+  const body = {kind: 'doc', v: 2, role: d.role === 'source' ? 'source' : 'essay', title: d.title || '', text: d.text || '',
     review: d.review || null, marks: Object.assign({}, d.marks), brief: d.brief || null, use: Object.assign({}, d.use),
-    index: d.index || null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
+    index: d.index || null, argmap: null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
+  // The argument map can be rebuilt, so it is dropped rather than make a long essay too big to save.
+  if (d.argmap && bytes(JSON.stringify(body)) + bytes(JSON.stringify(d.argmap)) < 240000) body.argmap = d.argmap;
+  return body;
 }
 const num = (v, dflt) => Number.isFinite(v) ? v : dflt;
 const str1500 = v => typeof v === 'string' && v ? v.slice(0, 1500) : null;
@@ -56,6 +60,24 @@ function cleanIndex(x) {
   }).filter(Boolean).slice(0, 24);
   return {hash: o.hash.slice(0, 24), at: num(o.at, 0), meta: {authors: clip(m.authors, 160), year: clip(m.year, 12), summary: clip(m.summary, 400)}, claims};
 }
+function cleanArgmap(x) {
+  const a = plainObj(x);
+  if (typeof a.hash !== 'string' || !Array.isArray(a.paras)) return null;
+  const ints = v => (Array.isArray(v) ? v : []).filter(k => Number.isInteger(k) && k > 0 && k < 100000).slice(0, 6), t = plainObj(a.thesis);
+  const seen = new Set();
+  const paras = a.paras.map(p => {
+    const o = plainObj(p);
+    if (!Number.isInteger(o.para) || o.para < 1 || o.para > 99999 || seen.has(o.para)) return null;
+    seen.add(o.para);
+    return {para: o.para, role: ARG_ROLES.includes(o.role) ? o.role : 'context', point: clip(o.point, 140),
+      thread: Number.isFinite(o.thread) ? Math.max(0, Math.min(1, o.thread)) : 0.5, supports: ints(o.supports), answers: ints(o.answers)};
+  }).filter(Boolean).slice(0, 400);
+  const problems = (Array.isArray(a.problems) ? a.problems : []).map(p => {
+    const o = plainObj(p);
+    return ARG_PROBLEMS.includes(o.kind) ? {kind: o.kind, paras: ints(o.paras).slice(0, 4), note: clip(o.note, 220)} : null;
+  }).filter(x => x && x.paras.length).slice(0, 8);
+  return {at: num(a.at, 0), hash: a.hash.slice(0, 24), n: Number.isInteger(a.n) && a.n > 0 ? a.n : 0, thesis: {text: clip(t.text, 300), quote: str1500(t.quote)}, paras, problems};
+}
 function cleanBrief(x) {
   const b = plainObj(x);
   return typeof b.text === 'string' && b.text.trim() ? {text: b.text.slice(0, LIMITS.briefChars), at: num(b.at, 0)} : null;
@@ -64,7 +86,7 @@ function fromStored(id, x) {
   if (!x || (x.kind !== 'doc' && x.kind !== 'essay') || typeof x.text !== 'string' || !safeId(id)) return null;
   return {id, role: x.role === 'source' ? 'source' : 'essay', title: clip(x.title, 300), text: x.text.slice(0, LIMITS.docChars),
     review: cleanReview(x.review), marks: cleanFlags(x.marks, ['dismissed', 'applied']), brief: cleanBrief(x.brief),
-    use: cleanFlags(x.use), index: cleanIndex(x.index), createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
+    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
 }
 function ensureReal(d) {
   if (!d.unsaved) return d;

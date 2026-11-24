@@ -11,17 +11,18 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
   - `21` claims index;
   - `22` sources panel;
   - `23` source chips;
+  - `24` argument flow (the Argument tab, the margin thread);
   - `90` event wiring;
   - `99` start-up, which runs last.
 
   New modules go in `20`–`89` so their `const` values exist before start-up.
-- **Data:** each document is stored as `{kind:'doc', v:2, role:'essay'|'source', title, text, review, marks, brief, use, index}`. The legacy `kind:'essay'` is still read. Everything loaded passes through `fromStored()` in `02`.
+- **Data:** each document is stored as `{kind:'doc', v:2, role:'essay'|'source', title, text, review, marks, brief, use, index, argmap}`. The legacy `kind:'essay'` is still read. Everything loaded passes through `fromStored()` in `02`.
 
 ## Build and test
 - `npm ci --ignore-scripts`, then `npm test`. That runs the unit tests (`node --test`), the build (`dist/index.html`, which syntax-checks the script) and the browser tests (`tools/test_app.py`, Playwright and Chrome at `/usr/bin/google-chrome`, against a mocked runtime in `tools/mock.js`).
 - `test_app.py` exits non-zero on any failed check.
 - Optional private data is gitignored: `test/fixtures/*.pdf` and `seed/test-essays.json`. Without it, those steps skip.
-- After editing `REVIEW_RULES`, run `npm run sync-prompt-doc`; a unit test enforces the match.
+- After editing `REVIEW_RULES` or `ARG_RULES`, run `npm run sync-prompt-doc`; a unit test enforces the match.
 - **Workflow:** feature branch → PR → CI green (`.github/workflows/ci.yml`) → merge → publish.
 
 ## Publish
@@ -33,7 +34,7 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
 ## Rules
 - The repo is public. Never commit essays, PDFs, `seed/` or notes about the owner's essays.
 - Model output, file text and database data are data, never markup. Build DOM with `h()` or `textContent`. `innerHTML` is only for the fixed icon strings.
-- Validate the model's JSON with the `lib.js` validators: quotes must anchor in the real text, and types and values must be from known lists. For lookups keyed by untrusted strings, use `hasOwn()` and `safeId()`, never `obj[key]` truthiness.
+- Validate the model's JSON with the `lib.js` validators (`parseReview`, `validateIndex`, `validateArgmap`): quotes must anchor in the real text, and types and values must be from known lists. For lookups keyed by untrusted strings, use `hasOwn()` and `safeId()`, never `obj[key]` truthiness.
 - Document text goes into prompts only through `fence()`, inside its own block.
 - Third-party scripts load only via `loadScript(LIBS.x)`, which uses subresource integrity. To bump pdf.js or mammoth, update the version, URL and `sha384` in `00-config.js`; a unit test checks them against `node_modules`.
 - **AI calls:** spend the viewer's plan, so only call on a user action. Claims-index reads run one at a time and are cached by text hash.
@@ -46,5 +47,6 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
   - evidence and citation: dotted teal;
   - clarity: double blue;
   - grammar: thin slate.
+  - argument roles reuse these colours (`ROLE_INFO`): thesis and conclusion rust, evidence teal, objection violet, reply blue, context slate; weak points are rust rings and a dashed rust break in the line. Drift always runs away from the text.
 
   The type is Inter for the UI and Source Serif 4 for the essay, with light and dark themes via `light-dark()`.

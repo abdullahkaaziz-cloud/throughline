@@ -10,7 +10,7 @@ const read = p => readFileSync(new URL(p, root), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
-  fence, planContext, validateIndex, parseReview, hash, words};`, ctx);
+  fence, planContext, validateIndex, parseReview, validateArgmap, hash, words};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -121,7 +121,39 @@ test('pinned third-party scripts match their integrity hashes', () => {
   }
 });
 
-test('docs/review-prompt.md matches the prompt the app sends', () => {
-  const rules = read('src/app/00-config.js').match(/const REVIEW_RULES = `([\s\S]*?)`;/)[1];
-  assert.ok(read('docs/review-prompt.md').includes(rules), 'run: node tools/sync-prompt-doc.mjs');
+test('validateArgmap keeps paragraphs in range, known roles and kinds, and exact thesis quotes', () => {
+  const text = 'Cities should ban cars from their centres.\n\nCars cause most urban air pollution.\n\nSome say shops will lose trade.\n\nBut pedestrian streets raise sales.';
+  const raw = JSON.parse(JSON.stringify({thesis: {text: 'Ban cars from city centres.', quote: 'cities should ban cars from their centres'},
+    paras: [
+      {para: 1, role: 'thesis', point: 'Ban cars', thread: 1},
+      {para: 2, role: 'EVIDENCE', point: 'Pollution\u0007', thread: 1.7, supports: [1, 1, 2, 9, '1', -3, 1.5]},
+      {para: 3, role: 'counter', point: 'Shops lose trade', thread: -1},
+      {para: 4, role: 'rebuttal', point: 'Sales rise', thread: 'x', answers: [3]},
+      {para: 4, role: 'claim', point: 'duplicate'}, {para: 7, role: 'claim'}, {para: 2.5}, {para: '__proto__'}, null, 'junk', {para: 3, role: 'villain'}],
+    problems: [{kind: 'gap', paras: [3, 4, 4, 99], note: 'Missing step'}, {kind: 'nonsense', paras: [1]}, {kind: 'dropped', paras: [42]}, {kind: 'UNANSWERED', paras: [3]}]}));
+  const m = J(L.validateArgmap(raw, text));
+  assert.equal(m.n, 4);
+  assert.deepEqual(m.paras.map(p => [p.para, p.role, p.thread]), [[1, 'thesis', 1], [2, 'evidence', 1], [3, 'counter', 0], [4, 'rebuttal', 0.5]]);
+  assert.equal(m.paras[1].point, 'Pollution');
+  assert.deepEqual(m.paras[1].supports, [1]);
+  assert.deepEqual(m.paras[3].answers, [3]);
+  assert.deepEqual(m.problems, [{kind: 'gap', paras: [3, 4], note: 'Missing step'}, {kind: 'unanswered', paras: [3], note: ''}]);
+  assert.equal(m.thesis.quote, 'Cities should ban cars from their centres');
+  // A made-up quote is dropped, and anything that isn't a map gives an empty one.
+  assert.equal(J(L.validateArgmap({thesis: {text: 'x', quote: 'not anywhere in the essay'}}, text)).thesis.quote, null);
+  assert.deepEqual(J(L.validateArgmap('nonsense', text)), {n: 4, thesis: {text: '', quote: null}, paras: [], problems: []});
+  // Bounded, however much comes back.
+  const long = Array.from({length: 500}, (_, i) => 'Paragraph ' + (i + 1) + '.').join('\n');
+  const big = J(L.validateArgmap({paras: Array.from({length: 900}, (_, i) => ({para: i + 1, role: 'claim', point: 'p'.repeat(500)})),
+    problems: Array.from({length: 20}, () => ({kind: 'gap', paras: [1, 2, 3, 4, 5, 6], note: 'n'.repeat(900)}))}, long));
+  assert.equal(big.paras.length, 400); assert.equal(big.paras[0].point.length, 140);
+  assert.equal(big.problems.length, 8); assert.equal(big.problems[0].paras.length, 4); assert.equal(big.problems[0].note.length, 220);
+});
+
+test('docs/review-prompt.md and docs/argument-prompt.md match the prompts the app sends', () => {
+  const cfg = read('src/app/00-config.js');
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md']]) {
+    const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
+    assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
+  }
 });
