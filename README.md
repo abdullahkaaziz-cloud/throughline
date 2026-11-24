@@ -34,6 +34,9 @@ It suggests; you decide what changes. It never rewrites your essay.
   - Time spent day by day, and where the words came from: typed, pasted, imported, Claude's suggestions you accepted, or headings from your outline.
   - The drafts and what each one fixed, the vivas, and a plain statement of how AI was used.
   - Download it as a web page or copy it as text to hand in with your work.
+- **Your progress:** how your writing changes from essay to essay.
+  - For each kind of note, how often it comes up per 1,000 words in each essay's first draft, on one scale, plus how many notes your later drafts fixed.
+  - **Find my habits** asks Claude for the patterns behind your notes, each with the passages that show it and one thing to try next time.
 - **Ask about any passage:** select text and ask "What's wrong?", "Make it stronger", "Does it follow?" or your own question.
 - **Sources and brief:** add the papers you're using and your assignment brief. For each essay, switch sources on or off.
   - Reviews flag claims a source contradicts and citations a source doesn't back up.

@@ -30,11 +30,9 @@ function cleanRmap(x) {
     threads: (Array.isArray(r.threads) ? r.threads : []).slice(0, 5).map(t0 => { const t = plainObj(t0); return {q: clip(t.q, 220), docs: ids(t.docs).slice(0, 12), note: clip(t.note, 240)}; }).filter(t => t.q && t.docs.length)};
 }
 function mapRecord() { return Object.assign({kind: 'rmap', v: 1}, st.rmap); }
+SPECIAL.rmap = {load: x => { st.rmap = x ? cleanRmap(x) : null; }, out: () => st.rmap ? mapRecord() : null, render: () => { if (st.mode === 'map') renderMap(); }};
 async function saveMap() {
-  try {
-    if (st.store === 'db') await col.doc('rmap').set(mapRecord());
-    else if (st.store === 'local') writeLocal();
-  } catch (e) { toast('Couldn’t save the map. It stays until you reload.'); }
+  try { await saveSpecial('rmap'); } catch (e) { toast('Couldn’t save the map. It stays until you reload.'); }
 }
 
 // ---- the AI call (only when the writer asks) ----

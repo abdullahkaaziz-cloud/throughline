@@ -184,6 +184,26 @@ The app keeps only the three verdicts, asks at most one follow-up per question, 
 ${rules('JUDGE_RULES')}
 \`\`\`
 `;
+const progress = `# Habits prompt ("Your progress")
+
+The progress view works out its numbers on the device. Claude is asked only when the writer presses "Find my habits". The source of truth is \`HABIT_RULES\` in \`src/app/00-config.js\`; regenerate this file with \`npm run sync-prompt-doc\` (a unit test checks they match).
+
+After the rules (with \`{n}\` replaced by 5), the app sends the notes from the first and latest reviews of the writer's last 12 reviewed essays, at most 160 of them, oldest first, each with an id:
+
+\`\`\`
+NOTES (from the reviews of 4 essays, oldest first):
+<notes>
+N1 [Evidence · essay “<title>” · Nov 2026] <note title> — “<the passage it is about>”
+</notes>
+\`\`\`
+
+${FENCE} The app keeps a habit only when it cites at least two of the notes it was sent and its group is a known one (or can be taken from its notes), drops repeats, and keeps at most five (\`validateHabits\` in \`src/lib.js\`). It stores each habit with the essays and passages its notes point to, so the writer can open them.
+
+\`\`\`
+${rules('HABIT_RULES')}
+\`\`\`
+`;
 fs.writeFileSync(new URL('docs/map-prompt.md', root), map);
+fs.writeFileSync(new URL('docs/progress-prompt.md', root), progress);
 fs.writeFileSync(new URL('docs/defend-prompt.md', root), defend);
 console.log('prompt docs updated');

@@ -10,7 +10,7 @@ const read = p => readFileSync(new URL(p, root), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
-  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, hash, words};`, ctx);
+  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, hash, words};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -260,9 +260,26 @@ test('validateJudge keeps known verdicts and only asks a follow-up when one is d
   assert.equal(L.validateJudge('nonsense', false), null);
 });
 
+test('validateHabits keeps habits backed by two real notes, with a known group', () => {
+  const refs = Object.assign(Object.create(null), {N1: {g: 'evid'}, N2: {g: 'evid'}, N3: {g: 'logic'}, N4: {g: 'logic'}});
+  const raw = {habits: [
+    {title: 'Claims without a source', group: 'evid', detail: 'd', tip: 't', notes: ['N1', 'n2', 2, 'N1', 'N9']},
+    {title: 'Skipped steps', group: '__proto__', detail: 'd', tip: 't', notes: ['N3', '4', 'N1']},
+    {title: 'Only one real note', group: 'logic', notes: ['N3', 'N77']},
+    {title: 'claims, without a SOURCE', group: 'evid', notes: ['N1', 'N2']},
+    {title: '', group: 'evid', notes: ['N1', 'N2']},
+    {title: 'Unknown group, unknown notes', group: 'x', notes: ['toString', 'constructor']},
+    'not an object', null]};
+  assert.deepEqual(J(L.validateHabits(raw, refs, 5)), [
+    {title: 'Claims without a source', group: 'evid', detail: 'd', tip: 't', notes: ['N1', 'N2']},
+    {title: 'Skipped steps', group: 'logic', detail: 'd', tip: 't', notes: ['N3', 'N4', 'N1']}]);
+  assert.deepEqual(J(L.validateHabits({habits: [{title: 'A', group: 'gram', notes: ['N1', 'N2']}, {title: 'B', group: 'gram', notes: ['N3', 'N4']}]}, refs, 1)).map(x => x.title), ['A']);
+  assert.deepEqual(J(L.validateHabits('nonsense', refs, 5)), []);
+});
+
 test('the prompt docs match the prompts the app sends', () => {
   const cfg = read('src/app/00-config.js');
-  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md']]) {
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md'], ['HABIT_RULES', 'docs/progress-prompt.md']]) {
     const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
     assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
   }
