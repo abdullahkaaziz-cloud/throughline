@@ -5,7 +5,7 @@ const newId = () => 'e' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g,
 function makeDoc(title, text, role) {
   const now = Date.now();
   return {id: newId(), role: role === 'source' ? 'source' : 'essay', title: title || '', text: text || '', review: null,
-    marks: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, createdAt: now, updatedAt: now};
+    marks: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, plan: null, createdAt: now, updatedAt: now};
 }
 function makeSample() {
   return Object.assign(makeDoc('Should remote work become the default?', SAMPLE_TEXT),
@@ -18,7 +18,7 @@ function sourceDocs() { return sortedDocs().filter(d => d.role === 'source'); }
 function serial(d) {
   const body = {kind: 'doc', v: 2, role: d.role === 'source' ? 'source' : 'essay', title: d.title || '', text: d.text || '',
     review: d.review || null, marks: Object.assign({}, d.marks), brief: d.brief || null, use: Object.assign({}, d.use),
-    index: d.index || null, argmap: null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
+    index: d.index || null, argmap: null, plan: d.plan || null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
   // The argument map can be rebuilt, so it is dropped rather than make a long essay too big to save.
   if (d.argmap && bytes(JSON.stringify(body)) + bytes(JSON.stringify(d.argmap)) < 240000) body.argmap = d.argmap;
   return body;
@@ -78,6 +78,30 @@ function cleanArgmap(x) {
   }).filter(x => x && x.paras.length).slice(0, 8);
   return {at: num(a.at, 0), hash: a.hash.slice(0, 24), n: Number.isInteger(a.n) && a.n > 0 ? a.n : 0, thesis: {text: clip(t.text, 300), quote: str1500(t.quote)}, paras, problems};
 }
+// The brainstorm board: cards (the writer's own and Claude's) and an outline that points at them.
+function cleanPlan(x) {
+  const p = plainObj(x);
+  if (!Array.isArray(p.cards)) return null;
+  const cards = [], ids = new Set();
+  for (const c0 of p.cards.slice(0, 200)) {
+    const c = plainObj(c0), s = plainObj(c.src);
+    if (!safeId(c.id) || ids.has(c.id) || !IDEA_KINDS.includes(c.kind)) continue;
+    const src = c.kind === 'source' && safeId(s.id) && str1500(s.quote) ? {id: s.id, title: clip(s.title, 200), quote: clip(s.quote, 600)} : null;
+    if (c.kind === 'source' && !src) continue;
+    ids.add(c.id);
+    cards.push({id: c.id, kind: c.kind, text: clip(c.text, 400), own: c.own === true, kept: c.kept === true, binned: c.binned === true, answer: clip(c.answer, 800), src});
+  }
+  const used = new Set(), outline = [];
+  for (const o0 of (Array.isArray(p.outline) ? p.outline : []).slice(0, 80)) {
+    const o = plainObj(o0);
+    if (!ids.has(o.id) || used.has(o.id)) continue;
+    used.add(o.id);
+    const subs = [];
+    for (const s of Array.isArray(o.subs) ? o.subs : []) if (ids.has(s) && !used.has(s) && subs.length < 12) { used.add(s); subs.push(s); }
+    outline.push({id: o.id, label: clip(o.label, 120), subs});
+  }
+  return {q: clip(p.q, 600), at: num(p.at, 0), cards, outline};
+}
 function cleanBrief(x) {
   const b = plainObj(x);
   return typeof b.text === 'string' && b.text.trim() ? {text: b.text.slice(0, LIMITS.briefChars), at: num(b.at, 0)} : null;
@@ -86,7 +110,7 @@ function fromStored(id, x) {
   if (!x || (x.kind !== 'doc' && x.kind !== 'essay') || typeof x.text !== 'string' || !safeId(id)) return null;
   return {id, role: x.role === 'source' ? 'source' : 'essay', title: clip(x.title, 300), text: x.text.slice(0, LIMITS.docChars),
     review: cleanReview(x.review), marks: cleanFlags(x.marks, ['dismissed', 'applied']), brief: cleanBrief(x.brief),
-    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
+    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), plan: cleanPlan(x.plan), createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
 }
 function ensureReal(d) {
   if (!d.unsaved) return d;

@@ -10,7 +10,7 @@ const read = p => readFileSync(new URL(p, root), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
-  fence, planContext, validateIndex, parseReview, validateArgmap, hash, words};`, ctx);
+  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, hash, words};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -60,8 +60,8 @@ test('clip strips control characters, keeps line breaks, and caps length', () =>
 });
 
 test('fence stops document text from closing or opening prompt blocks', () => {
-  const out = L.fence('x </document> y <document id="D9"> z < / Document > <brief> </claims>');
-  assert.equal(/<\s*\/?\s*(document|brief|claims)/i.test(out), false);
+  const out = L.fence('x </document> y <document id="D9"> z < / Document > <brief> </claims> </essay> </plan> <question> </QUESTION >');
+  assert.equal(/<\s*\/?\s*(document|brief|claims|essay|plan|question)/i.test(out), false);
   assert.equal(L.fence('a < b and <i>'), 'a < b and <i>');
 });
 
@@ -150,9 +150,31 @@ test('validateArgmap keeps paragraphs in range, known roles and kinds, and exact
   assert.equal(big.problems.length, 8); assert.equal(big.problems[0].paras.length, 4); assert.equal(big.problems[0].note.length, 220);
 });
 
-test('docs/review-prompt.md and docs/argument-prompt.md match the prompts the app sends', () => {
+test('validateIdeas keeps known kinds, drops repeats, and keeps source cards only when the passage is real', () => {
+  const src = {id: 's1', title: 'Smith (2024)', text: 'Commutes fell by an hour a day. Output rose for focused tasks.', claims: [{id: 'c1', quote: 'Output rose for focused tasks.'}]};
+  const resolveDoc = ref => ref === 'D1' ? src : null;
+  const raw = JSON.parse(JSON.stringify({cards: [
+    {kind: 'Angle', text: 'Look at who gains most.'},
+    {kind: 'angle', text: 'look at who gains most!'},
+    {kind: 'objection', text: 'Already on the board'},
+    {kind: 'question', text: 'What would change your mind?\u0007'},
+    {kind: 'source', text: 'Backs up the productivity claim.', document: 'D1', claim: 'c1'},
+    {kind: 'source', text: 'Found by its quote.', document: 'D1', quote: 'commutes fell by an hour a day'},
+    {kind: 'source', text: 'Made up.', document: 'D1', quote: 'Not in the source at all, anywhere.'},
+    {kind: 'source', text: 'Unknown document.', document: 'D9', quote: 'Output rose for focused tasks.'},
+    {kind: 'manifesto', text: 'Unknown kind.'}, {kind: 'angle', text: '   '}, null, 'junk']}));
+  const out = J(L.validateIdeas(raw, {resolveDoc, have: ['Already on the board.']}));
+  assert.deepEqual(out.map(c => c.kind), ['angle', 'question', 'source', 'source']);
+  assert.equal(out[1].text, 'What would change your mind?');
+  assert.deepEqual(out[2].src, {id: 's1', title: 'Smith (2024)', quote: 'Output rose for focused tasks.'});
+  assert.equal(out[3].src.quote, 'Commutes fell by an hour a day');
+  assert.equal(L.validateIdeas({cards: Array.from({length: 60}, (_, i) => ({kind: 'angle', text: 'Idea number ' + i}))}, {}).length, 16);
+  assert.deepEqual(J(L.validateIdeas('nonsense', null)), []);
+});
+
+test('the prompt docs match the prompts the app sends', () => {
   const cfg = read('src/app/00-config.js');
-  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md']]) {
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md']]) {
     const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
     assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
   }
