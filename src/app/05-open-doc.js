@@ -5,7 +5,9 @@ function openDoc(d) {
   st.argHover = []; st.argSel = []; st.argHere = 0;
   hideSelbar(); closeMenus();
   loadEditor();
+  st.tlSel = -1;
   if (st.mode === 'plan') renderBoard();
+  else if (st.mode === 'compare') setMode('write');
   if (!srcWrap.hidden) buildSources();
   window.scrollTo(0, 0);
 }

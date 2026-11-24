@@ -60,3 +60,15 @@ Rules:
 Reply with only this JSON:
 {"summary":{"thesis":"...","start_with":"..."},"brief":[{"requirement":"...","status":"covered","quote":"...","note":"..."}],"issues":[{"type":"source_conflict","severity":"high","confidence":0.9,"title":"...","passage_a":{"quote":"..."},"passage_b":{"quote":"...","document":"D1","claim":"c3"},"explanation":"...","fix":"...","suggestion":null}],"links":[{"quote":"essay passage","document":"D2","claim":"c1","source_quote":null,"relation":"supports"}]}
 ```
+
+## Re-checks
+
+When the essay was reviewed before and only a few paragraphs changed (and its brief and documents didn't), the next review is a re-check. The changed paragraphs go in full with a star (`[7*]`), along with their neighbours and any paragraph the last review tied to them; the rest go in as their first sentence, marked "(in short)". These rules follow the review rules, and the app then keeps only new notes that involve a changed paragraph, and carries over the earlier notes whose passages are untouched.
+
+```
+THIS IS A RE-CHECK. You reviewed this essay before, and the writer has edited it since.
+- A star after a paragraph number, like [7*], marks a paragraph that is new or changed. Review only those paragraphs: problems inside them, and how they bear on the rest of the essay, its brief and the documents.
+- The other paragraphs are there for reference. Those marked "(in short)" show only their first sentence.
+- Report only problems that involve at least one starred paragraph. Every quote must still be exact, and never quote "(in short)".
+- Leave "summary" and "brief" empty: they carry over from your last review.
+```

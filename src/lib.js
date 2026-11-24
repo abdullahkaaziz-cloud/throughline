@@ -317,3 +317,62 @@ function validateIdeas(raw, o) {
   }
   return out;
 }
+
+// ---- drafts: paragraph fingerprints, lining two drafts up, matching notes across reviews ----
+function textParas(text) { return String(text == null ? '' : text).split('\n').map(x => x.trim()).filter(Boolean); }
+const paraHash = p => hash(p) + p.length.toString(36);
+const noteKey = (type, quote) => type + ':' + String(quote || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 80);
+// The first sentence of a paragraph, at most `max` words: how a re-check shows paragraphs it doesn't need in full.
+function gist(p, max) {
+  const n = max || 24, first = (String(p).match(/^[\s\S]*?[.!?](?=\s|$)/) || [String(p)])[0].trim(), w = first.split(/\s+/).filter(Boolean);
+  return w.length > n ? w.slice(0, n).join(' ') + '…' : first;
+}
+// Line up two drafts by paragraph fingerprints: unchanged paragraphs match (longest common run), and the edited
+// ones between them pair up in order. Returns [{a, b, same}] with paragraph indexes, -1 where one side has none.
+function alignParas(A, B) {
+  const n = A.length, m = B.length, out = [];
+  if (n * m > 400000) {
+    for (let i = 0; i < Math.max(n, m); i++) out.push({a: i < n ? i : -1, b: i < m ? i : -1, same: i < n && i < m && A[i] === B[i]});
+    return out;
+  }
+  const dp = [];
+  for (let i = 0; i <= n; i++) dp.push(new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  let i = 0, j = 0, ra = [], rb = [];
+  const flush = () => {
+    for (let t = 0; t < Math.max(ra.length, rb.length); t++) out.push({a: t < ra.length ? ra[t] : -1, b: t < rb.length ? rb[t] : -1, same: false});
+    ra = []; rb = [];
+  };
+  while (i < n || j < m) {
+    if (i < n && j < m && A[i] === B[j]) { flush(); out.push({a: i, b: j, same: true}); i++; j++; }
+    else if (j >= m || (i < n && dp[i + 1][j] >= dp[i][j + 1])) ra.push(i++);
+    else rb.push(j++);
+  }
+  flush();
+  return out;
+}
+// Notes from draft A against draft B, matched by type and passage: dismissed in A, still open in B, fixed (gone),
+// and new in B. Notes are {k, m} (m: 'applied' | 'dismissed' | null).
+function compareNotes(A, B) {
+  const inA = new Set(A.map(x => x.k)), inB = new Set(B.map(x => x.k)), out = {fixed: [], open: [], added: [], dismissed: []};
+  for (const x of A) (x.m === 'dismissed' ? out.dismissed : inB.has(x.k) ? out.open : out.fixed).push(x);
+  for (const x of B) if (!inA.has(x.k)) out.added.push(x);
+  return out;
+}
+// What a re-check reads in full: the changed paragraphs, their neighbours, and paragraphs the last review tied
+// to a changed one. prev and cur are paragraph fingerprints; links are [paragraph, paragraph] pairs (1-based) in
+// the previous draft. Returns null when a full review makes more sense (nothing new, a short essay, or big changes).
+function recheckPlan(prev, cur, links) {
+  const had = new Set(prev), now = new Set(cur), changed = [], where = new Map();
+  cur.forEach((h, i) => { if (!had.has(h)) changed.push(i + 1); if (!where.has(h)) where.set(h, i + 1); });
+  if (!changed.length || cur.length < 6 || changed.length > Math.max(2, Math.floor(cur.length * 0.4))) return null;
+  const full = new Set(changed);
+  for (const n of changed) { if (n > 1) full.add(n - 1); if (n < cur.length) full.add(n + 1); }
+  for (const [pa, pb] of Array.isArray(links) ? links : []) {
+    const ha = prev[pa - 1], hb = prev[pb - 1];
+    if (ha == null || hb == null) continue;
+    if (!now.has(ha) && where.has(hb)) full.add(where.get(hb));
+    if (!now.has(hb) && where.has(ha)) full.add(where.get(ha));
+  }
+  return {changed, full: [...full].sort((x, y) => x - y)};
+}

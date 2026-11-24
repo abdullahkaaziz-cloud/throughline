@@ -25,7 +25,7 @@ function renderRail() {
   for (const a of st.asks.get(d.id) || []) kids.push(askEl(a));
   if (!rv) { if (!busy) kids.push(emptyEl()); }
   else {
-    kids.push(summaryEl(rv));
+    kids.push(summaryEl(rv), timelineEl(d));
     const open = openIssues(), shown = open.filter(is => st.filter === 'all' || TYPES[is.type].g === st.filter);
     const done = rv.issues.filter(is => !isOpen(is));
     if (!open.length) kids.push(h('p', {class: 'clean'}, rv.issues.length ? 'Everything flagged has been dealt with. Review again to check your changes.' : 'No problems found. Nice work.'));
@@ -57,12 +57,13 @@ function summaryEl(rv) {
   if (rv.tier === 'test run 1') bits.push('from test run 1');
   const against = [rv.sources ? plural(rv.sources, 'source') : '', rv.checked ? plural(rv.checked, 'other essay') : ''].filter(Boolean);
   if (against.length) bits.push('checked against ' + against.join(' and '));
+  if (rv.recheck) bits.push('re-checked ' + rv.recheck.changed + ' of ' + plural(rv.recheck.of, 'paragraph'));
   if (changedSinceReview()) bits.push('edited since');
   return h('section', {class: 'sum'},
     s.thesis ? h('div', {class: 'srow'}, h('span', {class: 'lbl'}, 'Main claim'), h('p', null, s.thesis)) : null,
     s.start_with ? h('div', {class: 'srow'}, h('span', {class: 'lbl'}, 'Start with'), h('p', null, s.start_with)) : null,
     briefEl(rv), linksEl(rv),
-    h('p', {class: 'smeta'}, bits.join(' · ')));
+    h('p', {class: 'smeta'}, bits.join(' · '), rv.recheck && !st.reviewing ? [' · ', h('button', {class: 'lnk', onclick: () => runReview({full: true})}, 'Review everything')] : null));
 }
 function whereText(is) {
   const an = st.anchors.get(is.id), pa = para(an.a[0]);
@@ -118,7 +119,7 @@ function progressEl() {
     h('div', {class: 'ptxt'}, h('b', {id: 'ptitle'}, progTitle()), h('span', {id: 'ptime'}, progSub())),
     h('button', {class: 'btn sm', onclick: () => R.ctl.abort()}, 'Stop'));
 }
-function progTitle() { const R = st.reviewing; return !R ? '' : R.writing ? 'Writing up notes · ' + R.found + ' so far' : R.stage || 'Reading your essay…'; }
+function progTitle() { const R = st.reviewing; return !R ? '' : R.writing ? 'Writing up notes · ' + R.found + ' so far' : R.stage || (R.recheck ? 'Re-checking ' + plural(R.recheck, 'changed paragraph') + '…' : 'Reading your essay…'); }
 function progSub() {
   const R = st.reviewing; if (!R) return '';
   const s = Math.floor((Date.now() - R.t0) / 1000);

@@ -18,6 +18,10 @@ It suggests; you decide what changes. It never rewrites your essay.
   - Start from the question or your brief. Claude asks questions back and offers angles, objections and passages from your sources as cards.
   - Keep, edit or bin cards, add your own, and drag them into an outline. Drop a card onto a point to group it under that point.
   - **Start writing** adds the outline to the essay as headings, never as prose.
+- **Draft timeline:** every review keeps a snapshot of the essay and its notes.
+  - A strip of drafts in the Notes view shows the open notes by colour, the ones you dealt with, and what each review fixed (−) and found (+).
+  - **Compare** lines two drafts up paragraph by paragraph: unchanged paragraphs fold away, edits show word by word, and the notes are sorted into fixed, still open, new and dismissed.
+  - After small edits, **Review again** re-checks only the changed paragraphs, their neighbours and what they connect to, so it's quicker and uses less of your plan. **Review everything** runs a full review.
 - **Ask about any passage:** select text and ask "What's wrong?", "Make it stronger", "Does it follow?" or your own question.
 - **Sources and brief:** add the papers you're using and your assignment brief. For each essay, switch sources on or off.
   - Reviews flag claims a source contradicts and citations a source doesn't back up.

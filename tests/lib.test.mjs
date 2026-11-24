@@ -10,7 +10,7 @@ const read = p => readFileSync(new URL(p, root), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
-  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, hash, words};`, ctx);
+  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, hash, words};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -172,9 +172,39 @@ test('validateIdeas keeps known kinds, drops repeats, and keeps source cards onl
   assert.deepEqual(J(L.validateIdeas('nonsense', null)), []);
 });
 
+test('drafts line up by paragraph: unchanged ones match, edited ones pair up', () => {
+  const A = ['a', 'b', 'c', 'd', 'e'], B = ['a', 'b2', 'c', 'x', 'y', 'e'];
+  assert.deepEqual(J(L.alignParas(A, B)), [{a: 0, b: 0, same: true}, {a: 1, b: 1, same: false}, {a: 2, b: 2, same: true},
+    {a: 3, b: 3, same: false}, {a: -1, b: 4, same: false}, {a: 4, b: 5, same: true}]);
+  assert.deepEqual(J(L.alignParas([], ['a'])), [{a: -1, b: 0, same: false}]);
+  assert.deepEqual(J(L.textParas('  One. \n\n\nTwo.\n  ')), ['One.', 'Two.']);
+  assert.notEqual(L.paraHash('One.'), L.paraHash('One!'));
+  assert.equal(L.noteKey('logic', '“A step,” she said…'), L.noteKey('logic', 'a step she said'));
+  assert.equal(L.gist('Remote work saves time. It also costs mentoring.'), 'Remote work saves time.');
+  assert.equal(L.gist('one two three four five six', 3), 'one two three…');
+});
+
+test('compareNotes sorts notes into fixed, still open, new and dismissed', () => {
+  const A = [{k: 'logic:a'}, {k: 'clarity:b', m: 'applied'}, {k: 'grammar:c', m: 'dismissed'}, {k: 'evidence:d'}];
+  const B = [{k: 'logic:a'}, {k: 'tension:e'}];
+  const r = J(L.compareNotes(A, B));
+  assert.deepEqual([r.fixed.map(x => x.k), r.open.map(x => x.k), r.added.map(x => x.k), r.dismissed.map(x => x.k)],
+    [['clarity:b', 'evidence:d'], ['logic:a'], ['tension:e'], ['grammar:c']]);
+});
+
+test('recheckPlan reads changed paragraphs, their neighbours and what the last review tied to them', () => {
+  const prev = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10'];
+  const cur = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'NEW8', 'p9', 'p10'];
+  // the last review tied ¶8 to ¶2, so ¶2 is read in full as well
+  assert.deepEqual(J(L.recheckPlan(prev, cur, [[8, 2], [4, 5]])), {changed: [8], full: [2, 7, 8, 9]});
+  assert.equal(L.recheckPlan(prev, prev, []), null);                                   // nothing changed
+  assert.equal(L.recheckPlan(prev.slice(0, 5), ['x', 'p2', 'p3', 'p4', 'p5'], []), null);   // too short to bother
+  assert.equal(L.recheckPlan(prev, ['a', 'b', 'c', 'd', 'e', 'p6', 'p7', 'p8', 'p9', 'p10'], []), null);   // too much changed
+});
+
 test('the prompt docs match the prompts the app sends', () => {
   const cfg = read('src/app/00-config.js');
-  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md']]) {
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md']]) {
     const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
     assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
   }
