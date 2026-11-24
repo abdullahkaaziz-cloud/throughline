@@ -31,12 +31,18 @@ async function writeDoc(id, body, json, retried) {
   }
 }
 function readLocal() { try { const raw = localStorage.getItem(LKEY); return raw ? JSON.parse(raw) : []; } catch (e) { return null; } }
-function writeLocal() { try { localStorage.setItem(LKEY, JSON.stringify(sortedDocs().map(d => Object.assign({id: d.id}, serial(d))))); return true; } catch (e) { return false; } }
+function writeLocal() {
+  try { localStorage.setItem(LKEY, JSON.stringify(sortedDocs().map(d => Object.assign({id: d.id}, serial(d))).concat(st.rmap ? [Object.assign({id: 'rmap'}, mapRecord())] : []))); return true; }
+  catch (e) { return false; }
+}
 function startLocal() {
   const arr = readLocal();
   if (!Array.isArray(arr)) { st.store = 'memory'; st.loaded = true; setSave(''); return; }
   st.store = 'local';
-  for (const x of arr) { const d = x && fromStored(String(x.id || newId()), x); if (d) st.docs.set(d.id, d); }
+  for (const x of arr) {
+    if (x && x.id === 'rmap') { st.rmap = cleanRmap(x); continue; }
+    const d = x && fromStored(String(x.id || newId()), x); if (d) st.docs.set(d.id, d);
+  }
   st.loaded = true; onFirstLoad();
 }
 function startDb(db, uid) {
@@ -49,6 +55,12 @@ function startDb(db, uid) {
     let curChanged = false;
     for (const ch of snap.docChanges()) {
       const id = ch.doc.id;
+      if (id === 'rmap') {
+        if (ch.type === 'removed') st.rmap = null;
+        else { try { st.rmap = cleanRmap(structuredClone(ch.doc.data())); } catch (e) {} }
+        if (st.mode === 'map' && st.loaded) renderMap();
+        continue;
+      }
       if (ch.type === 'removed') { if (!(st.cur && st.cur.id === id)) st.docs.delete(id); continue; }
       let raw; try { raw = structuredClone(ch.doc.data()); } catch (e) { continue; }
       const d = fromStored(id, raw); if (!d) continue;

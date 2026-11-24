@@ -376,3 +376,40 @@ function recheckPlan(prev, cur, links) {
   }
   return {changed, full: [...full].sort((x, y) => x - y)};
 }
+
+// ---- research map: themes, links and open threads across the whole library ----
+const RMAP_KINDS = ['clash', 'supports', 'builds_on', 'critiques', 'cites'];
+// The model's map of the library, checked: documents must resolve, every document sits in at most one theme,
+// link kinds come from a fixed list, and each link's passages must really be in its documents (a "cites" or
+// "builds_on" link may name only its own side). o: {resolveDoc(ref) -> {id, title, text, claims} | null}
+function validateRmap(raw, o) {
+  const r = plainObj(raw), opt = plainObj(o), res = typeof opt.resolveDoc === 'function' ? opt.resolveDoc : () => null;
+  const themes = [], placed = new Set();
+  for (const t0 of (Array.isArray(r.themes) ? r.themes : []).slice(0, 12)) {
+    const t = plainObj(t0), name = clip(t.name, 60), docs = [];
+    for (const ref of (Array.isArray(t.docs) ? t.docs : []).slice(0, 60)) { const d = res(ref); if (d && !placed.has(d.id)) { placed.add(d.id); docs.push(d.id); } }
+    if (name && docs.length) themes.push({name, docs});
+    if (themes.length >= 6) break;
+  }
+  const links = [], seen = new Set();
+  for (const l0 of (Array.isArray(r.links) ? r.links : []).slice(0, 60)) {
+    const l = plainObj(l0), kind = clip(l.kind, 20).toLowerCase().replace(/[\s-]+/g, '_'), a = res(l.from), b = res(l.to);
+    if (!RMAP_KINDS.includes(kind) || !a || !b || a.id === b.id) continue;
+    const ra = locateInDoc(a, {claim: l.from_claim, quote: l.from_quote}), rb = locateInDoc(b, {claim: l.to_claim, quote: l.to_quote});
+    if (!ra || (!rb && kind !== 'cites' && kind !== 'builds_on')) continue;
+    const key = [a.id, b.id].sort().join('|') + '|' + kind;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    links.push({from: a.id, to: b.id, kind, qa: a.text.slice(ra[0], ra[1]).slice(0, 600), qb: rb ? b.text.slice(rb[0], rb[1]).slice(0, 600) : null,
+      note: clip(l.note, 240), fix: kind === 'clash' ? clip(l.try, 240) : ''});
+    if (links.length >= 24) break;
+  }
+  const threads = [];
+  for (const t0 of (Array.isArray(r.threads) ? r.threads : []).slice(0, 12)) {
+    const t = plainObj(t0), q = clip(t.question, 220), docs = [];
+    for (const ref of (Array.isArray(t.docs) ? t.docs : []).slice(0, 12)) { const d = res(ref); if (d && !docs.includes(d.id)) docs.push(d.id); }
+    if (q && docs.length) threads.push({q, docs, note: clip(t.note, 240)});
+    if (threads.length >= 5) break;
+  }
+  return {themes, links, threads};
+}

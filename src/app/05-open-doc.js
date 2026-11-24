@@ -8,6 +8,7 @@ function openDoc(d) {
   st.tlSel = -1;
   if (st.mode === 'plan') renderBoard();
   else if (st.mode === 'compare') setMode('write');
+  else if (st.mode === 'map') renderMap();
   if (!srcWrap.hidden) buildSources();
   window.scrollTo(0, 0);
 }
