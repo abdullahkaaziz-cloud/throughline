@@ -12,18 +12,22 @@ const headingFrom = t => trunc(String(t || '').replace(/\s+/g, ' ').replace(/[.!
 
 // Plan shows the board, Write the essay, Compare (opened from the drafts strip) two drafts side by side, and Map
 // the whole library.
+// Defend it (opened from the notes or the argument map) is a viva on the open essay.
+const SUB_MODES = ['compare', 'defend'];
 function setMode(m) {
-  if (m !== 'plan' && m !== 'write' && m !== 'compare' && m !== 'map') return;
+  if (!['plan', 'write', 'compare', 'map', 'defend'].includes(m)) return;
+  if (st.mode === 'defend' && m !== 'defend') { hush(); stopDictation(); }
   st.mode = m;
   layoutEl.classList.toggle('planning', m === 'plan');
-  layoutEl.classList.toggle('comparing', m === 'compare');
+  layoutEl.classList.toggle('comparing', SUB_MODES.includes(m));
   layoutEl.classList.toggle('mapping', m === 'map');
-  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map';
-  for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === (m === 'compare' ? 'write' : m)));
+  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend';
+  for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === (SUB_MODES.includes(m) ? 'write' : m)));
   hideSelbar(); closePop();
   if (m === 'plan') { closeSheet(); renderBoard(); window.scrollTo(0, 0); }
   else if (m === 'compare') { closeSheet(); renderCompare(); window.scrollTo(0, 0); }
   else if (m === 'map') { closeSheet(); renderMap(); window.scrollTo(0, 0); }
+  else if (m === 'defend') { closeSheet(); renderDefend(); window.scrollTo(0, 0); }
   else { fitTitle(); refresh(); }
 }
 function savePlan() { const d = ensureReal(st.cur); planOf(d).at = Date.now(); d.updatedAt = Date.now(); persist(d); }

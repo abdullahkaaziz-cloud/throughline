@@ -9,6 +9,7 @@ function openDoc(d) {
   if (st.mode === 'plan') renderBoard();
   else if (st.mode === 'compare') setMode('write');
   else if (st.mode === 'map') renderMap();
+  else if (st.mode === 'defend') { hush(); stopDictation(); st.vivaView = null; renderDefend(); }
   if (!srcWrap.hidden) buildSources();
   window.scrollTo(0, 0);
 }

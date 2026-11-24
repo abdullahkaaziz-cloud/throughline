@@ -1,4 +1,4 @@
-// Regenerates docs/review-prompt.md, docs/argument-prompt.md, docs/brainstorm-prompt.md and docs/map-prompt.md from the prompts in src/app/00-config.js
+// Regenerates the prompt docs in docs/ from the prompts in src/app/00-config.js
 // (the code is the source of truth). Run: npm run sync-prompt-doc. A unit test checks they match.
 import fs from 'node:fs';
 const root = new URL('../', import.meta.url);
@@ -131,5 +131,59 @@ ${rules('MAP_RULES')}
 \`\`\`
 `;
 fs.writeFileSync(new URL('docs/brainstorm-prompt.md', root), brainstorm);
+const style = name => cfg.match(new RegExp(name + ": \\{label: '[^']*', rule: '([^']*)'\\}"))[1];
+const defend = `# Viva prompts ("Defend it")
+
+A viva runs only when the writer presses "Start the viva" and then submits each answer. The sources of truth are \`EXAM_RULES\` and \`JUDGE_RULES\` in \`src/app/00-config.js\`; regenerate this file with \`npm run sync-prompt-doc\` (a unit test checks they match). Each prompt also carries one line for the examiner the writer chose:
+
+- Supportive tutor: ${style('tutor')}
+- Tough examiner: ${style('tough')}
+
+## Setting the questions
+
+After the rules (with \`{n}\` replaced by 3, 5 or 8), the app sends the essay, numbered by paragraph, and any weak points found earlier: the argument map's problems and the review's open notes.
+
+\`\`\`
+ESSAY (each paragraph starts with its number in brackets; never include these numbers in a quote):
+<essay>
+[1] <paragraph>
+</essay>
+
+NOTES (weak points found earlier):
+<notes>
+- (gap) ¶4, ¶5: <note>
+</notes>
+\`\`\`
+
+The app keeps distinct questions only, at most the number asked for, and a question's quote only when it is really in the essay (\`validateExam\` in \`src/lib.js\`).
+
+\`\`\`
+${rules('EXAM_RULES')}
+\`\`\`
+
+## Judging an answer
+
+The essay goes in around the passage the question is about: the opening paragraph, that paragraph and its neighbours in full, the rest as first sentences. A follow-up also carries the question and answer before it.
+
+\`\`\`
+QUESTION:
+<question>
+<the question>
+(A good answer must show: <what>)
+</question>
+
+ANSWER:
+<answer>
+<the writer's answer, typed or dictated>
+</answer>
+\`\`\`
+
+The app keeps only the three verdicts, asks at most one follow-up per question, and never follows up a strong answer (\`validateJudge\` in \`src/lib.js\`).
+
+\`\`\`
+${rules('JUDGE_RULES')}
+\`\`\`
+`;
 fs.writeFileSync(new URL('docs/map-prompt.md', root), map);
-console.log('docs/review-prompt.md, docs/argument-prompt.md, docs/brainstorm-prompt.md and docs/map-prompt.md updated');
+fs.writeFileSync(new URL('docs/defend-prompt.md', root), defend);
+console.log('prompt docs updated');

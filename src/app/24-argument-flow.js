@@ -120,7 +120,8 @@ function argMapEls(d, a) {
     h('div', {class: 'amap' + (linked ? '' : ' off'), id: 'amap'}, sv('svg', {class: 'aline', 'aria-hidden': 'true'}),
       h('ol', {class: 'anodes', 'aria-label': 'The argument, paragraph by paragraph'}, a.paras.map(p => nodeEl(a, p, probs.get(p.para) || [], linked)))),
     a.problems.length ? h('section', {class: 'aprobs'}, h('span', {class: 'lbl'}, 'Where the thread breaks'),
-      h('ol', null, a.problems.map(pr => probEl(pr, linked)))) : h('p', {class: 'clean'}, 'No breaks found: every paragraph connects to the thesis.'),
+      h('ol', null, a.problems.map(pr => probEl(pr, linked))),
+      a.at ? h('div', {class: 'acts'}, h('button', {class: 'btn sm', type: 'button', onclick: openDefend}, 'Defend these in a viva')) : null) : h('p', {class: 'clean'}, 'No breaks found: every paragraph connects to the thesis.'),
     h('p', {class: 'smeta'}, a.at ? 'Mapped by Claude · ' + ago(a.at) + ' · ' : 'Sample map · ', h('button', {class: 'lnk', onclick: runArgmap, disabled: busy}, 'Map again'))];
 }
 function nodeEl(a, p, probIdx, linked) {

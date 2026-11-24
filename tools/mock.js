@@ -126,18 +126,32 @@
     return {themes: [{name: 'Mock theme: your essays', docs: E.map(d => d.id)}, {name: 'Mock theme: sources', docs: S.map(d => d.id).concat(['D99'])}, {name: 'Ghosts', docs: ['D99']}], links,
       threads: [{question: 'Mock: is the open question ever settled?', docs: E.slice(0, 2).map(d => d.id), note: 'Mock: the essays answer differently.'}, {question: 'Mock ghost thread', docs: ['D99']}]};
   };
+  // A viva: one question per paragraph (plus a repeat to drop); answers with "because" are strong, empty ones weak,
+  // the rest partial with a follow-up.
+  window.__mockExam = input => {
+    const n = +((input.match(/Ask (\d+) questions/) || [])[1] || 5), ps = [...input.matchAll(/^\[(\d+)\] (.+)$/gm)].map(m => m[2]);
+    const qs = ps.slice(0, n).map((p, i) => ({question: 'Mock question ' + (i + 1) + ': why do you claim this?', quote: sentences(p)[0] || p, why: 'Mock: a reason the essay supports.'}));
+    return {questions: qs.concat([{question: 'Mock question 1: why do you claim this?', quote: 'x'}])};
+  };
+  window.__mockJudge = input => {
+    const ans = (input.match(/ANSWER:\n<answer>\n([\s\S]*?)\n<\/answer>$/) || [])[1] || '', follow = input.includes('(a follow-up)');
+    if (/because/i.test(ans)) return {verdict: 'strong', feedback: 'Mock: a clear reason.', follow_up: 'This must be ignored.', fix: ''};
+    if (!ans.trim() || ans === '(no answer)') return {verdict: 'weak', feedback: 'Mock: no answer.', follow_up: 'Mock follow-up: can you try?', fix: ''};
+    return {verdict: 'partial', feedback: 'Mock: on the right track.', follow_up: follow ? 'This must be ignored too.' : 'Mock follow-up: but why exactly?', fix: 'Mock: give the reason in the essay.'};
+  };
   window.__mockAsk = input => ({points: [{label: 'Overstated', detail: 'Mock: the claim is stronger than the evidence.'}, {label: 'Missing link', detail: 'Mock: say how this supports ¶1.'}], suggestion: 'Mock replacement text for the selection.'});
   window.__failNext = null;
   const call = async (input, opts) => {
     window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'), rmap: input.includes('You map how a writer'), docs: (input.match(/<document id=/g) || []).length,
-      recheck: input.includes('THIS IS A RE-CHECK'), starred: (input.match(/^\[\d+\*\] /gm) || []).length,
+      recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
+      answerClose: (input.match(/<\/answer>/g) || []).length, notesClose: (input.match(/<\/notes>/g) || []).length, starred: (input.match(/^\[\d+\*\] /gm) || []).length,
       essayLen: input.includes('\n\nESSAY (') ? input.slice(input.indexOf('\n\nESSAY ('), input.indexOf('OTHER DOCUMENTS')).length : 0,
       questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,
       essayClose: (input.match(/<\/essay>/g) || []).length, tier: opts && opts.modelTier, len: input.length,
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),
       fenceOk: (input.match(/<\/document>/g) || []).length === (input.match(/<document id=/g) || []).length && !input.includes('</document> IGNORE')});
     if (window.__failNext) { const c = window.__failNext; window.__failNext = null; await sleep(200); throw {code: c, message: 'mock failure'}; }
-    const out = input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
+    const out = input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
     const txt = JSON.stringify(out);
     await sleep(400);
     if (opts && opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'stopped'};
@@ -149,5 +163,17 @@
   sample.json = async (input, opts) => JSON.parse(await call(input, opts));
   sample.limits = async () => ({maxPromptBytes: 262144, modelTiers: ['default', 'complex', 'quick']});
   const user = {id: async () => 'u_test', isOwner: async () => true, canEdit: async () => true, can: async () => true, me: async () => ({id: 'u_test', name: ''})};
-  window.claude = {use: async n => { await sleep(60); return n === 'sample' ? sample : n === 'db' ? db : n === 'user' ? user : null; }};
+  // Voice and downloads: speaking records what was said; dictation "hears" window.__dictText; saves record the file.
+  window.__spoken = []; window.__saved = [];
+  const tts = {speak: async t => { window.__spoken.push(String(t)); await sleep(30); }, stop() {}, onState() { return () => {}; }};
+  const dictation = (() => {
+    const fin = [], par = [], sta = []; let on = false;
+    return {start: async () => { on = true; sta.forEach(f => f({state: 'listening'}));
+        setTimeout(() => par.forEach(f => f({text: 'because the'})), 40);
+        setTimeout(() => { fin.forEach(f => f({text: window.__dictText || 'Because the evidence shows it.'})); par.forEach(f => f({text: ''})); }, 100); },
+      stop: async () => { if (on) { on = false; sta.forEach(f => f({state: 'idle', reason: 'stopped'})); } },
+      active: () => on, onFinal: f => { fin.push(f); return () => {}; }, onPartial: f => { par.push(f); return () => {}; }, onState: f => { sta.push(f); return () => {}; }};
+  })();
+  const downloads = {save: async ({filename, data}) => { window.__saved.push({filename, size: typeof data === 'string' ? data.length : (data.size || data.byteLength || 0), text: typeof data === 'string' ? data : ''}); return {status: 'saved'}; }};
+  window.claude = {use: async n => { await sleep(60); return n === 'sample' ? sample : n === 'db' ? db : n === 'user' ? user : n === 'tts' ? tts : n === 'dictation' ? dictation : n === 'downloads' ? downloads : null; }};
 })();

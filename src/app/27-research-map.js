@@ -217,7 +217,7 @@ function nodePanelEl(d, links, byId) {
     others.length ? h('div', {class: 'mswitches'}, h('span', {class: 'lbl'}, isSrc ? 'Used in reviews of' : 'Checked in reviews of'),
       others.map(e => { const on = isUsed(e, d); return h('div', {class: 'mswitch'},
         h('button', {class: 'switch', type: 'button', role: 'switch', 'aria-checked': String(on), 'aria-label': (on ? 'Stop using “' : 'Use “') + (d.title || 'Untitled') + '” in reviews of “' + (e.title || 'Untitled') + '”',
-          onclick: () => { setUsed(e, d, !on); renderMap(); }}), h('span', null, e.title || 'Untitled')); })) : null);
+          onclick: () => { setUsed(e, d, !on); renderMap(); }}, h('span', {class: 'knob'})), h('span', null, e.title || 'Untitled')); })) : null);
 }
 function threadsEl(M, byId) {
   const T = M.threads.map(t => Object.assign({}, t, {docs: t.docs.filter(id => byId.has(id))})).filter(t => t.docs.length);

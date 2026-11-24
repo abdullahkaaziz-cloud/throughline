@@ -160,7 +160,7 @@ function cleanFlags(x, allowed) {
 }
 // Text placed inside a prompt block can't close that block or open another one.
 function fence(text) {
-  return String(text == null ? '' : text).replace(/<(?=\s*\/?\s*(?:document|brief|essay|claims|plan|question)\b)/gi, '\u2039');
+  return String(text == null ? '' : text).replace(/<(?=\s*\/?\s*(?:document|brief|essay|claims|plan|question|notes|answer)\b)/gi, '\u2039');
 }
 
 // ---- review context: what goes into the prompt, and checking what comes back ----
@@ -412,4 +412,26 @@ function validateRmap(raw, o) {
     if (threads.length >= 5) break;
   }
   return {themes, links, threads};
+}
+
+// ---- viva ("Defend it"): the examiner's questions, and verdicts on answers ----
+const VERDICTS = ['strong', 'partial', 'weak'];
+// Questions about the essay: no repeats, at most `max`; a quote is kept only when it is really in the essay.
+function validateExam(raw, text, max) {
+  const r = plainObj(raw), out = [], seen = new Set(), starts = paraStarts(text);
+  for (const x of (Array.isArray(r.questions) ? r.questions : []).slice(0, 20)) {
+    const o = plainObj(x), q = clip(o.question, 300), key = ideaKey(q);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const at = o.quote ? anchorFuzzy(text, o.quote) : null;
+    out.push({q, why: clip(o.why, 140), quote: at ? text.slice(at[0], at[1]).slice(0, 600) : null, para: at ? paraIndex(starts, at[0]) : 0});
+    if (out.length >= (max || 5)) break;
+  }
+  return out;
+}
+// A verdict on one answer, or null when the reply isn't one. A follow-up is never followed up again, nor is a strong answer.
+function validateJudge(raw, isFollowUp) {
+  const r = plainObj(raw), verdict = clip(r.verdict, 20).toLowerCase(), feedback = clip(r.feedback, 400);
+  if (!VERDICTS.includes(verdict) || !feedback) return null;
+  return {verdict, feedback, follow: isFollowUp || verdict === 'strong' ? '' : clip(r.follow_up, 240), fix: clip(r.fix, 240)};
 }

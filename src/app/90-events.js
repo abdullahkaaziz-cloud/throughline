@@ -58,7 +58,7 @@ addEventListener('keydown', e => {
     else if (!srcWrap.hidden) closeSources();
     else if (!docMenu.hidden || !aiMenu.hidden) closeMenus();
     else if (!selbar.hidden) hideSelbar();
-    else if (st.mode === 'compare') setMode('write');
+    else if (st.mode === 'compare' || st.mode === 'defend') setMode('write');
     else if (st.mode === 'map' && st.mapSel) { st.mapSel = null; renderMap(); }
     else if (st.active) setActive(null);
     else if (st.argSel.length) setArgSel([]);

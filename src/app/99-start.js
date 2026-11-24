@@ -2,3 +2,4 @@
 openDoc(makeSample());
 setSave('');
 const capsReady = initCaps();
+initVoice();

@@ -5,7 +5,7 @@ const newId = () => 'e' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g,
 function makeDoc(title, text, role) {
   const now = Date.now();
   return {id: newId(), role: role === 'source' ? 'source' : 'essay', title: title || '', text: text || '', review: null,
-    marks: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, plan: null, history: null, createdAt: now, updatedAt: now};
+    marks: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, plan: null, history: null, defences: null, createdAt: now, updatedAt: now};
 }
 function makeSample() {
   return Object.assign(makeDoc('Should remote work become the default?', SAMPLE_TEXT),
@@ -18,10 +18,12 @@ function sourceDocs() { return sortedDocs().filter(d => d.role === 'source'); }
 function serial(d) {
   const body = {kind: 'doc', v: 2, role: d.role === 'source' ? 'source' : 'essay', title: d.title || '', text: d.text || '',
     review: d.review || null, marks: Object.assign({}, d.marks), brief: d.brief || null, use: Object.assign({}, d.use),
-    index: d.index || null, argmap: null, plan: d.plan || null, history: null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
-  // Drafts and the argument map go in as far as there's room, so a long essay never becomes too big to save:
-  // drafts keep their notes before their text, and the argument map, which can be rebuilt, comes last.
+    index: d.index || null, argmap: null, plan: d.plan || null, history: null, defences: null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
+  // Vivas, drafts and the argument map go in as far as there's room, so a long essay never becomes too big to save:
+  // vivas and drafts keep their verdicts and notes before their text, and the argument map, which can be rebuilt,
+  // comes last.
   let used = bytes(JSON.stringify(body));
+  if (d.defences && d.defences.length) { body.defences = defencesOut(d.defences, 235000 - used); used = bytes(JSON.stringify(body)); }
   if (d.history) { body.history = historyOut(d.history, 235000 - used); used = bytes(JSON.stringify(body)); }
   if (d.argmap && used + bytes(JSON.stringify(d.argmap)) < 240000) body.argmap = d.argmap;
   return body;
@@ -144,6 +146,38 @@ function historyOut(H, room) {
   }
   return list.length ? {paras, list} : null;
 }
+// Vivas ("Defend it"): questions with up to two turns each (the question and one follow-up).
+function cleanDefences(x) {
+  if (!Array.isArray(x)) return null;
+  const out = [];
+  for (const s0 of x.slice(-12)) {
+    const s = plainObj(s0);
+    if (!safeId(s.id) || !Array.isArray(s.qs)) continue;
+    const qs = s.qs.slice(0, 8).map(q0 => {
+      const q = plainObj(q0);
+      const turns = (Array.isArray(q.turns) ? q.turns : []).slice(0, 2).map(t0 => {
+        const t = plainObj(t0);
+        return {q: clip(t.q, 300), a: clip(t.a, 1200), ms: num(t.ms, 0), pasted: num(t.pasted, 0), spoken: t.spoken === true,
+          verdict: VERDICTS.includes(t.verdict) || t.verdict === 'skipped' ? t.verdict : null, feedback: clip(t.feedback, 400), fix: clip(t.fix, 240)};
+      }).filter(t => t.q);
+      return {q: clip(q.q, 300), why: clip(q.why, 140), quote: q.quote ? clip(q.quote, 600) || null : null, para: Number.isInteger(q.para) && q.para > 0 ? q.para : 0, turns};
+    }).filter(q => q.q);
+    if (qs.length) out.push({id: s.id, at: num(s.at, 0), style: hasOwn(VIVA_STYLE, s.style) ? s.style : 'tutor', done: s.done === true, qs});
+  }
+  return out.length ? out : null;
+}
+// Newest vivas first, until the room runs out: past that, older ones keep their questions and verdicts but not the answers.
+function defencesOut(list, room) {
+  const out = []; let used = 100;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const s = list[i], full = bytes(JSON.stringify(s)) + 20;
+    if (used + full <= room) { out.unshift(s); used += full; continue; }
+    const lite = Object.assign({}, s, {qs: s.qs.map(q => Object.assign({}, q, {turns: q.turns.map(t => Object.assign({}, t, {a: '', feedback: ''}))}))}), lb = bytes(JSON.stringify(lite)) + 20;
+    if (used + lb > room) break;
+    out.unshift(lite); used += lb;
+  }
+  return out.length ? out : null;
+}
 function cleanBrief(x) {
   const b = plainObj(x);
   return typeof b.text === 'string' && b.text.trim() ? {text: b.text.slice(0, LIMITS.briefChars), at: num(b.at, 0)} : null;
@@ -152,7 +186,7 @@ function fromStored(id, x) {
   if (!x || (x.kind !== 'doc' && x.kind !== 'essay') || typeof x.text !== 'string' || !safeId(id)) return null;
   return {id, role: x.role === 'source' ? 'source' : 'essay', title: clip(x.title, 300), text: x.text.slice(0, LIMITS.docChars),
     review: cleanReview(x.review), marks: cleanFlags(x.marks, ['dismissed', 'applied']), brief: cleanBrief(x.brief),
-    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), plan: cleanPlan(x.plan), history: cleanHistory(x.history), createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
+    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), plan: cleanPlan(x.plan), history: cleanHistory(x.history), defences: cleanDefences(x.defences), createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
 }
 function ensureReal(d) {
   if (!d.unsaved) return d;

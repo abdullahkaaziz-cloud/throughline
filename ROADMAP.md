@@ -114,5 +114,21 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
 - **What you see:** [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map). It shows essays and sources grouped by theme, a selected clash between two essays, and open threads.
 - **Why it wins:** Connected Papers, Litmaps and ResearchRabbit map citations between published papers, and Obsidian maps the links you draw by hand. Throughline maps claims across your own writing and your sources, automatically, down to the passage.
 
+## Beyond the five features
+
+From the November 2026 review of what would make Throughline stand out: Grammarly Authorship and Turnitin Clarity already prove someone *typed* an essay. Throughline should prove they *understand* it.
+
+### 6. Defend it (shipped in v0.7)
+- A viva on your own essay. The examiner (a supportive tutor or a tough one) asks 3, 5 or 8 questions aimed at the weakest points: the argument map's problems and the review's open notes.
+- Questions are read aloud and answers can be spoken (the platform's text-to-speech and dictation) or typed.
+- Each answer gets a verdict, feedback, at most one follow-up, and what the essay itself should change. The report scores the viva and marks spoken and pasted answers.
+- Vivas are kept with the essay for the writing record.
+
+### 7. The writing record (next)
+How the essay was made: time spent, where the words came from (typed, pasted, Claude's suggestions, outline headings), drafts and what each fixed, how the argument changed, and the vivas. It's an honest report you can download and hand in.
+
+### 8. Your progress (next)
+Every review across every essay: how each kind of note changes over time, and the habits behind them, with examples and tips.
+
 ## Order
 The claims index and feature 1 come first, because features 2, 3 and 5 all read from them. Feature 4 makes the core loop sticky and cheaper. Feature 5 ties everything together: it is where planning, writing and checking meet.

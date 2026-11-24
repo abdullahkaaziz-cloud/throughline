@@ -63,7 +63,9 @@ function summaryEl(rv) {
     s.thesis ? h('div', {class: 'srow'}, h('span', {class: 'lbl'}, 'Main claim'), h('p', null, s.thesis)) : null,
     s.start_with ? h('div', {class: 'srow'}, h('span', {class: 'lbl'}, 'Start with'), h('p', null, s.start_with)) : null,
     briefEl(rv), linksEl(rv),
-    h('p', {class: 'smeta'}, bits.join(' · '), rv.recheck && !st.reviewing ? [' · ', h('button', {class: 'lnk', onclick: () => runReview({full: true})}, 'Review everything')] : null));
+    h('p', {class: 'smeta'}, bits.join(' · '), rv.recheck && !st.reviewing ? [' · ', h('button', {class: 'lnk', onclick: () => runReview({full: true})}, 'Review everything')] : null),
+    rv.tier === 'sample' ? null : h('div', {class: 'sdefend'}, h('button', {class: 'btn sm', type: 'button', id: 'defendBtn', onclick: openDefend}, 'Defend it'),
+      h('span', null, 'Practise a viva on this essay’s weakest points.')));
 }
 function whereText(is) {
   const an = st.anchors.get(is.id), pa = para(an.a[0]);

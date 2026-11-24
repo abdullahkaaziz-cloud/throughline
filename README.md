@@ -27,6 +27,9 @@ It suggests; you decide what changes. It never rewrites your essay.
   - Choose a line to read the two passages side by side, with a way to resolve a clash. Open both, brainstorm it, or hide it.
   - Choose a card to see its links, open it, see its argument flow, or switch it in or out of each essay's reviews.
   - **Open threads** lists questions your work raises but never settles; each one can start a brainstorm.
+- **Defend it:** a viva on your own essay. An examiner (a supportive tutor or a tough one) asks about its weakest points, out loud if you like, and you answer by voice or typing.
+  - Each answer gets a verdict (strong, partial or weak), feedback, and at most one follow-up.
+  - The report scores the viva and lists what to fix in the essay, with each passage one click away. Spoken and pasted answers are marked.
 - **Ask about any passage:** select text and ask "What's wrong?", "Make it stronger", "Does it follow?" or your own question.
 - **Sources and brief:** add the papers you're using and your assignment brief. For each essay, switch sources on or off.
   - Reviews flag claims a source contradicts and citations a source doesn't back up.
@@ -53,4 +56,4 @@ Every pull request runs the same checks in CI. See [SECURITY.md](SECURITY.md) fo
 - `src/index.html`, `src/styles.css`: the page shell and styles.
 - `src/lib.js`: pure helpers (PDF reflow, quote anchoring, word diff, checks on the AI's answers), with unit tests in `tests/`.
 - `src/app/`: the app, in numbered files.
-- `docs/review-prompt.md`, `docs/argument-prompt.md`, `docs/brainstorm-prompt.md`, `docs/map-prompt.md`: the instructions every AI provider gets.
+- `docs/review-prompt.md`, `docs/argument-prompt.md`, `docs/brainstorm-prompt.md`, `docs/map-prompt.md`, `docs/defend-prompt.md`: the instructions every AI provider gets.
