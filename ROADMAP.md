@@ -10,11 +10,24 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
 
 - **Bring your own AI:** a standalone web app where people sign in with ChatGPT, Google (Gemini) or Claude. Every provider gets the same prompts through one adapter (`review(prompt) → JSON`).
 - **Real documents:** headings, footnotes and citations, plus Word and PDF import and export. Later, a Google Docs and Word add-on so people can use Throughline where they already write.
-- **Claims index:** the shared data layer. Every essay and source is broken into claims, with their positions and stances, and cached, so re-checks only re-read what changed. Features 1–5 all read from it, and the cache keeps AI usage down.
+- **Claims index (shipped in v0.2):** the shared data layer. Every essay and source is broken into claims, with their positions and stances, and cached, so re-checks only re-read what changed. Features 1–5 all read from it, and the cache keeps AI usage down.
 
 ## The five features
 
-### 1. Sources: choose what counts
+### 1. Sources: choose what counts (shipped in v0.2)
+**Shipped:**
+- the brief;
+- sources (upload or paste) with per-essay switches;
+- source clash and citation notes;
+- brief coverage;
+- margin chips for supported passages;
+- the claims index for long documents.
+
+**Next:**
+- import from links once the page can fetch;
+- matching citation styles to sources;
+- page numbers for PDF passages.
+
 - **What it does:** a Sources panel holds your assignment brief, the papers you're using and your past essays. Each one has an in/out switch for reviews and a role: my writing, a source, or an opposing view.
 - **What reviews add:**
   - claims with no support in your sources;
@@ -51,7 +64,7 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
   - Essays and sources are nodes, and lines show how they connect: builds on, supports or clashes. Themes cluster on their own.
   - Click a line to see the two passages side by side. Click a node to switch it in or out of reviews, open it, or see its argument flow.
   - "Open threads" lists questions your work raises but never settles, and each one can start a brainstorm.
-- **What you see:** [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map). It shows your four essays in three themes, the selected clash between JT Universalism and the Ibn Taymiyyah essay, and three open threads.
+- **What you see:** [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map). It shows essays and sources grouped by theme, a selected clash between two essays, and open threads.
 - **Why it wins:** Connected Papers, Litmaps and ResearchRabbit map citations between published papers, and Obsidian maps the links you draw by hand. Throughline maps claims across your own writing and your sources, automatically, down to the passage.
 
 ## Order

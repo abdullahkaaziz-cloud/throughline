@@ -10,6 +10,10 @@ An essay editor that shows your reasoning. Press **Review** and the AI reads the
 It suggests; you decide what changes. It never rewrites your essay.
 
 - **Ask about any passage:** select text and ask "What's wrong?", "Make it stronger", "Does it follow?" or your own question.
+- **Sources and brief:** add the papers you're using and your assignment brief. For each essay, switch sources on or off.
+  - Reviews flag claims a source contradicts and citations a source doesn't back up.
+  - Reviews show how much of the brief the essay covers.
+  - Passages a source supports get a margin chip that opens the source at the passage.
 - **Library check:** every essay you add is checked against your others for clashes, and the clashing passage opens in place.
 - **Fix in one click:** small fixes come with suggested wording you can apply and undo. Notes you've dealt with move out of the way.
 - **Upload:** Word, PDF or text files, several at once.
@@ -18,15 +22,17 @@ It suggests; you decide what changes. It never rewrites your essay.
 ## Develop
 
 ```sh
-npm install                 # pdf.js and mammoth, used by the tests
-node tools/build.mjs        # builds dist/index.html
-python3 tools/test_app.py   # runs the headless browser tests (Playwright + Chrome)
+npm ci --ignore-scripts                     # pdf.js and mammoth, used by the tests
+pip install -r requirements-dev.txt        # Playwright, for the browser tests
+npm test                                    # unit tests, build (dist/index.html), browser tests
 ```
+
+Every pull request runs the same checks in CI. See [SECURITY.md](SECURITY.md) for how essays, AI output and third-party code are handled.
 
 `dist/index.html` is one self-contained page. Opened outside Claude it has no AI, but the sample review still works.
 
 ## Structure
 - `src/index.html`, `src/styles.css`: the page shell and styles.
-- `src/lib.js`: text helpers (PDF reflow, quote anchoring, word diff).
+- `src/lib.js`: pure helpers (PDF reflow, quote anchoring, word diff, checks on the AI's answers), with unit tests in `tests/`.
 - `src/app/`: the app, in numbered files.
 - `docs/review-prompt.md`: the review instructions every AI provider gets.

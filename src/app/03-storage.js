@@ -16,7 +16,7 @@ function flush(id) {
   chains.set(id, (chains.get(id) || Promise.resolve()).then(run, run));
 }
 async function writeDoc(id, body, json, retried) {
-  if (json.length > 250000) { setSave('Too long to save'); return; }
+  if (bytes(json) > 250000) { setSave('Too long to save'); return; }
   try {
     if (st.store === 'db') await col.doc(id).set(body);
     else if (st.store === 'local') { if (!writeLocal()) throw {code: 'local'}; }

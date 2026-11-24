@@ -1,11 +1,17 @@
 {
   "name": "throughline",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A visual essay editor: AI review that marks problems in place and never rewrites your work.",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "node tools/build.mjs",
-    "test": "node tools/build.mjs && python3 tools/test_app.py"
+    "test:unit": "node --test \"tests/**/*.test.mjs\"",
+    "test:e2e": "python3 tools/test_app.py",
+    "test": "npm run test:unit && npm run build && npm run test:e2e",
+    "sync-prompt-doc": "node tools/sync-prompt-doc.mjs"
   },
   "devDependencies": {
     "mammoth": "1.8.0",

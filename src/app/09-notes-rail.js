@@ -19,7 +19,7 @@ function renderRail() {
   const busy = st.reviewing && st.reviewing.doc === d;
   if (busy) kids.push(progressEl());
   if (st.reviewError && st.reviewError.doc === d) kids.push(errorEl());
-  if (d.isSample && st.loaded && !st.docs.size) kids.push(startEl());
+  if (d.isSample && st.loaded && !essayDocs().length) kids.push(startEl());
   for (const a of st.asks.get(d.id) || []) kids.push(askEl(a));
   if (!rv) { if (!busy) kids.push(emptyEl()); }
   else {
@@ -36,31 +36,34 @@ function renderRail() {
 function startEl() {
   return h('section', {class: 'start'}, h('b', null, 'Try it on your own writing'),
     h('p', null, 'This is a sample. Upload essays (Word, PDF or text) or start a new one. Every essay you add also joins the library that reviews check against.'),
-    h('div', {class: 'acts'}, h('button', {class: 'btn sm primary', onclick: () => fileIn.click()}, 'Upload essays'), h('button', {class: 'btn sm', onclick: newEssay}, 'New essay'),
+    h('div', {class: 'acts'}, h('button', {class: 'btn sm primary', onclick: () => pickFiles('essay')}, 'Upload essays'), h('button', {class: 'btn sm', onclick: newEssay}, 'New essay'),
       st.isOwner && !st.docs.has('seed-it') ? h('button', {class: 'btn sm', onclick: addSeeds}, 'Add my 4 test essays') : null));
 }
 function emptyEl() {
-  const others = sortedDocs().filter(x => x !== st.cur && x.text.trim()).length;
+  const ctx = contextDocs(st.cur), nSrc = ctx.filter(x => x.role === 'source').length, nEss = ctx.length - nSrc;
   return h('section', {class: 'empty'},
     h('h3', null, 'No review yet'),
     h('p', null, 'Press Review and Claude reads the whole essay, then marks what needs work:'),
     h('ul', {class: 'legend'}, LEGEND.map(([g, name, desc]) => h('li', null, h('span', {class: 'sw', html: SW[g]}), h('span', null, h('b', null, name), desc)))),
     h('p', null, 'Or select any sentence to ask about it. Claude suggests; you decide what changes.'),
-    others ? h('p', null, `It also checks this essay against your ${plural(others, 'other essay')}.`) : null);
+    h('p', null, nSrc || nEss ? 'It also checks this essay against ' + [nSrc ? plural(nSrc, 'source') : '', nEss ? 'your ' + plural(nEss, 'other essay') : ''].filter(Boolean).join(' and ') + '. ' : 'Add your brief and sources to check claims and citations too. ',
+      h('button', {class: 'lnk', onclick: openSources}, 'Choose sources')));
 }
 function summaryEl(rv) {
   const s = rv.summary || {}, bits = [rv.tier === 'sample' ? 'Sample review' : 'Reviewed by ' + (rv.by || 'Claude') + (rv.at ? ' · ' + ago(rv.at) : '')];
   if (rv.tier === 'test run 1') bits.push('from test run 1');
-  if (rv.checked) bits.push('checked against ' + plural(rv.checked, 'other essay'));
+  const against = [rv.sources ? plural(rv.sources, 'source') : '', rv.checked ? plural(rv.checked, 'other essay') : ''].filter(Boolean);
+  if (against.length) bits.push('checked against ' + against.join(' and '));
   if (changedSinceReview()) bits.push('edited since');
   return h('section', {class: 'sum'},
     s.thesis ? h('div', {class: 'srow'}, h('span', {class: 'lbl'}, 'Main claim'), h('p', null, s.thesis)) : null,
     s.start_with ? h('div', {class: 'srow'}, h('span', {class: 'lbl'}, 'Start with'), h('p', null, s.start_with)) : null,
+    briefEl(rv), linksEl(rv),
     h('p', {class: 'smeta'}, bits.join(' · ')));
 }
 function whereText(is) {
   const an = st.anchors.get(is.id), pa = para(an.a[0]);
-  if (is.type === 'library_clash') return '¶' + pa + ' ↔ past essay';
+  if (TYPES[is.type].src) return '¶' + pa + (is.docB ? (is.type === 'library_clash' ? ' ↔ past essay' : ' ↔ source') : '');
   const pb = an.b ? para(an.b[0]) : pa;
   return pb !== pa ? '¶' + Math.min(pa, pb) + ' ↔ ¶' + Math.max(pa, pb) : '¶' + pa;
 }
@@ -82,10 +85,10 @@ function diffEl(from, to) {
 }
 function moreEl(is) {
   const an = st.anchors.get(is.id), box = h('div', {class: 'cmore'});
-  if (is.type === 'library_clash') {
+  if (TYPES[is.type].src) {
     const other = is.docB && st.docs.get(is.docB.id);
-    box.append(quoteEl(is.qa, 'This essay · ¶' + para(an.a[0]), () => scrollToRange(an.a)),
-      quoteEl(is.qb, (is.docB && is.docB.title ? is.docB.title : 'Your other essay') + (other ? ' · open' : ''), other ? () => openReader(other, is.qb) : null));
+    box.append(quoteEl(is.qa, 'This essay · ¶' + para(an.a[0]), () => scrollToRange(an.a)));
+    if (is.qb) box.append(quoteEl(is.qb, (is.docB && is.docB.title ? is.docB.title : 'Your other essay') + (other ? ' · open' : ''), other ? () => openReader(other, is.qb) : null));
   } else if (an.b) {
     box.append(quoteEl(is.qa, '¶' + para(an.a[0]), () => scrollToRange(an.a)), quoteEl(is.qb, '¶' + para(an.b[0]), () => scrollToRange(an.b)));
   }
@@ -112,11 +115,11 @@ function progressEl() {
     h('div', {class: 'ptxt'}, h('b', {id: 'ptitle'}, progTitle()), h('span', {id: 'ptime'}, progSub())),
     h('button', {class: 'btn sm', onclick: () => R.ctl.abort()}, 'Stop'));
 }
-function progTitle() { const R = st.reviewing; return !R ? '' : R.writing ? 'Writing up notes · ' + R.found + ' so far' : 'Reading your essay…'; }
+function progTitle() { const R = st.reviewing; return !R ? '' : R.writing ? 'Writing up notes · ' + R.found + ' so far' : R.stage || 'Reading your essay…'; }
 function progSub() {
   const R = st.reviewing; if (!R) return '';
   const s = Math.floor((Date.now() - R.t0) / 1000);
-  return (R.tier === 'complex' ? 'Thorough' : 'Faster') + ' review · ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + (R.lib ? ' · with ' + plural(R.lib, 'other essay') : '');
+  return (R.tier === 'complex' ? 'Thorough' : 'Faster') + ' review · ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + (R.lib || R.src ? ' · with ' + [R.src ? plural(R.src, 'source') : '', R.lib ? plural(R.lib, 'other essay') : ''].filter(Boolean).join(' and ') : '');
 }
 function updateProgress() { const a = $('#ptitle'), b = $('#ptime'); if (a) a.textContent = progTitle(); if (b) b.textContent = progSub(); }
 function errorEl() {
@@ -137,3 +140,30 @@ function askEl(a) {
   return card;
 }
 
+function briefEl(rv) {
+  const items = rv.brief || [];
+  if (!items.length) return null;
+  const n = items.filter(b => b.status === 'covered').length, mark = {covered: '✓', partial: '◐', missing: '○'};
+  return h('details', {class: 'brief', open: n < items.length},
+    h('summary', null, h('span', {class: 'lbl'}, 'Brief'), h('span', {class: 'bsum'}, n + ' of ' + items.length + ' covered'),
+      h('span', {class: 'bbar', role: 'img', 'aria-label': n + ' of ' + items.length + ' parts of the brief covered'}, items.map(b => h('i', {class: 'b-' + b.status})))),
+    h('ul', {class: 'blist'}, items.map(b => {
+      const r = b.qa ? anchorExact(ed.value, b.qa) : null;
+      return h('li', {class: 'b-' + b.status}, h('span', {class: 'bst', 'aria-hidden': 'true'}, mark[b.status]),
+        h('span', {class: 'btx'}, h('b', null, b.requirement), h('span', {class: 'sub'}, (b.status === 'missing' ? 'Missing. ' : b.status === 'partial' ? 'Partly covered. ' : '') + b.note)),
+        r ? h('button', {class: 'btn sm ghost', onclick: () => scrollToRange(r)}, '¶' + para(r[0])) : null);
+    })));
+}
+function linksEl(rv) {
+  const ls = (rv.links || []).map(l => ({l, r: anchorExact(ed.value, l.qa)})).filter(x => x.r);
+  if (!ls.length) return null;
+  return h('details', {class: 'brief'},
+    h('summary', null, h('span', {class: 'lbl'}, 'Backed by your sources'), h('span', {class: 'bsum'}, plural(ls.length, 'passage'))),
+    h('ul', {class: 'blist'}, ls.map(({l, r}) => {
+      const doc = st.docs.get(l.docB.id);
+      return h('li', {class: 'b-covered'}, h('span', {class: 'bst', 'aria-hidden': 'true'}, '✓'),
+        h('span', {class: 'btx'}, h('b', null, '“' + trunc(l.qa, 90) + '”'), h('span', {class: 'sub'}, 'Supported by ' + l.docB.title)),
+        h('span', {class: 'bacts'}, h('button', {class: 'btn sm ghost', onclick: () => scrollToRange(r)}, '¶' + para(r[0])),
+          doc ? h('button', {class: 'btn sm ghost', onclick: () => openReader(doc, l.qb)}, 'Open') : null));
+    })));
+}

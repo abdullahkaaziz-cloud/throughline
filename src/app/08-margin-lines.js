@@ -7,7 +7,7 @@ function drawLines() {
   const items = [];
   for (const is of visibleIssues()) {
     const an = st.anchors.get(is.id);
-    if (is.type === 'library_clash') { const r = rangeRects(an.a[0], an.a[1])[0]; if (r) items.push({is, y1: r.top + r.height / 2 - box.top, lib: true}); continue; }
+    if (TYPES[is.type].src && is.docB) { const r = rangeRects(an.a[0], an.a[1])[0]; if (r) items.push({is, y1: r.top + r.height / 2 - box.top, lib: true}); continue; }
     if (!an.b) continue;
     const ra = rangeRects(an.a[0], an.a[1])[0], rb = rangeRects(an.b[0], an.b[1])[0]; if (!ra || !rb) continue;
     const ya = ra.top + ra.height / 2 - box.top, yb = rb.top + rb.height / 2 - box.top;
@@ -35,6 +35,7 @@ function drawLines() {
     gut.append(g);
   }
   styleLines();
+  drawChips();
 }
 function styleLines() {
   for (const g of gut.children) {

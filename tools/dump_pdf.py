@@ -7,8 +7,8 @@ srv=http.server.ThreadingHTTPServer(('127.0.0.1',8766),functools.partial(Q,direc
 with sync_playwright() as p:
     b=p.chromium.launch(executable_path='/usr/bin/google-chrome',headless=True,args=['--no-sandbox']); c=b.new_context()
     c.route('https://fonts.googleapis.com/**',lambda r:r.fulfill(status=200,content_type='text/css',body=''))
-    c.route('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',lambda r:r.fulfill(path=NM+'/pdfjs-dist/build/pdf.min.js',content_type='application/javascript'))
-    c.route('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',lambda r:r.fulfill(path=NM+'/pdfjs-dist/build/pdf.worker.min.js',content_type='application/javascript'))
+    c.route('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',lambda r:r.fulfill(path=NM+'/pdfjs-dist/build/pdf.min.js',content_type='application/javascript',headers={'Access-Control-Allow-Origin':'*'}))
+    c.route('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',lambda r:r.fulfill(path=NM+'/pdfjs-dist/build/pdf.worker.min.js',content_type='application/javascript',headers={'Access-Control-Allow-Origin':'*'}))
     c.add_init_script(open(ROOT+'/tools/mock.js').read())
     pg=c.new_page(); pg.goto('http://127.0.0.1:8766/dist/index.html'); pg.wait_for_timeout(600)
     for f in sorted(glob.glob(os.environ.get('THROUGHLINE_PDFS', ROOT+'/test/fixtures')+'/*.pdf')):
