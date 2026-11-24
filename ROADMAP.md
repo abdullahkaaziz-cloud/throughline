@@ -78,7 +78,18 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
 - **What you see:** a card canvas with clusters and an outline column. Later, the argument flow compares your plan with your draft, for example "you planned an answer to the objection in ¶5; it isn't there".
 - **Why it wins:** chatbots write the essay for you, which is an integrity risk. Whiteboard AIs (Miro, Whimsical) aren't connected to your sources or your draft.
 
-### 4. Draft timeline
+### 4. Draft timeline (shipped in v0.5)
+**Shipped:**
+- every review keeps a snapshot of the text and its notes; drafts share unchanged paragraphs, so they take little room;
+- a strip of drafts in the Notes view: open notes by colour, the ones you dealt with pale, and what each review fixed (−) and found (+);
+- Compare: two drafts (or the latest draft and your unreviewed changes) paragraph by paragraph, with word-level edits and the notes sorted into fixed, still open, new and dismissed;
+- re-checks: after small edits, the review reads only the changed paragraphs, their neighbours and the paragraphs the last review tied to them, and the rest as first sentences; notes on untouched paragraphs carry over with your marks;
+- notes you dismissed stay dismissed when a full review finds them again.
+
+**Next:**
+- a writing-process view for teachers: time between drafts and what changed, exportable as evidence of your own work;
+- re-check sources only when their passages changed.
+
 - **What it does:** every review becomes a snapshot. A strip of drafts shows which notes opened and which got fixed, by colour. Pick two drafts to compare their text and notes side by side.
 - **Efficiency:** re-checks only re-read the paragraphs you changed and whatever they connect to, so they're faster and use less of your plan.
 - **Why it wins:** version history shows text, not reasoning. The timeline also shows your own writing process, which is useful evidence that you did the work.

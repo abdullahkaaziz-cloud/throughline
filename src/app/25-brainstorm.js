@@ -10,14 +10,17 @@ const planOf = d => d.plan || (d.plan = {q: '', at: 0, cards: [], outline: []});
 const inOutline = P => new Set(P.outline.flatMap(o => [o.id, ...o.subs]));
 const headingFrom = t => trunc(String(t || '').replace(/\s+/g, ' ').replace(/[.!?:;,]+$/, ''), 80);
 
+// Plan shows the board, Write the essay, and Compare (opened from the drafts strip) two drafts side by side.
 function setMode(m) {
-  if (m !== 'plan' && m !== 'write') return;
+  if (m !== 'plan' && m !== 'write' && m !== 'compare') return;
   st.mode = m;
   layoutEl.classList.toggle('planning', m === 'plan');
-  boardEl.hidden = m !== 'plan';
-  for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
+  layoutEl.classList.toggle('comparing', m === 'compare');
+  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare';
+  for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === (m === 'compare' ? 'write' : m)));
   hideSelbar(); closePop();
   if (m === 'plan') { closeSheet(); renderBoard(); window.scrollTo(0, 0); }
+  else if (m === 'compare') { closeSheet(); renderCompare(); window.scrollTo(0, 0); }
   else { fitTitle(); refresh(); }
 }
 function savePlan() { const d = ensureReal(st.cur); planOf(d).at = Date.now(); d.updatedAt = Date.now(); persist(d); }

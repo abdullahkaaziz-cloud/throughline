@@ -120,7 +120,7 @@ const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '') || (navigator.pla
 if (ios) { back.style.paddingLeft = '3px'; back.style.paddingRight = '3px'; }
 
 const st = {docs: new Map(), cur: null, filter: 'all', active: null, hover: null, anchors: new Map(), pstarts: [],
-  asks: new Map(), askHover: null, reviewing: null, reviewError: null, tier: 'complex', store: 'none', importRole: 'essay', indexing: new Map(), supHi: null, view: 'notes', argRun: null, argErr: null, argHover: [], argSel: [], argHere: 0, mode: 'write', ideaRun: null, ideaErr: null, dragId: null, focusAdd: null,
+  asks: new Map(), askHover: null, reviewing: null, reviewError: null, tier: 'complex', store: 'none', importRole: 'essay', indexing: new Map(), supHi: null, view: 'notes', argRun: null, argErr: null, argHover: [], argSel: [], argHere: 0, mode: 'write', ideaRun: null, ideaErr: null, dragId: null, focusAdd: null, tlSel: -1, cmp: null,
   loaded: false, touched: false, isOwner: false, ai: 'pending', aiWhy: '', tiers: null, sel: null, lastSig: '', readOnly: false, saveText: ''};
 let sampleFn = null, col = null;
 try { const p = JSON.parse(localStorage.getItem(PKEY) || '{}'); if (p.tier === 'default' || p.tier === 'complex') st.tier = p.tier; } catch (e) {}
@@ -190,3 +190,10 @@ const IDEA_INFO = {
   question: {label: 'Question', title: 'Questions for you', c: '--clar', hint: 'Answer them to sharpen your view'},
 };
 const KIND_ORDER = ['angle', 'objection', 'source', 'question'];
+
+// ---- re-checks: after edits, review only what changed ----
+const RECHECK_RULES = `THIS IS A RE-CHECK. You reviewed this essay before, and the writer has edited it since.
+- A star after a paragraph number, like [7*], marks a paragraph that is new or changed. Review only those paragraphs: problems inside them, and how they bear on the rest of the essay, its brief and the documents.
+- The other paragraphs are there for reference. Those marked "(in short)" show only their first sentence.
+- Report only problems that involve at least one starred paragraph. Every quote must still be exact, and never quote "(in short)".
+- Leave "summary" and "brief" empty: they carry over from your last review.`;

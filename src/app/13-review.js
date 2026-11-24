@@ -37,6 +37,47 @@ function reviewPrompt(essay, text, ctx) {
     '\n\nESSAY (each paragraph starts with its number in brackets; never include these numbers in a quote):\n' + fence(numbered) + '\n\n' +
     (ctx.length ? 'OTHER DOCUMENTS (role "essay": the writer’s earlier essays; role "source": material the writer uses):\n' + docs : 'OTHER DOCUMENTS: none.');
 }
+// A re-check sends the changed paragraphs in full, starred, with the ones around them and the ones the last review
+// tied to them; the rest of the essay goes in as first sentences.
+function recheckPrompt(essay, text, ctx, plan) {
+  const changed = new Set(plan.changed), full = new Set(plan.full);
+  const numbered = textParas(text).map((x, i) => { const n = i + 1; return changed.has(n) ? '[' + n + '*] ' + x : full.has(n) ? '[' + n + '] ' + x : '[' + n + '] (in short) ' + gist(x); }).join('\n\n');
+  const brief = essay.brief && essay.brief.text.trim()
+    ? '\n\nBRIEF (the assignment question or marking criteria):\n<brief>\n' + fence(essay.brief.text) + '\n</brief>' : '';
+  return REVIEW_RULES + '\n\n' + RECHECK_RULES + '\n\nESSAY TITLE: ' + docLabel(essay) + brief +
+    '\n\nESSAY (each paragraph starts with its number in brackets, and a star marks the ones that changed; never include these numbers in a quote):\n' + fence(numbered) + '\n\n' +
+    (ctx.length ? 'OTHER DOCUMENTS (role "essay": the writer’s earlier essays; role "source": material the writer uses):\n' + docsBlock(ctx) : 'OTHER DOCUMENTS: none.');
+}
+// Whether the next review can be a re-check, and of which paragraphs.
+function recheckFor(d, text) {
+  const rv = d.review, s = lastDraft(d);
+  if (!rv || !s || !s.ps || rv.draft !== s.id || rv.textHash === hash(text) || rv.ctxSig !== ctxSig(d)) return null;
+  const prevText = s.ps.map(k => d.history.paras[k] || '').join('\n\n'), starts = paraStarts(prevText), links = [];
+  for (const is of rv.issues) {
+    if (TYPES[is.type].src || !is.qb) continue;
+    const a = anchorFuzzy(prevText, is.qa), b = anchorFuzzy(prevText, is.qb);
+    if (a && b) links.push([paraIndex(starts, a[0]), paraIndex(starts, b[0])]);
+  }
+  return recheckPlan(s.ps, textParas(text).map(paraHash), links);
+}
+// New notes must involve a changed paragraph; earlier notes stay (with your marks) while every passage they quote
+// is still there, in a paragraph that didn't change. The summary and brief carry over.
+function mergeRecheck(d, raw, text, ctx, tier, plan) {
+  const fresh = buildReview(raw, text, ctx, tier), prev = d.review, starts = paraStarts(text), changed = new Set(plan.changed);
+  const at = q => { const r = q ? anchorFuzzy(text, q) : null; return r ? paraIndex(starts, r[0]) : 0; };
+  const twoSided = is => !TYPES[is.type].src && !!is.qb;
+  const touches = is => changed.has(at(is.qa)) || (twoSided(is) && changed.has(at(is.qb)));
+  const intact = q => { const p = at(q); return p > 0 && !changed.has(p); };
+  const kept = prev.issues.filter(is => intact(is.qa) && (!twoSided(is) || intact(is.qb)));
+  const keys = new Set(kept.map(is => noteKey(is.type, is.qa)));
+  const issues = kept.concat(fresh.issues.filter(is => touches(is) && !keys.has(noteKey(is.type, is.qa)))).slice(0, 60);
+  const marks = Object.create(null);
+  for (const is of kept) if (d.marks && d.marks[is.id]) marks[is.id] = d.marks[is.id];
+  d.marks = marks;
+  return Object.assign({}, prev, {at: fresh.at, tier: fresh.tier, textHash: fresh.textHash, checked: fresh.checked, sources: fresh.sources, issues,
+    links: prev.links.filter(l => intact(l.qa)).concat(fresh.links.filter(l => changed.has(at(l.qa)))).slice(0, 20),
+    recheck: {changed: plan.changed.length, of: textParas(text).length}});
+}
 function buildReview(raw, text, ctx, tier) {
   const resolveDoc = ctxResolver(ctx);
   const out = parseReview(raw, {text, types: TYPES, resolveDoc, rid: Date.now().toString(36)});
@@ -65,15 +106,15 @@ function errText(e) {
   return hasOwn(M, c) ? M[c] : 'Something went wrong. Try again.';
 }
 function noteAiError(e) { if (isHard(e)) { st.ai = 'denied'; st.aiWhy = errText(e); renderAiBtn(); setReviewBtn(); hideSelbar(); } }
-async function runReview() {
+async function runReview(how) {
   if (st.reviewing) { toast('A review is already running.'); return; }
   if (st.mode !== 'write') setMode('write');
   const d = st.cur, text = ed.value;
   if (words(text) < 40) { toast('Write or paste at least a paragraph first.'); return; }
   if (st.ai === 'pending') await capsReady;
   if (!sampleFn || st.ai !== 'ready') { toast(st.aiWhy || 'AI review isn’t available in this view.'); return; }
-  const tier = pickTier();
-  const R = st.reviewing = {doc: d, ctl: new AbortController(), t0: Date.now(), found: 0, writing: false, lib: 0, src: 0, tier: tier || 'default', stage: ''};
+  const tier = pickTier(), plan = how && how.full === true ? null : recheckFor(d, text);
+  const R = st.reviewing = {doc: d, ctl: new AbortController(), t0: Date.now(), found: 0, writing: false, lib: 0, src: 0, tier: tier || 'default', stage: '', recheck: plan ? plan.changed.length : 0};
   st.reviewError = null; st.active = null;
   if (st.view !== 'notes') setView('notes');
   setReviewBtn(); renderRail(); openSheet(); rbody.scrollTop = 0;
@@ -84,17 +125,28 @@ async function runReview() {
     if (R.ctl.signal.aborted) throw {code: 'cancelled'};
     R.stage = '';
     const ctx = buildContext(d, bytes(text) + bytes(d.brief ? d.brief.text : ''));
-    let prompt = reviewPrompt(d, text, ctx);
-    while (bytes(prompt) > LIMITS.promptBytes && ctx.length) { ctx.pop(); prompt = reviewPrompt(d, text, ctx); }
+    const make = () => plan ? recheckPrompt(d, text, ctx, plan) : reviewPrompt(d, text, ctx);
+    let prompt = make();
+    while (bytes(prompt) > LIMITS.promptBytes && ctx.length) { ctx.pop(); prompt = make(); }
     if (bytes(prompt) > LIMITS.promptBytes) throw {code: 'prompt_too_large'};
     R.src = ctx.filter(c => c.doc.role === 'source').length; R.lib = ctx.length - R.src; updateProgress();
     const opts = {signal: R.ctl.signal, onText: ({text: t}) => { if (st.reviewing !== R) return; R.writing = true; R.found = (t.match(/"type"\s*:/g) || []).length; updateProgress(); }};
     if (tier) opts.modelTier = tier;
     const raw = await sampleFn.json(prompt, opts);
-    d.review = buildReview(raw, text, ctx, tier || 'default'); d.marks = Object.create(null); d.updatedAt = Date.now();
+    markLastDraft(d);
+    if (plan) d.review = mergeRecheck(d, raw, text, ctx, tier || 'default', plan);
+    else {
+      const before = lastDraft(d), gone = new Set(before && d.review && d.review.draft === before.id ? before.notes.filter(x => x.m === 'dismissed').map(x => x.k) : []);
+      d.review = buildReview(raw, text, ctx, tier || 'default'); d.marks = Object.create(null);
+      // Notes you dismissed stay dismissed when a full review finds them again.
+      for (const is of d.review.issues) if (gone.has(noteKey(is.type, is.qa))) d.marks[is.id] = 'dismissed';
+    }
+    d.review.ctxSig = ctxSig(d);
+    snapshot(d, text, plan ? 'recheck' : 'full');
+    st.tlSel = -1; d.updatedAt = Date.now();
     persist(d, 0);
     const n = d.review.issues.length;
-    toast(n ? plural(n, 'note') + ' on “' + trunc(d.title || 'your essay', 40) + '”' : 'No problems found.');
+    toast(plan ? 'Re-checked ' + plural(plan.changed.length, 'changed paragraph') + ' · ' + plural(n, 'note') : n ? plural(n, 'note') + ' on “' + trunc(d.title || 'your essay', 40) + '”' : 'No problems found.');
   } catch (err) {
     if (!(err && err.code === 'cancelled')) { st.reviewError = {doc: d, err}; noteAiError(err); }
   } finally {

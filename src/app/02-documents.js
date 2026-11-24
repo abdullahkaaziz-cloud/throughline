@@ -5,7 +5,7 @@ const newId = () => 'e' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g,
 function makeDoc(title, text, role) {
   const now = Date.now();
   return {id: newId(), role: role === 'source' ? 'source' : 'essay', title: title || '', text: text || '', review: null,
-    marks: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, plan: null, createdAt: now, updatedAt: now};
+    marks: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, plan: null, history: null, createdAt: now, updatedAt: now};
 }
 function makeSample() {
   return Object.assign(makeDoc('Should remote work become the default?', SAMPLE_TEXT),
@@ -18,9 +18,12 @@ function sourceDocs() { return sortedDocs().filter(d => d.role === 'source'); }
 function serial(d) {
   const body = {kind: 'doc', v: 2, role: d.role === 'source' ? 'source' : 'essay', title: d.title || '', text: d.text || '',
     review: d.review || null, marks: Object.assign({}, d.marks), brief: d.brief || null, use: Object.assign({}, d.use),
-    index: d.index || null, argmap: null, plan: d.plan || null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
-  // The argument map can be rebuilt, so it is dropped rather than make a long essay too big to save.
-  if (d.argmap && bytes(JSON.stringify(body)) + bytes(JSON.stringify(d.argmap)) < 240000) body.argmap = d.argmap;
+    index: d.index || null, argmap: null, plan: d.plan || null, history: null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
+  // Drafts and the argument map go in as far as there's room, so a long essay never becomes too big to save:
+  // drafts keep their notes before their text, and the argument map, which can be rebuilt, comes last.
+  let used = bytes(JSON.stringify(body));
+  if (d.history) { body.history = historyOut(d.history, 235000 - used); used = bytes(JSON.stringify(body)); }
+  if (d.argmap && used + bytes(JSON.stringify(d.argmap)) < 240000) body.argmap = d.argmap;
   return body;
 }
 const num = (v, dflt) => Number.isFinite(v) ? v : dflt;
@@ -48,7 +51,9 @@ function cleanReview(x) {
   return {at: num(r.at, 0), by: clip(r.by, 40) || 'Claude', tier: clip(r.tier, 40), textHash: typeof r.textHash === 'string' ? r.textHash.slice(0, 24) : null,
     checked: num(r.checked, 0), sources: num(r.sources, 0), summary: {thesis: clip(s.thesis, 400), start_with: clip(s.start_with, 400)},
     issues: r.issues.map(cleanIssue).filter(Boolean).slice(0, 60), links: arr(r.links).map(cleanLink).filter(Boolean).slice(0, 20),
-    brief: arr(r.brief).map(cleanBriefItem).filter(Boolean).slice(0, 8)};
+    brief: arr(r.brief).map(cleanBriefItem).filter(Boolean).slice(0, 8),
+    ctxSig: typeof r.ctxSig === 'string' ? r.ctxSig.slice(0, 24) : null, draft: safeId(r.draft) ? r.draft : null,
+    recheck: r.recheck ? {changed: num(plainObj(r.recheck).changed, 0), of: num(plainObj(r.recheck).of, 0)} : null};
 }
 function cleanIndex(x) {
   const o = plainObj(x);
@@ -102,6 +107,43 @@ function cleanPlan(x) {
   }
   return {q: clip(p.q, 600), at: num(p.at, 0), cards, outline};
 }
+// Drafts: newest last; each keeps its notes, and its text as paragraph fingerprints into a shared store.
+const PH_RE = /^[0-9a-z]{1,16}$/;
+function cleanHistory(x) {
+  const H = plainObj(x), P = plainObj(H.paras), paras = Object.create(null), list = [];
+  for (const s0 of (Array.isArray(H.list) ? H.list : []).slice(-30)) {
+    const s = plainObj(s0);
+    if (!safeId(s.id)) continue;
+    const ps = Array.isArray(s.ps) && s.ps.length <= 3000 && s.ps.every(k => typeof k === 'string' && PH_RE.test(k) && hasOwn(P, k) && typeof P[k] === 'string') ? s.ps.slice() : null;
+    if (ps) for (const k of ps) paras[k] = P[k].slice(0, 30000);
+    const notes = (Array.isArray(s.notes) ? s.notes : []).slice(0, 60).map(n0 => {
+      const n = plainObj(n0);
+      return hasOwn(TYPES, n.t) && typeof n.k === 'string' ? {id: safeId(n.id) ? n.id : '', k: n.k.slice(0, 120), t: n.t, x: clip(n.x, 90), q: clip(n.q, 160), m: n.m === 'applied' || n.m === 'dismissed' ? n.m : null} : null;
+    }).filter(Boolean);
+    list.push({id: s.id, at: num(s.at, 0), kind: s.kind === 'recheck' ? 'recheck' : 'full', tier: clip(s.tier, 40), words: num(s.words, 0), ps, notes});
+  }
+  return list.length ? {paras, list} : null;
+}
+// Newest drafts first, until the room runs out: past that, older drafts keep their notes but not their text.
+function historyOut(H, room) {
+  const list = [], paras = {};
+  let used = 200, textOk = true;
+  for (let i = H.list.length - 1; i >= 0; i--) {
+    const s = H.list[i], nb = bytes(JSON.stringify(s.notes)) + 160, add = [];
+    let ps = textOk ? s.ps : null, ab = 0;
+    if (ps) for (const k of ps) {
+      if (hasOwn(paras, k) || add.includes(k)) continue;
+      if (typeof H.paras[k] !== 'string') { ps = null; break; }
+      add.push(k); ab += bytes(H.paras[k]) + 24;
+    }
+    if (ps && used + nb + ab + ps.length * 12 <= room) { for (const k of add) paras[k] = H.paras[k]; used += ab + ps.length * 12; }
+    else { ps = null; textOk = false; }
+    if (used + nb > room) break;
+    used += nb;
+    list.unshift(Object.assign({}, s, {ps}));
+  }
+  return list.length ? {paras, list} : null;
+}
 function cleanBrief(x) {
   const b = plainObj(x);
   return typeof b.text === 'string' && b.text.trim() ? {text: b.text.slice(0, LIMITS.briefChars), at: num(b.at, 0)} : null;
@@ -110,7 +152,7 @@ function fromStored(id, x) {
   if (!x || (x.kind !== 'doc' && x.kind !== 'essay') || typeof x.text !== 'string' || !safeId(id)) return null;
   return {id, role: x.role === 'source' ? 'source' : 'essay', title: clip(x.title, 300), text: x.text.slice(0, LIMITS.docChars),
     review: cleanReview(x.review), marks: cleanFlags(x.marks, ['dismissed', 'applied']), brief: cleanBrief(x.brief),
-    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), plan: cleanPlan(x.plan), createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
+    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), plan: cleanPlan(x.plan), history: cleanHistory(x.history), createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
 }
 function ensureReal(d) {
   if (!d.unsaved) return d;

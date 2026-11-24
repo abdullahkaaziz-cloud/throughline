@@ -31,6 +31,14 @@
   };
   const sentences = t => (t.match(/[^.!?]+[.!?]/g) || [t]).map(s => s.trim()).filter(s => s.split(' ').length >= 5);
   window.__mockReview = input => {
+    // A re-check: one note on the first starred (changed) paragraph, and one on an unchanged paragraph the app must drop.
+    if (input.includes('THIS IS A RE-CHECK')) {
+      const starred = [...input.matchAll(/^\[(\d+)\*\] (.+)$/gm)].map(m => m[2]), plain = [...input.matchAll(/^\[(\d+)\] (?!\(in short\))(.+)$/gm)].map(m => m[2]);
+      const issues = [];
+      if (starred.length) issues.push({type: 'clarity', severity: 'medium', confidence: 0.8, title: 'Mock re-check: the new wording is hard to follow', passage_a: {quote: sentences(starred[0])[0]}, passage_b: null, explanation: 'Mock re-check.', fix: 'Mock fix.', suggestion: null});
+      if (plain.length) issues.push({type: 'grammar', severity: 'low', confidence: 0.9, title: 'Out of scope: an unchanged paragraph', passage_a: {quote: sentences(plain[0])[0]}, passage_b: null, explanation: 'x', fix: 'x', suggestion: null});
+      return {summary: {}, brief: [], issues, links: []};
+    }
     const paras = [...input.matchAll(/^\[(\d+)\] (.+)$/gm)].map(m => m[2]).filter(p => p.split(' ').length > 12);
     const first = i => sentences(paras[Math.min(i, paras.length - 1)] || '')[0] || '';
     const docs = [...input.matchAll(/<document id="(D\d+)" role="(\w+)" title="([^"]*)" content="([^"]*)">\n([\s\S]*?)\n<\/document>/g)]
@@ -102,6 +110,8 @@
   window.__failNext = null;
   const call = async (input, opts) => {
     window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'),
+      recheck: input.includes('THIS IS A RE-CHECK'), starred: (input.match(/^\[\d+\*\] /gm) || []).length,
+      essayLen: input.includes('\n\nESSAY (') ? input.slice(input.indexOf('\n\nESSAY ('), input.indexOf('OTHER DOCUMENTS')).length : 0,
       questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,
       essayClose: (input.match(/<\/essay>/g) || []).length, tier: opts && opts.modelTier, len: input.length,
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),

@@ -36,6 +36,14 @@ ${FENCE} The app then checks every quote in the answer against the real text and
 \`\`\`
 ${rules('REVIEW_RULES')}
 \`\`\`
+
+## Re-checks
+
+When the essay was reviewed before and only a few paragraphs changed (and its brief and documents didn't), the next review is a re-check. The changed paragraphs go in full with a star (\`[7*]\`), along with their neighbours and any paragraph the last review tied to them; the rest go in as their first sentence, marked "(in short)". These rules follow the review rules, and the app then keeps only new notes that involve a changed paragraph, and carries over the earlier notes whose passages are untouched.
+
+\`\`\`
+${rules('RECHECK_RULES')}
+\`\`\`
 `;
 
 const argument = `# Argument map prompt
