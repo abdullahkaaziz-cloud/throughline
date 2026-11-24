@@ -124,8 +124,10 @@ From the November 2026 review of what would make Throughline stand out: Grammarl
 - Each answer gets a verdict, feedback, at most one follow-up, and what the essay itself should change. The report scores the viva and marks spoken and pasted answers.
 - Vivas are kept with the essay for the writing record.
 
-### 7. The writing record (next)
-How the essay was made: time spent, where the words came from (typed, pasted, Claude's suggestions, outline headings), drafts and what each fixed, how the argument changed, and the vivas. It's an honest report you can download and hand in.
+### 7. The writing record (shipped in v0.8)
+- How the essay was made, kept as it's written: active time and length day by day, and where every character came from (typed, pasted, an imported file, Claude's suggestions you accepted, outline headings).
+- The drafts and what each fixed, the vivas and how each answer was given, and a plain statement of how AI was used.
+- Download it as a web page or copy it as text to hand in. It says what it covers: work done in Throughline, nothing else.
 
 ### 8. Your progress (next)
 Every review across every essay: how each kind of note changes over time, and the habits behind them, with examples and tips.

@@ -13,21 +13,22 @@ const headingFrom = t => trunc(String(t || '').replace(/\s+/g, ' ').replace(/[.!
 // Plan shows the board, Write the essay, Compare (opened from the drafts strip) two drafts side by side, and Map
 // the whole library.
 // Defend it (opened from the notes or the argument map) is a viva on the open essay.
-const SUB_MODES = ['compare', 'defend'];
+const SUB_MODES = ['compare', 'defend', 'record'];
 function setMode(m) {
-  if (!['plan', 'write', 'compare', 'map', 'defend'].includes(m)) return;
+  if (!['plan', 'write', 'compare', 'map', 'defend', 'record'].includes(m)) return;
   if (st.mode === 'defend' && m !== 'defend') { hush(); stopDictation(); }
   st.mode = m;
   layoutEl.classList.toggle('planning', m === 'plan');
   layoutEl.classList.toggle('comparing', SUB_MODES.includes(m));
   layoutEl.classList.toggle('mapping', m === 'map');
-  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend';
+  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend'; recEl.hidden = m !== 'record';
   for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === (SUB_MODES.includes(m) ? 'write' : m)));
   hideSelbar(); closePop();
   if (m === 'plan') { closeSheet(); renderBoard(); window.scrollTo(0, 0); }
   else if (m === 'compare') { closeSheet(); renderCompare(); window.scrollTo(0, 0); }
   else if (m === 'map') { closeSheet(); renderMap(); window.scrollTo(0, 0); }
   else if (m === 'defend') { closeSheet(); renderDefend(); window.scrollTo(0, 0); }
+  else if (m === 'record') { closeSheet(); renderRecord(); window.scrollTo(0, 0); }
   else { fitTitle(); refresh(); }
 }
 function savePlan() { const d = ensureReal(st.cur); planOf(d).at = Date.now(); d.updatedAt = Date.now(); persist(d); }
@@ -223,7 +224,8 @@ function startWriting() {
   if (!heads.length) { toast('Put some cards in the outline first.'); return; }
   setMode('write');
   const end = ed.value.replace(/\s+$/, '').length;
-  replaceRange(end, ed.value.length, (end ? '\n\n' : '') + heads.join('\n\n') + '\n\n');
+  const add = (end ? '\n\n' : '') + heads.join('\n\n') + '\n\n';
+  appEdit('outline', add.trim(), () => replaceRange(end, ed.value.length, add));
 }
 
 // ---- the AI call (only when the writer asks) ----

@@ -2,6 +2,7 @@
 function renderDocBtn() { $('#docName').textContent = (st.cur && st.cur.title) || 'Untitled essay'; }
 function renderMeta() {
   const d = st.cur, n = words(ed.value);
+  st.words = n;
   fill(metaEl,
     d.isSample ? h('span', {class: 'tag'}, 'Sample essay') : null,
     h('span', null, n.toLocaleString() + (n === 1 ? ' word' : ' words')),

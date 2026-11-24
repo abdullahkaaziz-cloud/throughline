@@ -80,7 +80,9 @@ async function importFiles(files, role) {
       let title = titleFrom(f.name);
       const firstPara = text.split('\n\n')[0];
       if (firstPara && firstPara.length < 120 && !/[.!:;]$/.test(firstPara) && firstPara.split(' ').length >= 2 && !/^(introduction|abstract|contents|preface|summary|chapter|section|part)\b/i.test(firstPara)) { title = firstPara; text = text.slice(firstPara.length).replace(/^\n+/, ''); }
-      const d = makeDoc(title, text, role); st.docs.set(d.id, d); persist(d, 0); added.push(d);
+      const d = makeDoc(title, text, role);
+      if (role !== 'source') actOf(d).imported = {at: Date.now(), chars: text.length, words: words(text), name: clip(f.name, 160)};
+      st.docs.set(d.id, d); persist(d, 0); added.push(d);
     } catch (e) { toast('Couldn’t open ' + f.name + '.'); }
   }
   if (!added.length) return;

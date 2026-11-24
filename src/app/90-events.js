@@ -1,10 +1,11 @@
 // ---- events ----
-ed.addEventListener('input', () => {
+ed.addEventListener('input', e => {
   st.touched = true;
   const d = ensureReal(st.cur);
   d.text = ed.value; d.updatedAt = Date.now();
   st.pstarts = paraStarts(d.text);
   reanchor(); renderBackdrop(); renderMeta(); hideSelbar();
+  trackInput(e, d);
   if (st.active && !isOpen({id: st.active})) st.active = null;
   const sig = openSig(); if (sig !== st.lastSig) { st.lastSig = sig; renderRail(); }
   setReviewBtn(); scheduleLines();
@@ -58,7 +59,7 @@ addEventListener('keydown', e => {
     else if (!srcWrap.hidden) closeSources();
     else if (!docMenu.hidden || !aiMenu.hidden) closeMenus();
     else if (!selbar.hidden) hideSelbar();
-    else if (st.mode === 'compare' || st.mode === 'defend') setMode('write');
+    else if (SUB_MODES.includes(st.mode)) setMode('write');
     else if (st.mode === 'map' && st.mapSel) { st.mapSel = null; renderMap(); }
     else if (st.active) setActive(null);
     else if (st.argSel.length) setArgSel([]);

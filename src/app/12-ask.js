@@ -54,6 +54,7 @@ async function runAsk(a, d) {
   a.state = 'loading'; a.ctl = new AbortController();
   renderBackdrop(); renderRail(); openSheet(); rbody.scrollTop = 0;
   try {
+    logAct(d, 'asks');
     const res = await sampleFn.json(askPrompt(d, ed.value, a.s, a.e, a.question), {signal: a.ctl.signal, modelTier: 'default'});
     const pts = (res && Array.isArray(res.points) ? res.points : []).slice(0, 5).map(p => ({label: str(p && p.label, 80), detail: str(p && p.detail, 700)})).filter(p => p.label || p.detail);
     a.points = pts.length ? pts : [{label: 'No clear answer', detail: 'Try asking in a different way.'}];
@@ -69,7 +70,7 @@ function retryAsk(a) { const r = anchorExact(ed.value, a.sel, a.s); if (r) { a.s
 function applyAsk(a) {
   const r = anchorExact(ed.value, a.sel, a.s);
   if (!r) { toast('That passage has changed since you asked.'); return; }
-  a.applied = true; replaceRange(r[0], r[1], a.suggestion); renderRail();
+  a.applied = true; appEdit('ai', a.suggestion, () => replaceRange(r[0], r[1], a.suggestion)); renderRail();
 }
 function closeAsk(a) {
   if (a.state === 'loading' && a.ctl) a.ctl.abort();

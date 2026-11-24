@@ -53,7 +53,8 @@ function timelineEl(d) {
   const s = L[sel];
   return h('section', {class: 'tline'},
     h('div', {class: 'thead'}, h('span', {class: 'lbl'}, 'Drafts'),
-      n > 1 || now ? h('button', {class: 'lnk', id: 'cmpBtn', onclick: () => openCompare(sel)}, 'Compare') : null),
+      h('span', {class: 'tacts'}, n > 1 || now ? h('button', {class: 'lnk', id: 'cmpBtn', onclick: () => openCompare(sel)}, 'Compare') : null,
+        h('button', {class: 'lnk', type: 'button', onclick: openRecord}, 'Record'))),
     h('ol', {class: 'tstrip', 'aria-label': 'Your drafts, oldest first'}, cols),
     h('p', {class: 'smeta'}, 'Draft ' + (sel + 1) + ' · ' + (s.kind === 'recheck' ? 'a re-check' : 'a full review') + ' · ' + ago(s.at) + ' · ' + plural(s.words, 'word'),
       n === 1 && !now ? ' · your next review adds draft 2' : ''));

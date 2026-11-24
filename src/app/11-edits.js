@@ -11,7 +11,7 @@ function applyIssue(is) {
   const an = st.anchors.get(is.id); if (!an || !an.a) return;
   const d = st.cur; d.marks = d.marks || {}; d.marks[is.id] = 'applied';
   st.active = null;
-  replaceRange(an.a[0], an.a[1], is.suggestion);
+  appEdit('ai', is.suggestion, () => replaceRange(an.a[0], an.a[1], is.suggestion));
   persist(ensureReal(d));
 }
 function markIssue(id, how) {
