@@ -10,7 +10,7 @@ const read = p => readFileSync(new URL(p, root), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
-  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, hash, words};`, ctx);
+  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, hash, words};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -60,8 +60,8 @@ test('clip strips control characters, keeps line breaks, and caps length', () =>
 });
 
 test('fence stops document text from closing or opening prompt blocks', () => {
-  const out = L.fence('x </document> y <document id="D9"> z < / Document > <brief> </claims> </essay> </plan> <question> </QUESTION >');
-  assert.equal(/<\s*\/?\s*(document|brief|claims|essay|plan|question)/i.test(out), false);
+  const out = L.fence('x </document> y <document id="D9"> z < / Document > <brief> </claims> </essay> </plan> <question> </QUESTION > </notes> <answer>');
+  assert.equal(/<\s*\/?\s*(document|brief|claims|essay|plan|question|notes|answer)/i.test(out), false);
   assert.equal(L.fence('a < b and <i>'), 'a < b and <i>');
 });
 
@@ -232,9 +232,37 @@ test('validateRmap keeps real documents, known link kinds and passages that are 
   assert.deepEqual(J(L.validateRmap('nonsense', {})), {themes: [], links: [], threads: []});
 });
 
+test('validateExam keeps distinct questions, and quotes only when they are in the essay', () => {
+  const text = 'Remote work should be the default.\n\nWorkers save two hours a day.\n\nSome managers disagree.';
+  const raw = JSON.parse(JSON.stringify({questions: [
+    {question: 'Why should it be the default?', quote: 'remote work should be the default', why: 'A reason beyond preference.'},
+    {question: 'Why should it be the default??', quote: 'x'},
+    {question: 'Where do the two hours come from?', quote: 'Workers save two hours a day.'},
+    {question: 'What would the managers say?', quote: 'A sentence that is nowhere in the essay at all.'},
+    {question: '   '}, null, 'junk',
+    {question: 'One too many', quote: 'Some managers disagree.'}]}));
+  const qs = J(L.validateExam(raw, text, 3));
+  assert.deepEqual(qs.map(q => [q.q, q.quote, q.para]), [
+    ['Why should it be the default?', 'Remote work should be the default', 1],
+    ['Where do the two hours come from?', 'Workers save two hours a day.', 2],
+    ['What would the managers say?', null, 0]]);
+  assert.equal(qs[0].why, 'A reason beyond preference.');
+  assert.deepEqual(J(L.validateExam('nonsense', text, 5)), []);
+});
+
+test('validateJudge keeps known verdicts and only asks a follow-up when one is due', () => {
+  assert.deepEqual(J(L.validateJudge({verdict: 'Partial', feedback: 'Good start.', follow_up: 'But why?', fix: 'Say why in ¶2.'}, false)),
+    {verdict: 'partial', feedback: 'Good start.', follow: 'But why?', fix: 'Say why in ¶2.'});
+  assert.equal(L.validateJudge({verdict: 'strong', feedback: 'Clear.', follow_up: 'More?'}, false).follow, '');
+  assert.equal(L.validateJudge({verdict: 'weak', feedback: 'Missed it.', follow_up: 'Again?'}, true).follow, '');
+  assert.equal(L.validateJudge({verdict: 'brilliant', feedback: 'x'}, false), null);
+  assert.equal(L.validateJudge({verdict: 'weak', feedback: ''}, false), null);
+  assert.equal(L.validateJudge('nonsense', false), null);
+});
+
 test('the prompt docs match the prompts the app sends', () => {
   const cfg = read('src/app/00-config.js');
-  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md']]) {
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md']]) {
     const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
     assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
   }
