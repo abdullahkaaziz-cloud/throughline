@@ -1,14 +1,19 @@
 // ---- files ----
-function loadScript(src) {
-  return new Promise((res, rej) => {
-    if (document.querySelector('script[data-src="' + src + '"]')) return res();
-    const s = document.createElement('script'); s.src = src; s.dataset.src = src; s.onload = () => res(); s.onerror = () => rej(new Error('load'));
+// Third-party code loads only from pinned versions, checked against their published hashes (subresource integrity).
+const scriptLoads = new Map();
+function loadScript(lib) {
+  if (!scriptLoads.has(lib.src)) scriptLoads.set(lib.src, new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = lib.src; s.integrity = lib.sri; s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer';
+    s.onload = () => res();
+    s.onerror = () => { s.remove(); scriptLoads.delete(lib.src); rej(new Error('Could not load ' + lib.src)); };
     document.head.append(s);
-  });
+  }));
+  return scriptLoads.get(lib.src);
 }
 async function pdfToText(buf) {
   await loadScript(LIBS.pdf); await loadScript(LIBS.pdfw);
-  const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = LIBS.pdfw;
+  const lib = window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc = LIBS.pdfw.src;
   const pdf = await lib.getDocument({data: new Uint8Array(buf), isEvalSupported: false, disableFontFace: true}).promise;
   const pages = [];
   for (let p = 1; p <= pdf.numPages; p++) {
@@ -57,10 +62,13 @@ async function docxToText(buf) { await loadScript(LIBS.mammoth); const r = await
 function titleFrom(name) {
   return name.replace(/\.[^.]+$/, '').replace(/^[0-9a-f]{8}-/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Untitled essay';
 }
-async function importFiles(files) {
+// role: 'essay' (opens in the editor) or 'source' (joins the library and is read for its claims).
+async function importFiles(files, role) {
+  role = role === 'source' ? 'source' : 'essay';
   const added = [];
   for (const f of files) {
     const ext = (f.name.split('.').pop() || '').toLowerCase();
+    if (f.size > LIMITS.fileBytes) { toast(f.name + ' is over 25 MB, too large to open.'); continue; }
     try {
       let text;
       if (ext === 'pdf') text = await pdfToText(await f.arrayBuffer());
@@ -68,12 +76,21 @@ async function importFiles(files) {
       else if (['txt', 'md', 'markdown', 'text'].includes(ext) || (f.type || '').startsWith('text/')) text = tidyText(await f.text());
       else { toast('Can’t read ' + f.name + '. Use Word, PDF or text files.'); continue; }
       if (!text.trim()) { toast(f.name + ' has no text to read. Is it a scan?'); continue; }
+      if (text.length > LIMITS.docChars) { text = text.slice(0, LIMITS.docChars); toast('Kept the first part of ' + f.name + '; the rest is too long.'); }
       let title = titleFrom(f.name);
       const firstPara = text.split('\n\n')[0];
       if (firstPara && firstPara.length < 120 && !/[.!:;]$/.test(firstPara) && firstPara.split(' ').length >= 2 && !/^(introduction|abstract|contents|preface|summary|chapter|section|part)\b/i.test(firstPara)) { title = firstPara; text = text.slice(firstPara.length).replace(/^\n+/, ''); }
-      const d = makeDoc(title, text); st.docs.set(d.id, d); persist(d, 0); added.push(d);
+      const d = makeDoc(title, text, role); st.docs.set(d.id, d); persist(d, 0); added.push(d);
     } catch (e) { toast('Couldn’t open ' + f.name + '.'); }
   }
-  if (added.length) { openDoc(added[0]); toast(added.length > 1 ? 'Added ' + added.length + ' essays to your library' : 'Opened “' + trunc(added[0].title, 40) + '”'); }
+  if (!added.length) return;
+  if (role === 'source') {
+    for (const d of added) { setUsed(st.cur, d, true); indexDoc(d); }
+    renderSources();
+    toast(added.length > 1 ? 'Added ' + added.length + ' sources. Reading them now.' : 'Added “' + trunc(added[0].title, 40) + '”. Reading it now.');
+  } else {
+    openDoc(added[0]);
+    toast(added.length > 1 ? 'Added ' + added.length + ' essays to your library' : 'Opened “' + trunc(added[0].title, 40) + '”');
+  }
 }
 

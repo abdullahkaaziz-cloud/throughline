@@ -15,6 +15,7 @@ function renderBackdrop() {
     if (an.b) ranges.push({s: an.b[0], e: an.b[1], id: is.id, rank, type: is.type});
   }
   for (const r of askRanges()) ranges.push({s: r[0], e: r[1], ask: true});
+  for (const r of st.supHi || []) ranges.push({s: r[0], e: r[1], sup: true});
   const cuts = new Set([0, text.length]);
   for (const r of ranges) { cuts.add(r.s); cuts.add(r.e); }
   const pts = [...cuts].sort((a, b) => a - b), frag = document.createDocumentFragment();
@@ -22,10 +23,11 @@ function renderBackdrop() {
     const s = pts[i], e = pts[i + 1]; if (e <= s) continue;
     const cov = ranges.filter(r => r.s <= s && r.e >= e), seg = text.slice(s, e);
     if (!cov.length) { frag.append(seg); continue; }
-    const iss = cov.filter(r => !r.ask).sort((x, y) => x.rank - y.rank), span = document.createElement('span');
+    const iss = cov.filter(r => r.id).sort((x, y) => x.rank - y.rank), span = document.createElement('span');
     const cls = [];
     if (iss.length) { cls.push('mk', 't-' + iss[0].type); span.dataset.ids = [...new Set(iss.map(r => r.id))].join(' '); }
     if (cov.some(r => r.ask)) cls.push('ask');
+    if (cov.some(r => r.sup)) cls.push('sup');
     span.className = cls.join(' '); span.textContent = seg; frag.append(span);
   }
   frag.append('​');

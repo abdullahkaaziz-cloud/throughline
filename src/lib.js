@@ -1,5 +1,5 @@
 // ---- text helpers (shared by the page and the Node tests) ----
-const QMAP = {'‘':"'",'’':"'",'‚':"'",'‛':"'",'′':"'",'“':'"','”':'"','„':'"','″':'"','–':'-','—':'-','−':'-'};
+const QMAP = {'‘':"'",'’':"'",'‚':"'",'‛':"'",'′':"'",'“':'"','”':'"','„':'"','″':'"','–':'-','—':'-','−':'-','‹':'<','›':'>'};
 function normMap(s) {
   let t = '', sp = false; const map = [];
   for (let i = 0; i < s.length; i++) {
@@ -139,3 +139,126 @@ function wordDiff(a, b) {
 }
 function words(t) { return (String(t).match(/\S+/g) || []).length; }
 function hash(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+
+// ---- data hygiene: ids, stored values, prompt fences ----
+const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+function safeId(s) { return typeof s === 'string' && ID_RE.test(s) && s !== '__proto__' && s !== 'constructor' && s !== 'prototype'; }
+// Plain text without control characters (tabs and line breaks stay), trimmed and capped.
+function clip(v, max) {
+  return (v == null ? '' : String(v)).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim().slice(0, max);
+}
+function plainObj(v) { return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
+function hasOwn(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+// id -> value map with no prototype, keeping only safe ids and allowed values (booleans by default).
+function cleanFlags(x, allowed) {
+  const out = Object.create(null), src = plainObj(x);
+  for (const k of Object.keys(src)) {
+    const v = src[k];
+    if (safeId(k) && (allowed ? allowed.includes(v) : typeof v === 'boolean')) out[k] = v;
+  }
+  return out;
+}
+// Text placed inside a prompt block can't close that block or open another one.
+function fence(text) {
+  return String(text == null ? '' : text).replace(/<(?=\s*\/?\s*(?:document|brief|essay|claims)\b)/gi, '\u2039');
+}
+
+// ---- review context: what goes into the prompt, and checking what comes back ----
+// items, most important first: {id, fullBytes, claimsBytes (null when the document has no claims index)}.
+// Each gets its smaller form if it fits the budget; then documents are upgraded to full text, smallest first.
+function planContext(items, budget, fullMax) {
+  const plan = new Map(); let used = 0;
+  for (const it of items) {
+    const claims = it.claimsBytes != null && it.claimsBytes < it.fullBytes;
+    const size = claims ? it.claimsBytes : it.fullBytes;
+    if ((!claims && it.fullBytes > fullMax) || used + size > budget) continue;
+    plan.set(it.id, claims ? 'claims' : 'full'); used += size;
+  }
+  for (const it of items.filter(x => plan.get(x.id) === 'claims').sort((a, b) => a.fullBytes - b.fullBytes)) {
+    const extra = it.fullBytes - it.claimsBytes;
+    if (it.fullBytes <= fullMax && used + extra <= budget) { plan.set(it.id, 'full'); used += extra; }
+  }
+  return {plan, used};
+}
+// A claims index from the model, kept only where each quote really is in the document.
+function validateIndex(raw, text) {
+  const r = plainObj(raw), m = plainObj(r.meta), N = normMap(text), starts = paraStarts(text), claims = [], seen = new Set();
+  for (const c of (Array.isArray(r.claims) ? r.claims : []).slice(0, 40)) {
+    const o = plainObj(c), at = anchorFuzzy(text, o.quote, null, N);
+    if (!at || at[1] - at[0] > 600 || seen.has(at[0])) continue;
+    seen.add(at[0]);
+    claims.push({id: 'c' + (claims.length + 1), claim: clip(o.claim, 300) || clip(text.slice(at[0], at[1]), 300),
+      quote: text.slice(at[0], at[1]), para: paraIndex(starts, at[0]), topic: clip(o.topic, 40)});
+    if (claims.length >= 24) break;
+  }
+  return {meta: {authors: clip(m.authors, 160), year: clip(m.year, 12), summary: clip(m.summary, 400)}, claims};
+}
+// Where a passage the model cites sits in another document: by claim id first, then by quote.
+function locateInDoc(d, ref) {
+  const o = plainObj(ref);
+  if (o.claim != null && Array.isArray(d.claims)) {
+    const c = d.claims.find(x => x.id === String(o.claim));
+    if (c) { const r = anchorExact(d.text, c.quote); if (r) return r; }
+  }
+  return o.quote ? anchorFuzzy(d.text, o.quote) : null;
+}
+const SEVS = ['high', 'medium', 'low'], BRIEF_STATES = ['covered', 'partial', 'missing'];
+const TYPE_ALIASES = {library: 'library_clash', clash: 'library_clash', library_conflict: 'library_clash', source: 'source_conflict', source_clash: 'source_conflict', misattribution: 'citation', misquote: 'citation'};
+// The model's review, checked against the text: every quote must be found, every type known, every value bounded.
+// o: {text, types: {name: {rel, src}}, resolveDoc(ref) -> {id, title, text, claims, role} | null, rid}
+function parseReview(raw, o) {
+  const text = o.text, N = normMap(text), r = plainObj(raw), issues = [], seen = new Set();
+  const list = Array.isArray(raw) ? raw : Array.isArray(r.issues) ? r.issues : [];
+  list.slice(0, 40).forEach((it, k) => {
+    const x = plainObj(it), pa = plainObj(x.passage_a), pb = plainObj(x.passage_b);
+    let type = clip(x.type, 40).toLowerCase().replace(/[\s-]+/g, '_');
+    if (hasOwn(TYPE_ALIASES, type)) type = TYPE_ALIASES[type];
+    if (!hasOwn(o.types, type)) return;
+    const a = anchorFuzzy(text, pa.quote != null ? pa.quote : x.quote, null, N);
+    if (!a || a[1] - a[0] > 1500) return;
+    const sev = clip(x.severity, 10).toLowerCase(), conf = Number(x.confidence);
+    const rec = {id: 'n' + k + '-' + o.rid, type, severity: SEVS.includes(sev) ? sev : 'medium',
+      confidence: Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : null, title: clip(x.title, 90),
+      qa: text.slice(a[0], a[1]), qb: null, docB: null, explanation: clip(x.explanation, 700), fix: clip(x.fix, 500),
+      suggestion: typeof x.suggestion === 'string' && x.suggestion.trim() ? x.suggestion.slice(0, 2000) : null};
+    if (o.types[type].rel) {
+      const b = anchorFuzzy(text, pb.quote, null, N);
+      if (!b || (b[0] < a[1] && a[0] < b[1])) return;
+      rec.qb = text.slice(b[0], b[1]);
+    } else if (o.types[type].src) {
+      const d = o.resolveDoc(pb.document);
+      if (d) {
+        if (type === 'library_clash' && d.role === 'source') rec.type = 'source_conflict';
+        else if (type === 'source_conflict' && d.role === 'essay') rec.type = 'library_clash';
+        const b = locateInDoc(d, pb);
+        if (b) rec.qb = d.text.slice(b[0], b[1]);
+        rec.docB = {id: d.id, title: d.title};
+      }
+      if (rec.type !== 'citation' && !rec.qb) return;
+    }
+    if (rec.confidence != null && rec.confidence < 0.3) return;
+    const key = rec.type + ':' + a[0] + ':' + a[1];
+    if (seen.has(key)) return;
+    seen.add(key);
+    if (rec.suggestion === rec.qa) rec.suggestion = null;
+    issues.push(rec);
+  });
+  const links = [];
+  for (const l of (Array.isArray(r.links) ? r.links : []).slice(0, 30)) {
+    const x = plainObj(l);
+    if (clip(x.relation, 20).toLowerCase() !== 'supports') continue;
+    const a = anchorFuzzy(text, x.quote != null ? x.quote : plainObj(x.passage_a).quote, null, N), d = a && o.resolveDoc(x.document);
+    const b = d && locateInDoc(d, {claim: x.claim, quote: x.source_quote});
+    if (b) links.push({qa: text.slice(a[0], a[1]), qb: d.text.slice(b[0], b[1]), docB: {id: d.id, title: d.title}});
+    if (links.length >= 12) break;
+  }
+  const brief = [];
+  for (const b of (Array.isArray(r.brief) ? r.brief : []).slice(0, 8)) {
+    const x = plainObj(b), req = clip(x.requirement, 160);
+    if (!req) continue;
+    const status = clip(x.status, 12).toLowerCase(), a = x.quote ? anchorFuzzy(text, x.quote, null, N) : null;
+    brief.push({requirement: req, status: BRIEF_STATES.includes(status) ? status : 'partial', qa: a ? text.slice(a[0], a[1]) : null, note: clip(x.note, 300)});
+  }
+  const s = plainObj(r.summary);
+  return {summary: {thesis: clip(s.thesis, 400), start_with: clip(s.start_with, 400)}, issues, links, brief};
+}

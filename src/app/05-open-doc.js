@@ -1,8 +1,10 @@
 // ---- open / switch ----
 function openDoc(d) {
+  if (!srcWrap.hidden) flushBrief();
   st.cur = d; st.active = null; st.hover = null; st.filter = 'all'; st.anchors = new Map(); st.reviewError = null;
   hideSelbar(); closeMenus();
   loadEditor();
+  if (!srcWrap.hidden) buildSources();
   window.scrollTo(0, 0);
 }
 function loadEditor() {
@@ -14,7 +16,7 @@ function loadEditor() {
 }
 function refresh() {
   st.pstarts = paraStarts(ed.value);
-  reanchor(); renderBackdrop(); renderMeta(); renderDocBtn(); setReviewBtn();
+  reanchor(); renderBackdrop(); renderMeta(); renderDocBtn(); renderSrcBtn(); setReviewBtn();
   st.lastSig = openSig(); renderRail(); scheduleLines();
 }
 

@@ -10,7 +10,7 @@ function openMenu(menu, btn, right) {
   const f = menu.querySelector('button, input'); if (f) f.focus({preventScroll: true});
 }
 function renderDocMenu() {
-  const docs = sortedDocs(), items = [h('div', {class: 'msec'}, docs.length ? 'Your essays' : 'Your essays will appear here')];
+  const docs = essayDocs(), items = [h('div', {class: 'msec'}, docs.length ? 'Your essays' : 'Your essays will appear here')];
   for (const d of docs) {
     const n = d.review ? d.review.issues.filter(is => !(d.marks || {})[is.id]).length : 0;
     const del = h('button', {class: 'del', 'aria-label': 'Delete ' + (d.title || 'Untitled essay'), onclick: e => {
@@ -23,13 +23,13 @@ function renderDocMenu() {
   }
   items.push(h('hr'),
     h('button', {class: 'mi', onclick: newEssay}, h('span', {class: 'mt'}, h('b', null, 'New essay'))),
-    h('button', {class: 'mi', onclick: () => { closeMenus(); fileIn.click(); }}, h('span', {class: 'mt'}, h('b', null, 'Upload essays'), h('span', {class: 'sub'}, 'Word, PDF or text, several at once. Each one joins your library.'))));
+    h('button', {class: 'mi', onclick: () => { closeMenus(); pickFiles('essay'); }}, h('span', {class: 'mt'}, h('b', null, 'Upload essays'), h('span', {class: 'sub'}, 'Word, PDF or text, several at once. Each one joins your library.'))));
   if (!(st.cur && st.cur.isSample)) items.push(h('button', {class: 'mi', onclick: () => openDoc(makeSample())}, h('span', {class: 'mt'}, h('b', null, 'Open the sample essay'))));
   if (st.isOwner && !st.docs.has('seed-it')) items.push(h('button', {class: 'mi', onclick: addSeeds}, h('span', {class: 'mt'}, h('b', null, 'Add my 4 test essays'), h('span', {class: 'sub'}, 'With the 32 notes from test run 1. Only you see this option.'))));
   fill(docMenu, items);
 }
 function renderAiMenu() {
-  const tiersOk = !st.tiers || st.tiers.includes('complex'), others = sortedDocs().filter(x => x !== st.cur).length;
+  const tiersOk = !st.tiers || st.tiers.includes('complex');
   const prov = (name, sub, state, mine) => h('div', {class: 'prov' + (mine ? '' : ' off')}, h('span', {class: 'pdot', data: {s: state}}), h('span', {class: 'mt'}, h('b', null, name), h('span', {class: 'sub'}, sub)), mine ? (state === 'ready' ? h('span', {class: 'okmark', 'aria-label': 'In use'}, '✓') : null) : h('span', {class: 'soon'}, 'Soon'));
   const seg = (v, name, sub) => h('button', {'aria-pressed': String(st.tier === v), onclick: () => { st.tier = v; savePrefs(); renderAiMenu(); }}, h('b', null, name), h('span', {class: 'sub'}, sub));
   fill(aiMenu,
@@ -40,8 +40,7 @@ function renderAiMenu() {
     h('p', {class: 'mnote'}, 'This preview runs inside Claude, so it can only ask Claude. The standalone Throughline app signs in to each provider with your own account, and every provider gets the same review instructions.'),
     tiersOk ? h('div', {class: 'msec'}, 'Review depth') : null,
     tiersOk ? h('div', {class: 'seg', role: 'group', 'aria-label': 'Review depth'}, seg('complex', 'Thorough', 'Slower, catches more'), seg('default', 'Faster', 'A quicker first pass')) : null,
-    h('label', {class: 'mi chk'}, h('input', {type: 'checkbox', checked: st.useLib, onchange: e => { st.useLib = e.target.checked; savePrefs(); }}),
-      h('span', {class: 'mt'}, h('b', null, 'Check against my other essays'), h('span', {class: 'sub'}, others ? 'Looks for clashes with ' + plural(others, 'saved essay') : 'Upload past essays to use this'))));
+    h('button', {class: 'mi', onclick: () => { closeMenus(); openSources(); }}, h('span', {class: 'mt'}, h('b', null, 'Sources and past essays'), h('span', {class: 'sub'}, 'Choose what reviews of this essay check against'))));
 }
 function newEssay() {
   closeMenus();
@@ -54,7 +53,8 @@ async function removeDoc(id) {
   try { if (st.store === 'db') await col.doc(id).delete(); else if (st.store === 'local') writeLocal(); } catch (e) {}
   if (st.cur && st.cur.id === id) openDoc(sortedDocs()[0] || makeSample());
   if (!docMenu.hidden) renderDocMenu();
-  toast('Essay deleted');
+  renderSources();
+  toast('Deleted');
 }
 async function addSeeds() {
   closeMenus();
@@ -62,7 +62,7 @@ async function addSeeds() {
     const res = await fetch('seed/test-essays.json'); if (!res.ok) throw new Error('seed');
     const arr = await res.json(), now = Date.now();
     arr.forEach((x, i) => {
-      const d = {id: String(x.id), title: str(x.title, 200), text: String(x.text || ''), review: cleanReview(x.review), marks: {}, createdAt: now, updatedAt: now - i * 1000};
+      const d = Object.assign(makeDoc(str(x.title, 200), String(x.text || '').slice(0, LIMITS.docChars)), {id: safeId(String(x.id)) ? String(x.id) : newId(), review: cleanReview(x.review), createdAt: now, updatedAt: now - i * 1000});
       if (d.review) d.review.textHash = hash(d.text);
       st.docs.set(d.id, d); persist(d, 0);
     });

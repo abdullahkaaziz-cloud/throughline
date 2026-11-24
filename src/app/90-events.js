@@ -42,17 +42,20 @@ reviewBtn.addEventListener('click', runReview);
 docBtn.addEventListener('click', () => openMenu(docMenu, docBtn, false));
 aiBtn.addEventListener('click', () => openMenu(aiMenu, aiBtn, true));
 $('#rhead').addEventListener('click', e => { if (narrow.matches && !e.target.closest('.chip')) rail.classList.toggle('open'); });
-fileIn.addEventListener('change', () => { const fs = [...fileIn.files]; fileIn.value = ''; if (fs.length) importFiles(fs); });
+fileIn.addEventListener('change', () => { const fs = [...fileIn.files], role = st.importRole; fileIn.value = ''; st.importRole = 'essay'; if (fs.length) importFiles(fs, role); });
 $('#readerClose').addEventListener('click', closeReader);
 $('#readerOpen').addEventListener('click', () => { const d = readerDoc; closeReader(); if (d) openDoc(d); });
 reader.addEventListener('click', e => { if (e.target === reader) closeReader(); });
 document.addEventListener('pointerdown', e => {
   if (!e.target.closest('.menu, #docBtn, #aiBtn')) closeMenus();
   if (!selbar.hidden && !e.target.closest('#selbar') && e.target !== ed) hideSelbar();
+  if (!chipPop.hidden && !e.target.closest('#chipPop, .chip-src')) closePop();
 });
 addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (!reader.hidden) closeReader();
+    else if (!chipPop.hidden) closePop();
+    else if (!srcWrap.hidden) closeSources();
     else if (!docMenu.hidden || !aiMenu.hidden) closeMenus();
     else if (!selbar.hidden) hideSelbar();
     else if (st.active) setActive(null);
@@ -65,7 +68,7 @@ let dragN = 0;
 addEventListener('dragenter', e => { if (hasFiles(e)) { dragN++; dropEl.hidden = false; } });
 addEventListener('dragleave', e => { if (hasFiles(e) && --dragN <= 0) { dragN = 0; dropEl.hidden = true; } });
 addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
-addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); dragN = 0; dropEl.hidden = true; importFiles([...e.dataTransfer.files]); });
+addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); dragN = 0; dropEl.hidden = true; importFiles([...e.dataTransfer.files], srcWrap.hidden ? 'essay' : 'source'); });
 const edObserver = new ResizeObserver(() => { scheduleLines(); fitTitle(); if (!selbar.hidden) showSelbar(); });
 edObserver.observe($('.edwrap'));
 narrow.addEventListener('change', () => { closeSheet(); renderRail(); });
