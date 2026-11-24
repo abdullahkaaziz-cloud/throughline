@@ -1,0 +1,9 @@
+node_modules/
+dist/
+seed/
+test/fixtures/
+test-results/
+private/
+*.pdf
+.DS_Store
+__pycache__/
