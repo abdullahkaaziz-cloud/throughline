@@ -23,13 +23,16 @@
   const deliver = l => { const s = snapFor(l); if (l.first || s.docChanges().length || true) { l.first = false; l.next(s); } };
   const notify = () => { for (const l of listeners) setTimeout(() => deliver(l), 10); };
   const docRef = p => ({id: p.split('/').pop(), path: p,
-    async set(data) { await sleep(15); mem.set(p, clone(data)); window.__dbWrites++; notify(); },
+    async set(data) { await sleep(15); if (window.__dbDeny) throw {code: 'permission_denied', message: 'mock: view only'}; mem.set(p, clone(data)); window.__dbWrites++; notify(); },
     async delete() { await sleep(10); mem.delete(p); notify(); },
     async get() { return {id: p.split('/').pop(), exists: mem.has(p), data: () => mem.get(p)}; }});
   const db = {
     doc: docRef,
     collection(path) { return {path, doc: id => docRef(path + '/' + id),
-      onSnapshot(next, err) { const l = {path, next, seen: new Map(), first: true}; listeners.push(l); setTimeout(() => deliver(l), 40); return () => {}; }}; },
+      onSnapshot(next, err) {
+        // window.__dbDeny plays a viewer who may only look: reading their space is refused, as the real rules would.
+        if (window.__dbDeny) { setTimeout(() => err && err({code: 'permission_denied', message: 'mock: view only'}), 40); return () => {}; }
+        const l = {path, next, seen: new Map(), first: true}; listeners.push(l); setTimeout(() => deliver(l), 40); return () => {}; }}; },
   };
   const sentences = t => (t.match(/[^.!?]+[.!?]/g) || [t]).map(s => s.trim()).filter(s => s.split(' ').length >= 5);
   window.__mockReview = input => {
@@ -173,7 +176,8 @@
   const sample = async (input, opts) => ({text: await call(input, opts), truncated: false});
   sample.json = async (input, opts) => JSON.parse(await call(input, opts));
   sample.limits = async () => ({maxPromptBytes: 262144, modelTiers: ['default', 'complex', 'quick']});
-  const user = {id: async () => 'u_test', isOwner: async () => true, canEdit: async () => true, can: async () => true, me: async () => ({id: 'u_test', name: ''})};
+  // window.__notOwner plays a tester the app was shared with; window.__myName is their display name.
+  const user = {id: async () => 'u_test', isOwner: async () => !window.__notOwner, canEdit: async () => true, can: async () => true, me: async () => ({id: 'u_test', name: window.__myName || ''})};
   // Voice and downloads: speaking records what was said; dictation "hears" window.__dictText; saves record the file.
   window.__spoken = []; window.__saved = [];
   const tts = {speak: async t => { window.__spoken.push(String(t)); await sleep(30); }, stop() {}, onState() { return () => {}; }};
