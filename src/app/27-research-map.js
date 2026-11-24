@@ -111,7 +111,7 @@ function renderMap() {
   if (selLink) kids.push(linkPanelEl(selLink, byId));
   else if (selNode) kids.push(nodePanelEl(selNode, links, byId));
   kids.push(threadsEl(M, byId));
-  kids.push(h('p', {class: 'smeta'}, 'Mapped by Claude · ' + ago(M.at) + ' · ', h('button', {class: 'lnk', onclick: runMap, disabled: !!st.mapRun}, 'Map again')));
+  kids.push(h('p', {class: 'smeta'}, 'Mapped by ' + AI + ' · ' + ago(M.at) + ' · ', h('button', {class: 'lnk', onclick: runMap, disabled: !!st.mapRun}, 'Map again')));
   fill(mapEl, kids);
   drawMapLines(shown);
 }
@@ -235,14 +235,14 @@ function mapSketch() {
 function mapEmptyEl(docs) {
   const nE = docs.filter(d => d.role !== 'source').length, nS = docs.length - nE, off = st.ai === 'denied' || st.ai === 'off';
   if (docs.length < 2) return h('section', {class: 'empty mempty'}, mapSketch(), h('div', null, h('h3', null, 'Map how your work connects'),
-    h('p', null, 'Add at least two essays or sources, and Claude will map how they connect: what builds on what, what supports what, and where they clash.'),
+    h('p', null, 'Add at least two essays or sources, and ' + AI + ' will map how they connect: what builds on what, what supports what, and where they clash.'),
     h('div', {class: 'acts'}, h('button', {class: 'btn sm', type: 'button', onclick: () => pickFiles('essay')}, 'Upload essays'), h('button', {class: 'btn sm', type: 'button', onclick: () => pickFiles('source')}, 'Add sources'))));
   return h('section', {class: 'empty mempty'}, mapSketch(), h('div', null,
     h('h3', null, 'Map how your work connects'),
-    h('p', null, 'Claude reads the main claims of your ' + [nE ? plural(nE, 'essay') : '', nS ? plural(nS, 'source') : ''].filter(Boolean).join(' and ') +
+    h('p', null, AI + ' reads the main claims of your ' + [nE ? plural(nE, 'essay') : '', nS ? plural(nS, 'source') : ''].filter(Boolean).join(' and ') +
       ', groups them by theme, and draws what builds on, supports or clashes with what, down to the passage. It also lists the questions your work raises but never settles.'),
     h('div', {class: 'acts'}, h('button', {class: 'btn sm primary', type: 'button', id: 'mapRunBtn', onclick: runMap, disabled: off || !!st.mapRun}, 'Map my work')),
-    h('p', {class: 'fine'}, off && st.aiWhy ? st.aiWhy : 'Uses your Claude plan. Long documents are read once and remembered.')));
+    h('p', {class: 'fine'}, off && st.aiWhy ? st.aiWhy : 'Uses your ' + AI + ' plan. Long documents are read once and remembered.')));
 }
 
 // ---- from the map to the work ----

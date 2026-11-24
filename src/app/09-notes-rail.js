@@ -44,15 +44,15 @@ function emptyEl() {
   const ctx = contextDocs(st.cur), nSrc = ctx.filter(x => x.role === 'source').length, nEss = ctx.length - nSrc;
   return h('section', {class: 'empty'},
     h('h3', null, 'No review yet'),
-    h('p', null, 'Press Review and Claude reads the whole essay, then marks what needs work:'),
+    h('p', null, 'Press Review and ' + AI + ' reads the whole essay, then marks what needs work:'),
     h('ul', {class: 'legend'}, LEGEND.map(([g, name, desc]) => h('li', null, h('span', {class: 'sw', html: SW[g]}), h('span', null, h('b', null, name), desc)))),
-    h('p', null, 'Or select any sentence to ask about it. Claude suggests; you decide what changes.'),
+    h('p', null, 'Or select any sentence to ask about it. ' + AI + ' suggests; you decide what changes.'),
     words(ed.value) < 40 ? h('p', null, 'Not sure where to start? ', h('button', {class: 'lnk', onclick: () => setMode('plan')}, 'Plan it on the brainstorm board')) : null,
     h('p', null, nSrc || nEss ? 'It also checks this essay against ' + [nSrc ? plural(nSrc, 'source') : '', nEss ? 'your ' + plural(nEss, 'other essay') : ''].filter(Boolean).join(' and ') + '. ' : 'Add your brief and sources to check claims and citations too. ',
       h('button', {class: 'lnk', onclick: openSources}, 'Choose sources')));
 }
 function summaryEl(rv) {
-  const s = rv.summary || {}, bits = [rv.tier === 'sample' ? 'Sample review' : 'Reviewed by ' + (rv.by || 'Claude') + (rv.at ? ' · ' + ago(rv.at) : '')];
+  const s = rv.summary || {}, bits = [rv.tier === 'sample' ? 'Sample review' : 'Reviewed by ' + (rv.by || AI) + (rv.at ? ' · ' + ago(rv.at) : '')];
   if (rv.tier === 'test run 1') bits.push('from test run 1');
   const against = [rv.sources ? plural(rv.sources, 'source') : '', rv.checked ? plural(rv.checked, 'other essay') : ''].filter(Boolean);
   if (against.length) bits.push('checked against ' + against.join(' and '));

@@ -2,6 +2,7 @@
 const use = n => { try { return window.claude && typeof window.claude.use === 'function' ? Promise.resolve(window.claude.use(n)).catch(() => null) : Promise.resolve(null); } catch (e) { return Promise.resolve(null); } };
 let dbApi = null, myId = null, myName = '';
 async function initCaps() {
+  if (LOCAL) { await initLocal(); startLocal(); return; }
   const [s, d, u] = await Promise.all([use('sample'), use('db'), use('user')]);
   sampleFn = s || null;
   st.ai = sampleFn ? 'ready' : 'off';

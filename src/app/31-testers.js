@@ -27,6 +27,17 @@ function maybeWelcome() {
   if (st.isOwner || !dlgEl.hidden) return;
   try { if (localStorage.getItem(WKEY)) return; localStorage.setItem(WKEY, '1'); } catch (e) {}
   const ai = st.ai === 'ready';
+  if (LOCAL) {
+    openDlg('Welcome to Throughline',
+      h('p', {class: 'wlead'}, 'Throughline reads your essay and marks what needs work, right where it is: contradictions, gaps in the argument, claims that need evidence, unclear sentences. It never rewrites your essay.'),
+      h('ul', {class: 'wlist'},
+        h('li', null, h('b', null, 'Your own ChatGPT plan. '), ai ? 'Reviews run on your ChatGPT plan, so they count toward your usage.' : 'Continue with ChatGPT to run reviews on your own plan (Plus or Pro). No API key needed.'),
+        h('li', null, h('b', null, 'On this computer. '), 'Your essays are saved in this browser, on this computer. Your ChatGPT sign-in stays here too, until you close Throughline.'),
+        h('li', null, h('b', null, 'A test version. '), 'Tell whoever shared it with you what works and what doesn’t: ', h('b', null, 'Send feedback'), ' in the essay menu helps you write it down.')),
+      h('div', {class: 'wacts'}, ai ? null : h('button', {class: 'btn primary', type: 'button', id: 'welcomeConnect', onclick: () => { closeDlg(); connectChatGPT(st.gpt && st.gpt.state === 'scope_missing'); }}, 'Continue with ChatGPT'),
+        h('button', {class: 'btn' + (ai ? ' primary' : ''), type: 'button', id: 'welcomeSample', onclick: () => { closeDlg(); if (!(st.cur && st.cur.isSample)) openDoc(makeSample()); }}, 'Try the sample essay')));
+    return;
+  }
   openDlg('Welcome to Throughline',
     h('p', {class: 'wlead'}, 'Throughline reads your essay and marks what needs work, right where it is: contradictions, gaps in the argument, claims that need evidence, unclear sentences. It never rewrites your essay.'),
     h('ul', {class: 'wlist'},

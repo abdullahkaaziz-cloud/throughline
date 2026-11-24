@@ -38,3 +38,5 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check -r requirements-dev.txt
           python tools/test_app.py
+      - name: Browser tests for the local app (mock ChatGPT sign-in and Responses API)
+        run: python tools/test_local.py

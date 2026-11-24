@@ -55,7 +55,7 @@ function renderBoard() {
       h('label', {class: 'lbl', for: 'bq'}, 'The question'),
       h('textarea', {id: 'bq', class: 'bq', rows: 1, placeholder: 'What is the essay trying to answer?', oninput: onQuestion,
         onkeydown: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runIdeas(); } }}, P.q || defaultQuestion(d)),
-      P.cards.length ? null : h('p', {class: 'bintro'}, 'Claude asks questions back and offers angles, objections and passages from your sources as cards. Keep the good ones, bin the rest, and drag them into an outline. Nothing is written for you.'),
+      P.cards.length ? null : h('p', {class: 'bintro'}, AI + ' asks questions back and offers angles, objections and passages from your sources as cards. Keep the good ones, bin the rest, and drag them into an outline. Nothing is written for you.'),
       h('div', {class: 'acts bacts'},
         h('button', {class: 'btn primary', id: 'ideaBtn', onclick: runIdeas, disabled: busy || off}, busy ? h('span', {class: 'spin'}) : null, h('span', null, busy ? st.ideaRun.stage || 'Thinking…' : P.cards.length ? 'More ideas' : 'Suggest ideas')),
         busy ? h('button', {class: 'btn ghost', onclick: () => st.ideaRun && st.ideaRun.ctl.abort()}, 'Stop') : null,
@@ -93,7 +93,7 @@ function clusterEl(kind, cards) {
     h('div', {class: 'chead'}, h('i', {class: 'kdot'}), h('b', null, I.title), h('span', {class: 'n'}, cards.length || '')),
     h('p', {class: 'khint'}, I.hint),
     cards.length ? h('ul', {class: 'kcards'}, cards.map(ideaCardEl)) : null,
-    kind === 'source' ? (cards.length ? null : h('p', {class: 'khint'}, 'Switch sources on for this essay and Claude will find passages that matter.')) : addEl(kind));
+    kind === 'source' ? (cards.length ? null : h('p', {class: 'khint'}, 'Switch sources on for this essay and ' + AI + ' will find passages that matter.')) : addEl(kind));
 }
 function ideaCardEl(c) {
   const I = IDEA_INFO[c.kind];

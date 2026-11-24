@@ -82,10 +82,10 @@ function buildReview(raw, text, ctx, tier) {
   const resolveDoc = ctxResolver(ctx);
   const out = parseReview(raw, {text, types: TYPES, resolveDoc, rid: Date.now().toString(36)});
   const srcN = ctx.filter(c => c.doc.role === 'source').length;
-  return Object.assign({at: Date.now(), by: 'Claude', tier, textHash: hash(text), checked: ctx.length - srcN, sources: srcN}, out);
+  return Object.assign({at: Date.now(), by: AI, tier, textHash: hash(text), checked: ctx.length - srcN, sources: srcN}, out);
 }
 function pickTier() { const want = st.tier; if (st.tiers && !st.tiers.includes(want)) return st.tiers.includes('default') ? 'default' : undefined; return want; }
-const HARD = ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'];
+const HARD = ['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'subscription_sharing_user_not_eligible'];
 const isHard = e => HARD.includes(e && e.code);
 function errText(e) {
   const c = e && e.code;
@@ -95,17 +95,22 @@ function errText(e) {
     not_declared: 'This page can’t call Claude right now.',
     capability_disabled: 'This page can’t call Claude in this view.',
     capability_removed: 'Update the Claude app to use AI review here.',
-    rate_limited: e && e.reason === 'usage_limit' ? 'You’ve reached your Claude usage limit. Try again when it resets.' : 'Too many requests at once. Wait a moment, then try again.',
-    session_expired: 'Your Claude session expired. Sign in again, then retry.',
-    refused: 'Claude declined to review this text.',
-    empty_completion: 'Claude returned nothing. Try again, or review a shorter piece.',
+    rate_limited: e && e.reason === 'usage_limit' ? 'You’ve reached your ' + AI + ' usage limit. Try again when it resets.' : 'Too many requests at once. Wait a moment, then try again.',
+    session_expired: 'Your ' + AI + ' session expired. Sign in again, then retry.',
+    refused: AI + ' declined to review this text.',
+    empty_completion: AI + ' returned nothing. Try again, or review a shorter piece.',
     invalid_json: 'The answer came back in the wrong shape. Try again.',
     prompt_too_large: 'Too much text for one review. Switch off some sources, or shorten the essay.',
     upstream_error: 'The connection dropped. Try again.',
   };
-  return hasOwn(M, c) ? M[c] : 'Something went wrong. Try again.';
+  if (hasOwn(M, c)) return M[c];
+  // The local app's server sends its own fixed, plain messages.
+  if (LOCAL && e && typeof e.message === 'string' && e.message.length < 300) return e.message;
+  return 'Something went wrong. Try again.';
 }
-function noteAiError(e) { if (isHard(e)) { st.ai = 'denied'; st.aiWhy = errText(e); renderAiBtn(); setReviewBtn(); hideSelbar(); } }
+function noteAiError(e) {
+  if (LOCAL && e && ['not_signed_in', 'reauth_required', 'scope_missing'].includes(e.code)) { refreshLocal(); return; }
+  if (isHard(e)) { st.ai = 'denied'; st.aiWhy = errText(e); renderAiBtn(); setReviewBtn(); hideSelbar(); } }
 async function runReview(how) {
   if (st.reviewing) { toast('A review is already running.'); return; }
   if (st.mode !== 'write') setMode('write');

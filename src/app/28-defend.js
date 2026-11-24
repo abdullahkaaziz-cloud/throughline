@@ -9,7 +9,7 @@ const listOf = d => d.defences || (d.defences = []);
 // ---- capabilities that make it a spoken viva: read questions aloud, answer by voice ----
 async function initVoice() {
   const [t, dc, dl] = await Promise.all([use('tts'), use('dictation'), use('downloads')]);
-  st.tts = t || null; st.dl = dl || null; st.dict = dc || null;
+  st.tts = t || null; st.dl = dl || st.dl || null; st.dict = dc || null;   // the local app saves files itself
   if (st.dict) {
     try {
       st.dict.onFinal(({text}) => {
@@ -191,7 +191,7 @@ function setupEl(d) {
       h('div', null, h('span', {class: 'lbl'}, 'Examiner'), seg('Examiner', Object.entries(VIVA_STYLE).map(([k, v]) => [k, v.label]), st.vivaStyle, v => { st.vivaStyle = v; })),
       h('div', null, h('span', {class: 'lbl'}, 'Questions'), seg('Number of questions', [[3, '3'], [5, '5'], [SESSION_MAX, String(SESSION_MAX)]], st.vivaN, v => { st.vivaN = v; }))),
     h('div', {class: 'acts'}, h('button', {class: 'btn primary', type: 'button', id: 'vivaStart', onclick: startViva, disabled: off}, 'Start the viva')),
-    h('p', {class: 'fine'}, off && st.aiWhy ? st.aiWhy : 'Uses your Claude plan: one request to set the questions, then one per answer.'),
+    h('p', {class: 'fine'}, off && st.aiWhy ? st.aiWhy : 'Uses your ' + AI + ' plan: one request to set the questions, then one per answer.'),
     past.length ? h('section', {class: 'vpast'}, h('span', {class: 'lbl'}, 'Your vivas on this essay'),
       h('ul', null, past.map(s => { const n = tally(s); return h('li', null, dotsEl(s, -1),
         h('span', null, ago(s.at) + ' · ' + VIVA_STYLE[s.style].label + ' · ' + n.strong + ' strong of ' + s.qs.length + (s.done ? '' : ' · unfinished')),

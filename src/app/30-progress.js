@@ -198,8 +198,8 @@ function habitsEl(rows) {
     isHard(st.habitErr) ? null : h('button', {class: 'btn sm', type: 'button', onclick: runHabits}, 'Try again')));
   if (!G || !G.habits.length) {
     if (!st.habitRun) kids.push(h('div', {class: 'hempty'},
-      h('p', null, ready ? 'Claude can read the notes from your ' + plural(rows.length, 'essay') + ' and name the habits behind them, each with the notes that show it and one thing to try next time.'
-        : 'Once two essays have been reviewed, Claude can read their notes and name the habits behind them.'),
+      h('p', null, ready ? AI + ' can read the notes from your ' + plural(rows.length, 'essay') + ' and name the habits behind them, each with the notes that show it and one thing to try next time.'
+        : 'Once two essays have been reviewed, ' + AI + ' can read their notes and name the habits behind them.'),
       h('button', {class: 'btn sm primary', type: 'button', id: 'habitsBtn', onclick: runHabits, disabled: !ready || off || !!st.habitRun}, 'Find my habits')));
     return h('section', {class: 'rsec'}, kids);
   }
@@ -211,7 +211,7 @@ function habitsEl(rows) {
     h('ul', {class: 'hex'}, hb.ex.map(e => { const d = st.docs.get(e.doc);
       return h('li', null, d ? h('button', {class: 'lnk', type: 'button', onclick: () => openAt(d, e.q)}, trunc(d.title || 'Untitled essay', 50)) : h('span', {class: 'smeta'}, 'An essay you’ve since deleted'),
         e.q ? h('span', {class: 'hq'}, '“' + trunc(e.q, 160) + '”') : h('span', {class: 'hq'}, e.x)); }))))),
-    h('p', {class: 'smeta'}, (stale ? 'You’ve reviewed more since these were found. ' : '') + 'Found by Claude · ' + ago(G.at) + ' · ',
+    h('p', {class: 'smeta'}, (stale ? 'You’ve reviewed more since these were found. ' : '') + 'Found by ' + AI + ' · ' + ago(G.at) + ' · ',
       h('button', {class: 'lnk', type: 'button', id: 'habitsAgain', onclick: runHabits, disabled: !ready || off || !!st.habitRun}, 'Find them again')));
   return h('section', {class: 'rsec'}, kids);
 }

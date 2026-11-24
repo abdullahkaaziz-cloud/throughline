@@ -19,15 +19,22 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
   - `29` writing record (where text came from, time, the record view and its download);
   - `30` your progress (notes per 1,000 words across essays, habits);
   - `31` testers (the first-visit welcome, Send feedback, the owner's inbox, the shared dialog);
+  - `32` ChatGPT in the local app (sign-in state, the AI menu, the `sample`-shaped adapter);
   - `90` event wiring;
   - `99` start-up, which runs last.
 
   New modules go in `20`–`89` so their `const` values exist before start-up.
+- `local/` is the version that runs on the person's computer with their ChatGPT plan:
+  - `throughline.mjs` builds the page and starts the server;
+  - `server.mjs` serves the page and the `/api/*` routes;
+  - `siwc.mjs` is Sign in with ChatGPT and the Responses API.
+
+  The page knows it's local from `window.TL_LOCAL` (`LOCAL` in `00`). Write user-facing text with `AI` (the provider's name), never a hardcoded "Claude".
 - **Data:** each document is stored as `{kind:'doc', v:2, role:'essay'|'source', title, text, review, marks, brief, use, index, argmap, plan, history, defences, activity}`. The legacy `kind:'essay'` is still read. Everything loaded passes through `fromStored()` in `02`. The research map is one more record in the same place, id `rmap` (`{kind:'rmap', v:1, at, sig, themes, links, threads, hidden}`), loaded through `cleanRmap()` in `27`. Your habits are another, id `growth` (`{kind:'growth', v:1, at, sig, habits}`), loaded through `cleanGrowth()` in `30`. Records like these register in `SPECIAL` (`03`). Testers' feedback is one record each at `feedback/<their id>` (`{kind:'feedback', v:1, name, items}`), outside `data/users` so the owner can read it; `cleanFeedback()` in `31`.
 
 ## Build and test
 - `npm ci --ignore-scripts`, then `npm test`. That runs the unit tests (`node --test`), the build (`dist/index.html`, which syntax-checks the script) and the browser tests (`tools/test_app.py`, Playwright and Chrome at `/usr/bin/google-chrome`, against a mocked runtime in `tools/mock.js`).
-- `test_app.py` exits non-zero on any failed check.
+- `test_app.py` exits non-zero on any failed check. `tools/test_local.py` tests the local app against `tools/mock-openai.mjs` (a mock of OpenAI's sign-in and Responses API).
 - Optional private data is gitignored: `test/fixtures/*.pdf` and `seed/test-essays.json`. The tests read them from there (the build never copies `seed/` into `dist/`). Without them, those steps skip.
 - After editing `REVIEW_RULES`, `RECHECK_RULES`, `ARG_RULES`, `IDEA_RULES`, `MAP_RULES`, `EXAM_RULES`, `JUDGE_RULES` or `HABIT_RULES`, run `npm run sync-prompt-doc`; a unit test enforces the match.
 - **Workflow:** feature branch → PR → CI green (`.github/workflows/ci.yml`) → merge → publish.
@@ -44,6 +51,11 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
 - Validate the model's JSON with the `lib.js` validators (`parseReview`, `validateIndex`, `validateArgmap`, `validateIdeas`, `validateRmap`, `validateExam`, `validateJudge`, `validateHabits`): quotes must anchor in the real text, and types and values must be from known lists. For lookups keyed by untrusted strings, use `hasOwn()` and `safeId()`, never `obj[key]` truthiness.
 - Document text goes into prompts only through `fence()`, inside its own block.
 - Third-party scripts load only via `loadScript(LIBS.x)`, which uses subresource integrity. To bump pdf.js or mammoth, update the version, URL and `sha384` in `00-config.js`; a unit test checks them against `node_modules`.
+- **Local app:**
+  - Tokens stay in the server's memory, never on disk or in the page.
+  - Only `127.0.0.1:<port>` is served, and `/api/*` needs the run's key and the page's origin.
+  - `THROUGHLINE_TEST_*` URLs must be 127.0.0.1.
+  - Follow OpenAI's documented open-source flow. Don't copy code from OpenAI's devkit: its licence is noncommercial.
 - **AI calls:** spend the viewer's plan, so only call on a user action. Claims-index reads run one at a time and are cached by text hash.
 - **Storage:** each user's documents live at `data/users/<await user.id()>/<docId>`. Write one document at a time; `persist()` debounces and chains the writes. A record must stay under 250 KB: `serial()` fits drafts (notes before text) and the argument map into whatever room the essay leaves.
 - **Editor:** a transparent `<textarea id="ed">` sits over a marked-up copy (`#backdrop`). Any text style goes on `.txt` so both keep identical metrics, and the textarea never scrolls internally. Text the app puts into the essay goes through `appEdit(kind, text, fn)` around `replaceRange`, so the writing record credits it (a suggestion from Claude, outline headings) and never counts it as typing.

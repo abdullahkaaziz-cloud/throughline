@@ -8,7 +8,10 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
 
 ## Foundations (built alongside the features)
 
-- **Bring your own AI:** a standalone web app where people sign in with ChatGPT, Google (Gemini) or Claude. Every provider gets the same prompts through one adapter (`review(prompt) → JSON`).
+- **Bring your own AI:** every provider gets the same prompts through one adapter (`sample.json(prompt) → JSON`).
+  - **Claude (shipped):** inside Claude, on the viewer's Claude plan. Anthropic doesn't let other apps use Claude subscriptions, so this stays inside Claude.
+  - **ChatGPT (v0.11):** Throughline on your computer with Sign in with ChatGPT and your ChatGPT plan. OpenAI offers this self-serve to open-source apps that run on the user's own computer.
+  - **Next:** a hosted website where anyone can sign up with ChatGPT. This needs OpenAI to approve Throughline for its limited trial (interest form). Gemini after that.
 - **Real documents:** headings, footnotes and citations, plus Word and PDF import and export. Later, a Google Docs and Word add-on so people can use Throughline where they already write.
 - **Claims index (shipped in v0.2):** the shared data layer. Every essay and source is broken into claims, with their positions and stances, and cached, so re-checks only re-read what changed. Features 1–5 all read from it, and the cache keeps AI usage down.
 
