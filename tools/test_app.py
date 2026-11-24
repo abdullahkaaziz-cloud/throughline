@@ -15,7 +15,7 @@ threading.Thread(target=srv.serve_forever, daemon=True).start()
 URL = 'http://127.0.0.1:8765/dist/index.html'
 MOCK = open(ROOT + '/tools/mock.js').read()
 PDFS = sorted(glob.glob(os.environ.get('THROUGHLINE_PDFS', ROOT + '/test/fixtures') + '/*.pdf'))
-SEED = ROOT + '/dist/seed/test-essays.json'
+SEED = ROOT + '/seed/test-essays.json'
 HAVE_SEED = os.path.exists(SEED)
 
 HOSTILE_SOURCE = ('Remote work raises output for focused individual tasks in most firms studied. Teams that meet in person still report faster '
@@ -85,7 +85,7 @@ with sync_playwright() as p:
     align = ev(page, "(() => { const b = document.getElementById('backdrop'), t = document.getElementById('ed'); return [b.offsetHeight, t.scrollHeight, t.clientHeight]; })()")
     check('textarea and marked-up layer have the same height', abs(align[0] - align[1]) <= 2 and abs(align[1] - align[2]) <= 2, align)
     check('AI marked ready', ev(page, "document.getElementById('aiDot').dataset.s") == 'ready')
-    check('first-run card offers upload + test essays', ev(page, "(document.querySelector('.start') || {}).textContent || ''").count('Add my 4 test essays') == 1)
+    check('first-run card offers upload, and never a private test file', 'Upload' in ev(page, "(document.querySelector('.start') || {}).textContent || ''") and 'test essays' not in ev(page, "document.body.textContent"))
     page.screenshot(path=SHOTS + '/01-sample.png')
 
     # 1b. argument flow: the sample comes with a map, so the view works before any AI call
@@ -208,8 +208,8 @@ with sync_playwright() as p:
     # 10. seeded test essays (owner only; the seed file is private and never committed)
     if HAVE_SEED:
         seed = json.load(open(SEED))
-        page.click('#docBtn'); page.wait_for_timeout(200)
-        page.click('#docMenu button:has-text("Add my 4 test essays")'); page.wait_for_timeout(1200)
+        recs = {'data/users/u_test/' + str(d['id']): {'kind': 'doc', 'v': 2, 'role': 'essay', 'title': d['title'], 'text': d['text'], 'review': d['review'], 'createdAt': 1, 'updatedAt': 1} for d in seed}
+        ev(page, "recs => { for (const [p, v] of Object.entries(recs)) window.__dbPut(p, v); }", recs); page.wait_for_timeout(1200)
         for d in seed:
             iss = d['review']['issues']
             want = [len(iss), sum(1 for i in iss if i['type'] in ('contradiction', 'tension', 'library_clash'))]
@@ -224,7 +224,7 @@ with sync_playwright() as p:
                 if got == want: break
             check('seed "%s": %d notes, %d margin lines' % (d['title'][:30], want[0], want[1]), want in seen, seen)
         page.screenshot(path=SHOTS + '/09-seed.png')
-    else: print('SKIP seed essays (no dist/seed/test-essays.json)')
+    else: print('SKIP seed essays (no seed/test-essays.json)')
 
     # 10b. new essay empty state
     page.click('#docBtn'); page.wait_for_timeout(200)

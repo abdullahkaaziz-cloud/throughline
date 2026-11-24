@@ -38,8 +38,7 @@ function renderRail() {
 function startEl() {
   return h('section', {class: 'start'}, h('b', null, 'Try it on your own writing'),
     h('p', null, 'This is a sample. Upload essays (Word, PDF or text) or start a new one. Every essay you add also joins the library that reviews check against.'),
-    h('div', {class: 'acts'}, h('button', {class: 'btn sm primary', onclick: () => pickFiles('essay')}, 'Upload essays'), h('button', {class: 'btn sm', onclick: newEssay}, 'New essay'),
-      st.isOwner && !st.docs.has('seed-it') ? h('button', {class: 'btn sm', onclick: addSeeds}, 'Add my 4 test essays') : null));
+    h('div', {class: 'acts'}, h('button', {class: 'btn sm primary', onclick: () => pickFiles('essay')}, 'Upload essays'), h('button', {class: 'btn sm', onclick: newEssay}, 'New essay')));
 }
 function emptyEl() {
   const ctx = contextDocs(st.cur), nSrc = ctx.filter(x => x.role === 'source').length, nEss = ctx.length - nSrc;
