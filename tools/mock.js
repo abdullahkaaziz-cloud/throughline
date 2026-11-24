@@ -4,6 +4,8 @@
   const mem = new Map(), listeners = [];
   // window.__seedDb ({path: record}), set by an earlier init script, starts the store with records already in it.
   for (const [p, v] of Object.entries(window.__seedDb || {})) mem.set(p, JSON.parse(JSON.stringify(v)));
+  // window.__dbPut(path, record) adds a record while the page is open, as another device would.
+  window.__dbPut = (p, v) => { mem.set(p, JSON.parse(JSON.stringify(v))); notify(); };
   window.__dbWrites = 0; window.__calls = [];
   window.__dbDump = () => [...mem.values()].map(clone);
   const clone = x => JSON.parse(JSON.stringify(x));

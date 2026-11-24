@@ -30,7 +30,6 @@ function renderDocMenu() {
   items.push(h('hr'), st.isOwner
     ? h('button', {class: 'mi', id: 'menuInbox', onclick: openInbox}, h('span', {class: 'mt'}, h('b', null, 'Feedback from testers'), h('span', {class: 'sub'}, st.inbox ? plural(st.inbox.reduce((s, f) => s + f.items.length, 0), 'message') : 'What people you share Throughline with have sent')))
     : h('button', {class: 'mi', id: 'menuFeedback', onclick: openFeedback}, h('span', {class: 'mt'}, h('b', null, 'Send feedback'), h('span', {class: 'sub'}, 'What works, what doesn’t, and what would make it better'))));
-  if (st.isOwner && !st.docs.has('seed-it')) items.push(h('button', {class: 'mi', onclick: addSeeds}, h('span', {class: 'mt'}, h('b', null, 'Add my 4 test essays'), h('span', {class: 'sub'}, 'With the 32 notes from test run 1. Only you see this option.'))));
   fill(docMenu, items);
 }
 function renderAiMenu() {
@@ -60,19 +59,5 @@ async function removeDoc(id) {
   if (!docMenu.hidden) renderDocMenu();
   renderSources();
   toast('Deleted');
-}
-async function addSeeds() {
-  closeMenus();
-  try {
-    const res = await fetch('seed/test-essays.json'); if (!res.ok) throw new Error('seed');
-    const arr = await res.json(), now = Date.now();
-    arr.forEach((x, i) => {
-      const d = Object.assign(makeDoc(str(x.title, 200), String(x.text || '').slice(0, LIMITS.docChars)), {id: safeId(String(x.id)) ? String(x.id) : newId(), review: cleanReview(x.review), createdAt: now, updatedAt: now - i * 1000});
-      if (d.review) d.review.textHash = hash(d.text);
-      st.docs.set(d.id, d); persist(d, 0);
-    });
-    if (arr.length) openDoc(st.docs.get(String(arr[0].id)));
-    toast('Added your ' + plural(arr.length, 'test essay'));
-  } catch (e) { toast('Couldn’t load the test essays.'); }
 }
 

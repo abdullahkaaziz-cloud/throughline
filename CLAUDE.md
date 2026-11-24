@@ -28,12 +28,12 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
 ## Build and test
 - `npm ci --ignore-scripts`, then `npm test`. That runs the unit tests (`node --test`), the build (`dist/index.html`, which syntax-checks the script) and the browser tests (`tools/test_app.py`, Playwright and Chrome at `/usr/bin/google-chrome`, against a mocked runtime in `tools/mock.js`).
 - `test_app.py` exits non-zero on any failed check.
-- Optional private data is gitignored: `test/fixtures/*.pdf` and `seed/test-essays.json`. Without it, those steps skip.
+- Optional private data is gitignored: `test/fixtures/*.pdf` and `seed/test-essays.json`. The tests read them from there (the build never copies `seed/` into `dist/`). Without them, those steps skip.
 - After editing `REVIEW_RULES`, `RECHECK_RULES`, `ARG_RULES`, `IDEA_RULES`, `MAP_RULES`, `EXAM_RULES`, `JUDGE_RULES` or `HABIT_RULES`, run `npm run sync-prompt-doc`; a unit test enforces the match.
 - **Workflow:** feature branch → PR → CI green (`.github/workflows/ci.yml`) → merge → publish.
 
 ## Publish
-- **App:** artifact slug `09021979-394b-4c68-be40-8f3af9c78303` (https://claude.ai/artifact/27X1wxt4QTTi1oxFRun3VU). Build first. Get `base_version` from `get_artifact`, then `publish_files` with `mode: "patch"` and only `[{as: "index.html", path: "<repo>/dist/index.html"}]`. `seed/test-essays.json` is already on the artifact, so don't re-send it.
+- **App:** artifact slug `09021979-394b-4c68-be40-8f3af9c78303` (https://claude.ai/artifact/27X1wxt4QTTi1oxFRun3VU). Build first. Get `base_version` from `get_artifact`, then `publish_files` with `mode: "patch"` and only `[{as: "index.html", path: "<repo>/dist/index.html"}]`. The artifact holds that one file: never upload `seed/` or any essay to it, because anyone it's shared with can download its files.
 - **Capabilities:** `sample`, `db`, `user`, `tts` (the viva reads questions aloud), `dictation` (answers by voice) and `downloads` (saving the writing record). Each can be `null` in a view: hide its control and keep a typed or on-screen fallback. The `db` rules lock shared paths to the owner, let each viewer at Contributor level or above write their own `data/users/{self}` (private even from the owner) and `feedback/{self}` (which the owner reads). A viewer who may only look gets browser storage instead (`03`). When adding a capability, declare it first, then publish the code that uses it.
 - **Mockups:** design canvas slug `8314b750-d52b-4f2c-a0e2-6ec07b031db4` (https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ).
 - **Plans:** see `ROADMAP.md`.
