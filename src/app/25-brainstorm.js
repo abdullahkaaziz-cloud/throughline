@@ -13,15 +13,15 @@ const headingFrom = t => trunc(String(t || '').replace(/\s+/g, ' ').replace(/[.!
 // Plan shows the board, Write the essay, Compare (opened from the drafts strip) two drafts side by side, and Map
 // the whole library.
 // Defend it (opened from the notes or the argument map) is a viva on the open essay.
-const SUB_MODES = ['compare', 'defend', 'record', 'progress'];
+const SUB_MODES = ['compare', 'defend', 'record', 'progress', 'inbox'];
 function setMode(m) {
-  if (!['plan', 'write', 'compare', 'map', 'defend', 'record', 'progress'].includes(m)) return;
+  if (!['plan', 'write', 'compare', 'map', 'defend', 'record', 'progress', 'inbox'].includes(m)) return;
   if (st.mode === 'defend' && m !== 'defend') { hush(); stopDictation(); }
   st.mode = m;
   layoutEl.classList.toggle('planning', m === 'plan');
   layoutEl.classList.toggle('comparing', SUB_MODES.includes(m));
   layoutEl.classList.toggle('mapping', m === 'map');
-  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend'; recEl.hidden = m !== 'record'; progEl.hidden = m !== 'progress';
+  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend'; recEl.hidden = m !== 'record'; progEl.hidden = m !== 'progress'; inboxEl.hidden = m !== 'inbox';
   for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === (SUB_MODES.includes(m) ? 'write' : m)));
   hideSelbar(); closePop();
   if (m === 'plan') { closeSheet(); renderBoard(); window.scrollTo(0, 0); }
@@ -30,6 +30,7 @@ function setMode(m) {
   else if (m === 'defend') { closeSheet(); renderDefend(); window.scrollTo(0, 0); }
   else if (m === 'record') { closeSheet(); renderRecord(); window.scrollTo(0, 0); }
   else if (m === 'progress') { closeSheet(); renderProgress(); window.scrollTo(0, 0); }
+  else if (m === 'inbox') { closeSheet(); renderInbox(); window.scrollTo(0, 0); }
   else { fitTitle(); refresh(); }
 }
 function savePlan() { const d = ensureReal(st.cur); planOf(d).at = Date.now(); d.updatedAt = Date.now(); persist(d); }

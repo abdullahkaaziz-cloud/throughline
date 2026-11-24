@@ -18,11 +18,12 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
   - `28` Defend it (the viva: questions, verdicts, voice);
   - `29` writing record (where text came from, time, the record view and its download);
   - `30` your progress (notes per 1,000 words across essays, habits);
+  - `31` testers (the first-visit welcome, Send feedback, the owner's inbox, the shared dialog);
   - `90` event wiring;
   - `99` start-up, which runs last.
 
   New modules go in `20`–`89` so their `const` values exist before start-up.
-- **Data:** each document is stored as `{kind:'doc', v:2, role:'essay'|'source', title, text, review, marks, brief, use, index, argmap, plan, history, defences, activity}`. The legacy `kind:'essay'` is still read. Everything loaded passes through `fromStored()` in `02`. The research map is one more record in the same place, id `rmap` (`{kind:'rmap', v:1, at, sig, themes, links, threads, hidden}`), loaded through `cleanRmap()` in `27`. Your habits are another, id `growth` (`{kind:'growth', v:1, at, sig, habits}`), loaded through `cleanGrowth()` in `30`. Records like these register in `SPECIAL` (`03`).
+- **Data:** each document is stored as `{kind:'doc', v:2, role:'essay'|'source', title, text, review, marks, brief, use, index, argmap, plan, history, defences, activity}`. The legacy `kind:'essay'` is still read. Everything loaded passes through `fromStored()` in `02`. The research map is one more record in the same place, id `rmap` (`{kind:'rmap', v:1, at, sig, themes, links, threads, hidden}`), loaded through `cleanRmap()` in `27`. Your habits are another, id `growth` (`{kind:'growth', v:1, at, sig, habits}`), loaded through `cleanGrowth()` in `30`. Records like these register in `SPECIAL` (`03`). Testers' feedback is one record each at `feedback/<their id>` (`{kind:'feedback', v:1, name, items}`), outside `data/users` so the owner can read it; `cleanFeedback()` in `31`.
 
 ## Build and test
 - `npm ci --ignore-scripts`, then `npm test`. That runs the unit tests (`node --test`), the build (`dist/index.html`, which syntax-checks the script) and the browser tests (`tools/test_app.py`, Playwright and Chrome at `/usr/bin/google-chrome`, against a mocked runtime in `tools/mock.js`).
@@ -33,7 +34,7 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
 
 ## Publish
 - **App:** artifact slug `09021979-394b-4c68-be40-8f3af9c78303` (https://claude.ai/artifact/27X1wxt4QTTi1oxFRun3VU). Build first. Get `base_version` from `get_artifact`, then `publish_files` with `mode: "patch"` and only `[{as: "index.html", path: "<repo>/dist/index.html"}]`. `seed/test-essays.json` is already on the artifact, so don't re-send it.
-- **Capabilities:** `sample`, `db`, `user`, `tts` (the viva reads questions aloud), `dictation` (answers by voice) and `downloads` (saving the writing record). Each can be `null` in a view: hide its control and keep a typed or on-screen fallback. The `db` rules lock shared paths to the owner and let each viewer at Contributor level or above write their own `data/users/{self}`. When adding a capability, declare it first, then publish the code that uses it.
+- **Capabilities:** `sample`, `db`, `user`, `tts` (the viva reads questions aloud), `dictation` (answers by voice) and `downloads` (saving the writing record). Each can be `null` in a view: hide its control and keep a typed or on-screen fallback. The `db` rules lock shared paths to the owner, let each viewer at Contributor level or above write their own `data/users/{self}` (private even from the owner) and `feedback/{self}` (which the owner reads). A viewer who may only look gets browser storage instead (`03`). When adding a capability, declare it first, then publish the code that uses it.
 - **Mockups:** design canvas slug `8314b750-d52b-4f2c-a0e2-6ec07b031db4` (https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ).
 - **Plans:** see `ROADMAP.md`.
 

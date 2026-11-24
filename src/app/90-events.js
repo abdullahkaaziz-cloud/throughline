@@ -54,7 +54,8 @@ document.addEventListener('pointerdown', e => {
 });
 addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    if (!reader.hidden) closeReader();
+    if (!dlgEl.hidden) closeDlg();
+    else if (!reader.hidden) closeReader();
     else if (!chipPop.hidden) closePop();
     else if (!srcWrap.hidden) closeSources();
     else if (!docMenu.hidden || !aiMenu.hidden) closeMenus();

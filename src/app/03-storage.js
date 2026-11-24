@@ -86,9 +86,16 @@ function startDb(db, uid) {
     if (!st.loaded) { st.loaded = true; setSave(''); onFirstLoad(); }
     else if (curChanged) loadEditor();
     if (!docMenu.hidden) renderDocMenu();
-  }, () => { clearTimeout(timer); setSave('Can’t load your saved essays'); });
+  }, err => {
+    clearTimeout(timer);
+    // A viewer who may only look (or whose access was taken away) keeps working, saved in this browser instead.
+    const c = err && err.code;
+    if (!st.loaded && ['permission_denied', 'not_granted', 'unauthenticated', 'invalid_argument', 'revoked'].includes(c)) { col = null; startLocal(); return; }
+    setSave('Can’t load your saved essays');
+  });
 }
 function onFirstLoad() {
+  setTimeout(maybeWelcome, 300);
   if (st.cur && st.cur.unsaved && !st.touched) { const r = sortedDocs()[0]; if (r) { openDoc(r); return; } }
   renderRail();
 }

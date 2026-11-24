@@ -27,6 +27,9 @@ function renderDocMenu() {
     h('button', {class: 'mi', onclick: newEssay}, h('span', {class: 'mt'}, h('b', null, 'New essay'))),
     h('button', {class: 'mi', onclick: () => { closeMenus(); pickFiles('essay'); }}, h('span', {class: 'mt'}, h('b', null, 'Upload essays'), h('span', {class: 'sub'}, 'Word, PDF or text, several at once. Each one joins your library.'))));
   if (!(st.cur && st.cur.isSample)) items.push(h('button', {class: 'mi', onclick: () => openDoc(makeSample())}, h('span', {class: 'mt'}, h('b', null, 'Open the sample essay'))));
+  items.push(h('hr'), st.isOwner
+    ? h('button', {class: 'mi', id: 'menuInbox', onclick: openInbox}, h('span', {class: 'mt'}, h('b', null, 'Feedback from testers'), h('span', {class: 'sub'}, st.inbox ? plural(st.inbox.reduce((s, f) => s + f.items.length, 0), 'message') : 'What people you share Throughline with have sent')))
+    : h('button', {class: 'mi', id: 'menuFeedback', onclick: openFeedback}, h('span', {class: 'mt'}, h('b', null, 'Send feedback'), h('span', {class: 'sub'}, 'What works, what doesn’t, and what would make it better'))));
   if (st.isOwner && !st.docs.has('seed-it')) items.push(h('button', {class: 'mi', onclick: addSeeds}, h('span', {class: 'mt'}, h('b', null, 'Add my 4 test essays'), h('span', {class: 'sub'}, 'With the 32 notes from test run 1. Only you see this option.'))));
   fill(docMenu, items);
 }
