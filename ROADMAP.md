@@ -64,7 +64,7 @@ Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boa
   - Essays and sources are nodes, and lines show how they connect: builds on, supports or clashes. Themes cluster on their own.
   - Click a line to see the two passages side by side. Click a node to switch it in or out of reviews, open it, or see its argument flow.
   - "Open threads" lists questions your work raises but never settles, and each one can start a brainstorm.
-- **What you see:** [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map). It shows your four essays in three themes, the selected clash between JT Universalism and the Ibn Taymiyyah essay, and three open threads.
+- **What you see:** [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map). It shows essays and sources grouped by theme, a selected clash between two essays, and open threads.
 - **Why it wins:** Connected Papers, Litmaps and ResearchRabbit map citations between published papers, and Obsidian maps the links you draw by hand. Throughline maps claims across your own writing and your sources, automatically, down to the passage.
 
 ## Order
