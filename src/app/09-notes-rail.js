@@ -65,7 +65,7 @@ function summaryEl(rv) {
     briefEl(rv), linksEl(rv),
     h('p', {class: 'smeta'}, bits.join(' · '), rv.recheck && !st.reviewing ? [' · ', h('button', {class: 'lnk', onclick: () => runReview({full: true})}, 'Review everything')] : null),
     rv.tier === 'sample' ? null : h('div', {class: 'sdefend'}, h('button', {class: 'btn sm', type: 'button', id: 'defendBtn', onclick: openDefend}, 'Defend it'),
-      h('span', null, 'Practise a viva on this essay’s weakest points.')));
+      h('span', null, 'Practise a viva on this essay’s weakest points.'), h('button', {class: 'lnk', type: 'button', id: 'recordBtn', onclick: openRecord}, 'Writing record')));
 }
 function whereText(is) {
   const an = st.anchors.get(is.id), pa = para(an.a[0]);

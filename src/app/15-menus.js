@@ -22,6 +22,7 @@ function renderDocMenu() {
       h('span', {class: 'mt'}, h('b', null, d.title || 'Untitled essay'), h('span', {class: 'sub'}, [words(d.text).toLocaleString() + ' words', d.review ? plural(n, 'open note') : 'not reviewed', ago(d.updatedAt)].filter(Boolean).join(' · '))), del));
   }
   items.push(h('hr'),
+    st.cur && !st.cur.isSample && st.cur.role !== 'source' && st.cur.text.trim() ? h('button', {class: 'mi', id: 'menuRecord', onclick: openRecord}, h('span', {class: 'mt'}, h('b', null, 'Writing record'), h('span', {class: 'sub'}, 'How this essay was written: time, typed and pasted text, drafts, vivas and AI use'))) : null,
     h('button', {class: 'mi', onclick: newEssay}, h('span', {class: 'mt'}, h('b', null, 'New essay'))),
     h('button', {class: 'mi', onclick: () => { closeMenus(); pickFiles('essay'); }}, h('span', {class: 'mt'}, h('b', null, 'Upload essays'), h('span', {class: 'sub'}, 'Word, PDF or text, several at once. Each one joins your library.'))));
   if (!(st.cur && st.cur.isSample)) items.push(h('button', {class: 'mi', onclick: () => openDoc(makeSample())}, h('span', {class: 'mt'}, h('b', null, 'Open the sample essay'))));

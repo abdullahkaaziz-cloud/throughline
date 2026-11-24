@@ -30,6 +30,10 @@ It suggests; you decide what changes. It never rewrites your essay.
 - **Defend it:** a viva on your own essay. An examiner (a supportive tutor or a tough one) asks about its weakest points, out loud if you like, and you answer by voice or typing.
   - Each answer gets a verdict (strong, partial or weak), feedback, and at most one follow-up.
   - The report scores the viva and lists what to fix in the essay, with each passage one click away. Spoken and pasted answers are marked.
+- **Writing record:** an honest account of how an essay was made, kept as you write.
+  - Time spent day by day, and where the words came from: typed, pasted, imported, Claude's suggestions you accepted, or headings from your outline.
+  - The drafts and what each one fixed, the vivas, and a plain statement of how AI was used.
+  - Download it as a web page or copy it as text to hand in with your work.
 - **Ask about any passage:** select text and ask "What's wrong?", "Make it stronger", "Does it follow?" or your own question.
 - **Sources and brief:** add the papers you're using and your assignment brief. For each essay, switch sources on or off.
   - Reviews flag claims a source contradicts and citations a source doesn't back up.

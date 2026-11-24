@@ -2,6 +2,8 @@
 (() => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const mem = new Map(), listeners = [];
+  // window.__seedDb ({path: record}), set by an earlier init script, starts the store with records already in it.
+  for (const [p, v] of Object.entries(window.__seedDb || {})) mem.set(p, JSON.parse(JSON.stringify(v)));
   window.__dbWrites = 0; window.__calls = [];
   window.__dbDump = () => [...mem.values()].map(clone);
   const clone = x => JSON.parse(JSON.stringify(x));
@@ -174,6 +176,7 @@
       stop: async () => { if (on) { on = false; sta.forEach(f => f({state: 'idle', reason: 'stopped'})); } },
       active: () => on, onFinal: f => { fin.push(f); return () => {}; }, onPartial: f => { par.push(f); return () => {}; }, onState: f => { sta.push(f); return () => {}; }};
   })();
-  const downloads = {save: async ({filename, data}) => { window.__saved.push({filename, size: typeof data === 'string' ? data.length : (data.size || data.byteLength || 0), text: typeof data === 'string' ? data : ''}); return {status: 'saved'}; }};
+  // window.__saveFail = 'some_code' makes the next save fail with that code, as the real runtime would.
+  const downloads = {save: async ({filename, data}) => { if (window.__saveFail) { const code = window.__saveFail; window.__saveFail = null; throw {code, message: code}; } window.__saved.push({filename, size: typeof data === 'string' ? data.length : (data.size || data.byteLength || 0), text: typeof data === 'string' ? data : ''}); return {status: 'saved'}; }};
   window.claude = {use: async n => { await sleep(60); return n === 'sample' ? sample : n === 'db' ? db : n === 'user' ? user : n === 'tts' ? tts : n === 'dictation' ? dictation : n === 'downloads' ? downloads : null; }};
 })();

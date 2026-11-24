@@ -512,6 +512,47 @@ with sync_playwright() as p:
     page.click('.vreport button:has-text("Back to the essay")'); page.wait_for_timeout(300)
     check('and the essay is back', ev(page, "document.getElementById('defend').hidden"))
 
+    # 12h. The writing record: typed, pasted and accepted text, the record view, the download and the copy
+    page.click('#docBtn'); page.wait_for_timeout(200)
+    page.click('#docMenu button:has-text("New essay")'); page.wait_for_timeout(300)
+    page.keyboard.type('<img src=x onerror="window.__pwned=1"> Record test'); page.keyboard.press('Enter'); page.wait_for_timeout(100)
+    page.keyboard.type('Evening hours help students who work in the day.'); page.wait_for_timeout(200)
+    ev(page, """t => { const ed = document.getElementById('ed'), dt = new DataTransfer(); dt.setData('text/plain', t);
+      ed.dispatchEvent(new ClipboardEvent('paste', {clipboardData: dt, bubbles: true, cancelable: true}));
+      ed.setRangeText(t, ed.value.length, ed.value.length, 'end'); ed.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertFromPaste'})); }""", '\n\n' + DRAFT_ESSAY)
+    page.keyboard.press('End'); page.keyboard.press('Backspace'); page.keyboard.press('Backspace'); page.wait_for_timeout(100)
+    page.click('#reviewBtn'); page.wait_for_timeout(1600)
+    page.click('.chip:has-text("Grammar")'); page.wait_for_timeout(300)
+    page.click('.card .cbtn'); page.wait_for_timeout(200)
+    page.click('.card .sugg .btn'); page.wait_for_timeout(1300)
+    page.click('#rail .chip:has-text("All")'); page.wait_for_timeout(200)
+    act = ev(page, "(() => { const d = window.__dbDump().find(d => (d.title || '').endsWith('Record test')); return d && d.activity; })()")
+    day = act and list(act['days'].values())[0]
+    check('the record counts typed, pasted and accepted text apart', day and day['typed'] == 48 and day['pasted'] == len(DRAFT_ESSAY) + 2 and day['ai'] == len('THIS ESSAY MAKES THAT') and day['deleted'] == 2, day)
+    check('it keeps the opening words of each paste and accepted suggestion', act and act['pastes'][0]['head'].startswith('Libraries should stay open late') and len(act['ai']) == 1, act and [act['pastes'], act['ai']])
+    page.click('#recordBtn'); page.wait_for_timeout(400)
+    check('the record replaces the essay', ev(page, "!document.getElementById('record').hidden && getComputedStyle(document.getElementById('paper')).display === 'none'"))
+    check('a title is text, never markup', ev(page, "!document.querySelector('#record img') && !window.__pwned") and 'Record test' in ev(page, "document.querySelector('#record .rsub').textContent"))
+    legend = ev(page, "[...document.querySelectorAll('.rlegend li')].map(li => li.children[1].textContent + ' ' + li.children[2].textContent)")
+    check('the legend splits the words by where they came from', [x.split(' ')[0] for x in legend] == ['Typed', 'Pasted', 'Claude’s'] and abs(sum(float(x.split(' ')[-1][:-1]) for x in legend) - 100) < 0.2, legend)
+    ai_text = ev(page, "document.querySelector('.rai').textContent")
+    check('it says plainly how AI was used', 'Claude reviewed it once' in ai_text and '1 suggestion from Claude the writer accepted (21 characters)' in ai_text, ai_text)
+    check('the draft and the paste are listed', ev(page, "document.querySelectorAll('.rtable tbody tr').length") >= 1 and 'Libraries should stay open late' in ev(page, "document.getElementById('recPastes').textContent"))
+    page.click('#recDownload'); page.wait_for_timeout(300)
+    saved = ev(page, "window.__saved.slice(-1)[0]")
+    check('Download saves the record as a web page', saved and saved['filename'].endswith(' - writing record.html') and 'How AI was used' in saved['text'] and 'Typed' in saved['text'], saved and saved['filename'])
+    check('the saved page escapes everything from the essay', saved and '&lt;img src=x' in saved['text'] and '<img' not in saved['text'] and '<script' not in saved['text'])
+    ev(page, "() => { window.__copied = null; navigator.clipboard.writeText = async t => { window.__copied = t; }; }")
+    page.click('#recCopy'); page.wait_for_timeout(200)
+    copied = ev(page, "window.__copied") or ''
+    check('Copy as text gives a plain version', copied.startswith('Writing record: <img') and 'Where the words came from:' in copied and 'How AI was used:' in copied, copied[:80])
+    page.screenshot(path=SHOTS + '/23-record.png', full_page=True)
+    ev(page, "window.__saveFail = 'host_unavailable'")
+    page.click('#recDownload'); page.wait_for_timeout(300)
+    check('an app that can’t save files hides Download and says why', not ev(page, "!!document.getElementById('recDownload')") and 'browser' in ev(page, "document.getElementById('toast').textContent"))
+    page.keyboard.press('Escape'); page.wait_for_timeout(300)
+    check('Escape goes back to the essay', ev(page, "document.getElementById('record').hidden"))
+
     # 13. mobile
     mctx = browser.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
     route(mctx); mctx.add_init_script(MOCK)
@@ -549,11 +590,58 @@ with sync_playwright() as p:
     m.click('#defendBtn'); m.wait_for_timeout(400)
     check('mobile: the viva setup fits the screen', ev(m, "!document.getElementById('defend').hidden && document.documentElement.scrollWidth <= innerWidth + 1"))
     m.keyboard.press('Escape'); m.wait_for_timeout(300)
+    m.click('#docBtn'); m.wait_for_timeout(200)
+    m.click('#menuRecord'); m.wait_for_timeout(400)
+    check('mobile: the writing record fits the screen', ev(m, "!document.getElementById('record').hidden && document.documentElement.scrollWidth <= innerWidth + 1"))
+    check('mobile: text that came with the sample essay is credited to it', 'From Throughline’s sample essay' in ev(m, "document.querySelector('.rlegend').textContent"))
+    m.screenshot(path=SHOTS + '/14g-mobile-record.png', full_page=True)
+    m.keyboard.press('Escape'); m.wait_for_timeout(300)
     m.click('.mode[data-mode=map]'); m.wait_for_timeout(400)
     check('mobile: the map view fits the screen', ev(m, "!document.getElementById('rmap').hidden && document.documentElement.scrollWidth <= innerWidth + 1"))
     m.screenshot(path=SHOTS + '/14f-mobile-map.png')
     m.click('.mode[data-mode=write]'); m.wait_for_timeout(300)
     mctx.close()
+
+    # 13b. a writing record read back from storage, with drafts, a viva and some tampered fields
+    note = lambda i, t: {'id': 'n' + str(i), 'k': t + '|k' + str(i), 't': t, 'x': 'Note ' + str(i), 'q': 'quote', 'm': None}
+    stored_doc = {'kind': 'doc', 'v': 2, 'role': 'essay', 'title': 'Stored record', 'text': DRAFT_ESSAY, 'createdAt': 1763400000000, 'updatedAt': 1763700000000,
+      'activity': {'since': 1763400000000, 'imported': 'yes', 'ai': 'nope',
+        'days': {'2026-11-18': {'ms': 45 * 60000, 'typed': 900, 'outline': 120, 'deleted': 300, 'asks': 1, 'w': 150},
+                 '2026-11-20': {'ms': 'lots', 'typed': -5, 'pasted': 300, 'w': 420},
+                 '2026-11-21': {'ms': 30 * 60000, 'typed': 400, 'ai': 40, 'w': 560},
+                 '__proto__': {'polluted': 1}, 'not-a-day': {'ms': 5}},
+        'pastes': [{'at': 1763600000000, 'n': 300, 'head': '<b>bold</b> words'}] + [{'at': 'x', 'n': -1}] * 100},
+      'history': {'paras': {}, 'list': [
+        {'id': 'd1', 'at': 1763500000000, 'kind': 'full', 'tier': 'complex', 'words': 150, 'notes': [note(1, 'logic'), note(2, 'evidence'), note(3, 'clarity')]},
+        {'id': 'd2', 'at': 1763700000000, 'kind': 'full', 'tier': 'complex', 'words': 560, 'notes': [note(1, 'logic'), note(4, 'grammar')]}]},
+      'defences': [{'id': 'v1', 'at': 1763700000000, 'style': '__proto__', 'done': True, 'qs': [
+        {'q': 'Why?', 'turns': [{'q': 'Why?', 'a': 'Because the data shows it.', 'verdict': 'strong', 'spoken': True}]},
+        {'q': 'And then?', 'turns': [{'q': 'And then?', 'a': 'Pasted answer text here.', 'pasted': 24, 'verdict': 'weak'}]}]}]}
+    sctx = browser.new_context(viewport={'width': 1280, 'height': 900}); route(sctx)
+    sctx.add_init_script('window.__seedDb = JSON.parse(' + json.dumps(json.dumps({'data/users/u_test/estored': stored_doc})) + ');')
+    sctx.add_init_script(MOCK)
+    sp = sctx.new_page(); watch(sp, 'stored')
+    sp.goto(URL); sp.wait_for_timeout(900)
+    sp.click('#docBtn'); sp.wait_for_timeout(200)
+    sp.click('#docMenu .mi:has-text("Stored record")'); sp.wait_for_timeout(400)
+    sp.click('#docBtn'); sp.wait_for_timeout(200)
+    sp.click('#menuRecord'); sp.wait_for_timeout(500)
+    check('a stored record opens from the essay menu', ev(sp, "!document.getElementById('record').hidden"))
+    check('tampered fields are dropped, never trusted', ev(sp, "({}).polluted === undefined && !document.querySelector('#record b b')") and ev(sp, "document.querySelectorAll('.rfig .rbar').length") == 2)
+    tiles = ev(sp, "[...document.querySelectorAll('.rtile b')].map(b => b.textContent)")
+    check('the tiles add up the stored days', tiles[0] == '1 h 15 min' and tiles[2] == '2' and tiles[3] == '1 of 2', tiles)
+    check('the drafts table shows what was fixed between drafts', ev(sp, "[...document.querySelectorAll('.rsec .rtable')].slice(-1)[0].querySelector('tbody tr:last-child').textContent").endswith('560' + '2' + '2' + '1'), ev(sp, "[...document.querySelectorAll('.rsec .rtable')].slice(-1)[0].querySelector('tbody tr:last-child').textContent"))
+    sp.focus('.rfig'); sp.keyboard.press('ArrowLeft'); sp.keyboard.press('ArrowLeft'); sp.wait_for_timeout(100)
+    gap = ev(sp, "document.querySelector('.rread').textContent")
+    sp.keyboard.press('ArrowLeft'); sp.wait_for_timeout(100)
+    check('the chart is a true calendar: a day off shows as a gap, and the arrow keys read each day', gap.startswith('0 min writing · 150 words') and 'Nov 19' in gap
+      and ev(sp, "document.querySelector('.rread').textContent").startswith('45 min writing · 150 words'), gap)
+    check('the day-by-day table lists only days with writing', ev(sp, "document.querySelectorAll('.rdays .rtable tbody tr').length") == 3)
+    check('one time axis, two charts, never two scales on one', ev(sp, "document.querySelectorAll('.rfig svg').length") == 2 and ev(sp, "document.querySelectorAll('.rfig svg')[1].querySelectorAll('polyline').length") == 1)
+    vtext = ev(sp, "document.querySelector('.rvivas').textContent")
+    check('an unknown examiner style reads as the tutor', 'Supportive tutor' in vtext, vtext)
+    sp.screenshot(path=SHOTS + '/23b-record-stored.png', full_page=True)
+    sctx.close()
 
     # 14. no viewer runtime at all (plain browser): page still renders, review disabled
     pctx = browser.new_context(viewport={'width': 1280, 'height': 800}); route(pctx)

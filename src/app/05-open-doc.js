@@ -5,11 +5,12 @@ function openDoc(d) {
   st.argHover = []; st.argSel = []; st.argHere = 0;
   hideSelbar(); closeMenus();
   loadEditor();
-  st.tlSel = -1;
+  st.tlSel = -1; st.lastLen = ed.value.length; st.lastInputAt = 0; st.pasteText = null;
   if (st.mode === 'plan') renderBoard();
   else if (st.mode === 'compare') setMode('write');
   else if (st.mode === 'map') renderMap();
   else if (st.mode === 'defend') { hush(); stopDictation(); st.vivaView = null; renderDefend(); }
+  else if (st.mode === 'record') renderRecord();
   if (!srcWrap.hidden) buildSources();
   window.scrollTo(0, 0);
 }
