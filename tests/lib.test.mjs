@@ -340,9 +340,9 @@ test('termMatches marks other spellings and other words, never the kept form or 
   assert.deepEqual(m, [['e-mail', 'spell', 'email'], ['E-mail', 'spell', 'Email'], ['e-mail', 'spell', 'email'], ['Working from home', 'word', 'Remote work']]);
   assert.ok(!m.some(x => x[0] === 'e mail'), 'quoted words are someone else’s');
   // the longest match wins, and a possessive stays outside it
-  const s = 'The all merciful king’s court and the merciful king.';
-  const mm = J(L.termMatches(s, L.termTokens(s), [{keep: 'all-merciful king', forms: []}, {keep: 'merciful', forms: ['kind']}]));
-  assert.deepEqual(mm.map(x => x.t), ['all merciful king']);
+  const s = 'The all powerful king’s court and the powerful king.';
+  const mm = J(L.termMatches(s, L.termTokens(s), [{keep: 'all-powerful king', forms: []}, {keep: 'powerful', forms: ['strong']}]));
+  assert.deepEqual(mm.map(x => x.t), ['all powerful king']);
 });
 
 test('termSame and termFit: capitals that only start a sentence or sit in a heading', () => {
