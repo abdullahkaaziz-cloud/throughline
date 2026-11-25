@@ -290,4 +290,28 @@ ${rules('LOOM_RULES')}
 \`\`\`
 `;
 fs.writeFileSync(new URL('docs/loom-prompt.md', root), loom);
+const build = `# Build-up prompt (how an essay leads to its point)
+
+Build-up, a full-width view in Write mode, shows how the essay takes a reader to its point. Claude is asked only when the writer presses "Check the build-up" or "Check again". The source of truth is \`BUILD_RULES\` in \`src/app/00-config.js\`; regenerate this file with \`npm run sync-prompt-doc\` (a unit test checks they match).
+
+After the rules (with \`{n}\` replaced by 3), the app sends:
+
+\`\`\`
+ESSAY TITLE: <title>
+
+ESSAY (each paragraph starts with its number in brackets; never include these numbers in a quote):
+<essay>
+[1] <first paragraph>
+
+[2] <second paragraph>
+</essay>
+\`\`\`
+
+${FENCE} The app keeps only known moves, quotes that are really in their paragraph, one reading per paragraph, interest from 0 to 100, at most four open questions, at most three fixes, and a new order only if it uses every paragraph once (\`validateBuild\` in \`src/lib.js\`); the same check runs whenever the view is shown. The steps of each shape, and whether each is there, missing, early or weak, are worked out by the app from the moves (\`buildSteps\`), so switching shapes asks nothing more. The strong build-up drawn beside the essay is a fixed curve per shape (\`buildIdeal\`), not a model's guess.
+
+\`\`\`
+${rules('BUILD_RULES')}
+\`\`\`
+`;
+fs.writeFileSync(new URL('docs/build-prompt.md', root), build);
 console.log('prompt docs updated');

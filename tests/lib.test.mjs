@@ -12,7 +12,7 @@ vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
   fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, hash, words,
   termKey, termText, termTokens, termFind, termSame, termFit, termMatches, termWays, termGroups, validateTerms, cleanTermRules, cleanTermCache,
-  cleanGrow, growNext, growReasons, validateGrowQ, validateLoom, loomFacts, cleanLoom};`, ctx);
+  cleanGrow, growNext, growReasons, validateGrowQ, validateLoom, loomFacts, cleanLoom, validateBuild, buildSteps, buildIdeal, cleanBuild};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -281,7 +281,7 @@ test('validateHabits keeps habits backed by two real notes, with a known group',
 
 test('the prompt docs match the prompts the app sends', () => {
   const cfg = read('src/app/00-config.js');
-  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md'], ['HABIT_RULES', 'docs/progress-prompt.md'], ['TERM_RULES', 'docs/terms-prompt.md'], ['GROW_RULES', 'docs/grow-prompt.md'], ['LOOM_RULES', 'docs/loom-prompt.md']]) {
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md'], ['HABIT_RULES', 'docs/progress-prompt.md'], ['TERM_RULES', 'docs/terms-prompt.md'], ['GROW_RULES', 'docs/grow-prompt.md'], ['LOOM_RULES', 'docs/loom-prompt.md'], ['BUILD_RULES', 'docs/build-prompt.md']]) {
     const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
     assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
   }
@@ -491,4 +491,43 @@ test('cleanLoom keeps a stored loom, checked against the essay it was stored wit
   const c = J(L.cleanLoom({sig: 'abc', at: 3, threads: [{name: 'Traffic', paras: [{p: 2, how: 'woven', quote: 'Free buses cut traffic'}]}], keep: ['Traffic', 7, 'x'.repeat(50)]}, LOOM_PARAS));
   assert.deepEqual([c.sig, c.threads.length, c.keep], ['abc', 1, ['Traffic']]);
   assert.equal(L.cleanLoom({threads: []}, LOOM_PARAS), null);
+});
+
+// ---- Build-up ----
+const BUILD_RAW = {shape: 'problem', paras: [
+  {p: 1, moves: ['hook', 'claim', 'dance'], quote: 'Cities should make buses free', pull: 60, why: 'A clear claim.'},
+  {p: 2, moves: ['reason'], quote: 'not in the essay at all', pull: 55},
+  {p: 3, moves: ['reason'], pull: 140}, {p: 4, moves: ['other'], quote: 'traffic may not fall', pull: -5},
+  {p: 5, moves: ['close', 'claim'], pull: 'high'}, {p: 9, moves: ['hook'], pull: 50}, {p: 2, moves: ['close']}],
+  open: [{q: 'Why does it matter?', raised: 1, answered: 0}, {q: 'No question mark', raised: 1}, {q: 'Who pays?', raised: 4, answered: 2}],
+  fixes: [{kind: 'missing', move: 'stakes', p: 1, title: 'Show what is at stake', why: 'w', ask: 'Who loses?'},
+    {kind: 'order', move: 'reason', p: 2, title: 'Strongest reason last', ask: 'Which?', order: [1, 3, 2, 4, 5]},
+    {kind: 'order', move: 'reason', p: 2, title: 'Not a reordering', order: [1, 1, 2, 3, 4]},
+    {kind: 'weak', move: 'close', p: 5, title: 'Over the cap'}, {kind: 'odd', move: 'close', p: 5, title: 'Bad kind'}]};
+test('validateBuild keeps what the essay supports', () => {
+  const B = J(L.validateBuild(BUILD_RAW, LOOM_PARAS, 3));
+  assert.deepEqual(B.paras.map(e => [e.p, e.moves.join('+'), !!e.quote, e.pull]), [[1, 'hook+claim', true, 60], [2, 'reason', false, 55], [3, 'reason', false, 100], [4, 'other', true, 0], [5, 'close+claim', false, null]],
+    'one reading per paragraph, known moves, real quotes, interest from 0 to 100');
+  assert.deepEqual(B.open, [{q: 'Why does it matter?', raised: 1, answered: 0}, {q: 'Who pays?', raised: 4, answered: 0}], 'an answer can’t come before the question');
+  assert.deepEqual(B.fixes.map(f => [f.title, f.order]), [['Show what is at stake', null], ['Strongest reason last', [1, 3, 2, 4, 5]], ['Not a reordering', null]], 'at most three fixes; an order must use every paragraph once');
+  assert.deepEqual(J(L.validateBuild(B, LOOM_PARAS, 3)), B, 'checking again changes nothing');
+  assert.equal(J(L.validateBuild({shape: 'saga'}, LOOM_PARAS)).shape, 'problem');
+});
+test('buildSteps works out each shape from the moves', () => {
+  const B = L.validateBuild(BUILD_RAW, LOOM_PARAS, 3);
+  assert.deepEqual(J(L.buildSteps(B, 'problem')).map(s => s.label + ':' + s.status), ['Hook:ok', 'Stakes:missing', 'Your claim:ok', 'Reasons and evidence:ok', 'The other side:ok', 'Your reply:missing', 'Conclusion:ok']);
+  assert.deepEqual(J(L.buildSteps(B, 'sides')).map(s => s.status), ['ok', 'missing', 'ok', 'early', 'missing', 'early', 'ok'], 'a verdict before both sides is early');
+  const W = L.validateBuild(Object.assign({}, BUILD_RAW, {fixes: [{kind: 'weak', move: 'close', p: 5, title: 'Ends weakly'}]}), LOOM_PARAS, 3);
+  assert.equal(J(L.buildSteps(W, 'problem'))[6].status, 'weak');
+});
+test('buildIdeal draws a strong build-up at any length', () => {
+  assert.deepEqual(J(L.buildIdeal('problem', 5)), [35, 55, 70, 85, 65]);
+  assert.equal(L.buildIdeal('myth', 9).length, 9);
+  assert.deepEqual(J(L.buildIdeal('sides', 1)), [63]);
+});
+test('cleanBuild keeps a stored reading and the shape the writer chose', () => {
+  const c = J(L.cleanBuild(Object.assign({}, BUILD_RAW, {sig: 's1', at: 2, pick: 'myth'}), LOOM_PARAS));
+  assert.deepEqual([c.sig, c.pick, c.paras.length, c.fixes.length], ['s1', 'myth', 5, 3]);
+  assert.equal(J(L.cleanBuild(Object.assign({}, BUILD_RAW, {sig: 's1', pick: 'saga'}), LOOM_PARAS)).pick, null);
+  assert.equal(L.cleanBuild(BUILD_RAW, LOOM_PARAS), null);
 });

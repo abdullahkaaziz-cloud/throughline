@@ -280,5 +280,6 @@ addEventListener('scroll', () => { if (st.view === 'argument' && !spyRAF) spyRAF
 // Other ways to look at how the essay holds together, each a full view of its own.
 function closerEl() {
   return h('section', {class: 'acloser', 'aria-label': 'Look closer'}, h('b', null, 'Look closer'),
-    h('button', {class: 'mi', type: 'button', id: 'argLoom', onclick: openLoom}, h('span', {class: 'mt'}, h('b', null, 'The loom'), h('span', {class: 'sub'}, 'Your ideas as threads through the paragraphs'))));
+    h('button', {class: 'mi', type: 'button', id: 'argLoom', onclick: openLoom}, h('span', {class: 'mt'}, h('b', null, 'The loom'), h('span', {class: 'sub'}, 'Your ideas as threads through the paragraphs'))),
+    h('button', {class: 'mi', type: 'button', id: 'argBuild', onclick: openBuild}, h('span', {class: 'mt'}, h('b', null, 'Build-up'), h('span', {class: 'sub'}, 'How your essay leads to its point'))));
 }

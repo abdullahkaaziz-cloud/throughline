@@ -872,3 +872,74 @@ function cleanLoom(x, paras) {
   return {sig: r.sig, at: Number.isFinite(r.at) ? r.at : 0, threads: v.threads, links: v.links,
     keep: [...new Set((Array.isArray(r.keep) ? r.keep : []).filter(s => typeof s === 'string' && s.length <= 40))].slice(0, 20)};
 }
+
+// ---- Build-up: how an essay leads a reader to its point ----
+const BUILD_MOVES = ['hook', 'stakes', 'claim', 'reason', 'other', 'reply', 'close'];
+// The shapes an essay can take: the steps a reader needs, in order, and the rise and fall of a strong build-up
+// (how much a reader wants to read on, 0–100, at points through the essay).
+const BUILD_SHAPES = {
+  problem: {label: 'Problem → answer', steps: [['hook', 'Hook'], ['stakes', 'Stakes'], ['claim', 'Your claim'], ['reason', 'Reasons and evidence'], ['other', 'The other side'], ['reply', 'Your reply'], ['close', 'Conclusion']],
+    ideal: [[0, 35], [0.25, 55], [0.5, 70], [0.75, 85], [1, 65]]},
+  myth: {label: 'Myth → reality', steps: [['hook', 'Hook'], ['other', 'The common view'], ['reply', 'What’s wrong with it'], ['claim', 'What’s really true'], ['reason', 'Why it’s true'], ['stakes', 'Why it matters'], ['close', 'Conclusion']],
+    ideal: [[0, 60], [0.25, 50], [0.5, 70], [0.75, 80], [1, 65]]},
+  sides: {label: 'Two sides → verdict', steps: [['hook', 'Hook'], ['stakes', 'The question'], ['other', 'One side'], ['reason', 'The other side'], ['reply', 'Weighing them'], ['claim', 'Your verdict'], ['close', 'Conclusion']],
+    ideal: [[0, 40], [0.3, 60], [0.6, 65], [0.85, 80], [1, 70]]},
+};
+// The model's reading checked against the paragraphs: known moves only, quotes that are really in their paragraph,
+// one entry per paragraph, pulls from 0 to 100, and a reordering only if it uses every paragraph once. Numbers stay
+// as the model gives them (from 1), so the result can be checked again later.
+function validateBuild(raw, paras, max) {
+  const r = plainObj(raw), N = paras.length, num = v => Number.isInteger(v) && v >= 1 && v <= N ? v : 0, line = (v, n) => clip(v, n * 2).replace(/\s+/g, ' ').trim().slice(0, n);
+  const by = new Map();
+  for (const x of (Array.isArray(r.paras) ? r.paras : []).slice(0, 200)) {
+    const e = plainObj(x), p = num(e.p);
+    if (!p || by.has(p)) continue;
+    const moves = [...new Set((Array.isArray(e.moves) ? e.moves : []).filter(m => BUILD_MOVES.includes(m)))].slice(0, 4);
+    const quote = clip(e.quote, 240).trim(), pull = typeof e.pull === 'number' && isFinite(e.pull) ? Math.round(Math.min(100, Math.max(0, e.pull))) : null;
+    by.set(p, {p, moves, quote: quote && anchorFuzzy(paras[p - 1], quote) ? quote : '', pull, why: line(e.why, 120)});
+  }
+  const list = [];
+  for (let p = 1; p <= N; p++) list.push(by.get(p) || {p, moves: [], quote: '', pull: null, why: ''});
+  const open = [];
+  for (const x of (Array.isArray(r.open) ? r.open : []).slice(0, 8)) {
+    const e = plainObj(x), q = line(e.q, 140), raised = num(e.raised), answered = num(e.answered);
+    if (q && q.includes('?') && raised && open.length < 4) open.push({q, raised, answered: answered >= raised ? answered : 0});
+  }
+  const fixes = [];
+  for (const x of (Array.isArray(r.fixes) ? r.fixes : []).slice(0, 10)) {
+    const e = plainObj(x), kind = ['missing', 'order', 'weak'].includes(e.kind) ? e.kind : null, title = line(e.title, 90), ask = line(e.ask, 220);
+    if (!kind || !title || !BUILD_MOVES.includes(e.move) || !num(e.p) || fixes.length >= (max || 3)) continue;
+    const ord = Array.isArray(e.order) ? e.order : [], perm = kind === 'order' && ord.length === N && new Set(ord).size === N && ord.every(v => num(v));
+    fixes.push({kind, move: e.move, p: e.p, title, why: line(e.why, 320), ask: ask.includes('?') ? ask : '', order: perm && ord.some((v, i) => v !== i + 1) ? ord.slice() : null});
+  }
+  return {shape: hasOwn(BUILD_SHAPES, r.shape) ? r.shape : 'problem', paras: list, open, fixes};
+}
+// The steps of one shape in this essay: the paragraphs that take each one, and whether it's there ("ok"), missing,
+// weak (a fix says it doesn't do its job), or early (it comes before a step that should lead up to it).
+function buildSteps(B, shape) {
+  const S = BUILD_SHAPES[hasOwn(BUILD_SHAPES, shape) ? shape : 'problem'];
+  const steps = S.steps.map(([move, label]) => ({move, label, paras: B.paras.filter(e => e.moves.includes(move)).map(e => e.p), status: 'ok'}));
+  let seen = 0;
+  for (const s of steps) {
+    if (!s.paras.length) { s.status = 'missing'; continue; }
+    if (B.fixes.some(f => f.kind === 'weak' && f.move === s.move)) s.status = 'weak';
+    else if (s.paras[0] < seen) s.status = 'early';
+    seen = Math.max(seen, s.paras[0]);
+  }
+  return steps;
+}
+// A strong build-up for this shape, at each of n paragraphs: 0–100.
+function buildIdeal(shape, n) {
+  const pts = BUILD_SHAPES[hasOwn(BUILD_SHAPES, shape) ? shape : 'problem'].ideal;
+  return Array.from({length: n}, (_, i) => {
+    const t = n > 1 ? i / (n - 1) : 0.5, j = Math.max(1, pts.findIndex(p => p[0] >= t));
+    const [a, b] = [pts[j - 1], pts[j]], f = b[0] > a[0] ? (t - a[0]) / (b[0] - a[0]) : 0;
+    return Math.round(a[1] + (b[1] - a[1]) * f);
+  });
+}
+// Build-up kept with an essay: the text's hash when it was read, and the shape the writer chose to look at.
+function cleanBuild(x, paras) {
+  const r = plainObj(x);
+  if (typeof r.sig !== 'string' || !r.sig || r.sig.length > 40) return null;
+  return Object.assign(validateBuild(r, paras || [], 3), {sig: r.sig, at: Number.isFinite(r.at) ? r.at : 0, pick: hasOwn(BUILD_SHAPES, r.pick) ? r.pick : null});
+}
