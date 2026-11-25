@@ -17,6 +17,7 @@ const SUB_MODES = ['compare', 'defend', 'record', 'progress', 'inbox'];
 function setMode(m) {
   if (!['plan', 'write', 'compare', 'map', 'defend', 'record', 'progress', 'inbox'].includes(m)) return;
   if (st.mode === 'defend' && m !== 'defend') { hush(); stopDictation(); }
+  if (st.mode === 'plan' && m !== 'plan') stopDictation();
   st.mode = m;
   layoutEl.classList.toggle('planning', m === 'plan');
   layoutEl.classList.toggle('comparing', SUB_MODES.includes(m));
@@ -47,10 +48,13 @@ function contextLine(d) {
 // ---- the board ----
 function renderBoard() {
   if (st.mode !== 'plan' || !st.cur) return;
+  if (st.planView === 'grow') { renderGrow(); return; }
+  if (st.planView === 'unfold') { renderUnfold(); return; }
   const d = st.cur, P = planOf(d), busy = !!(st.ideaRun && st.ideaRun.doc === d), off = st.ai === 'denied' || st.ai === 'off';
   const used = inOutline(P), live = P.cards.filter(c => !c.binned && !used.has(c.id)), binned = P.cards.filter(c => c.binned && !used.has(c.id));
   const err = st.ideaErr && st.ideaErr.doc === d ? st.ideaErr.err : null, focus = focusKey();
   fill(boardEl,
+    h('div', {class: 'phead'}, planTabs('board')),
     h('div', {class: 'bhead'},
       h('label', {class: 'lbl', for: 'bq'}, 'The question'),
       h('textarea', {id: 'bq', class: 'bq', rows: 1, placeholder: 'What is the essay trying to answer?', oninput: onQuestion,

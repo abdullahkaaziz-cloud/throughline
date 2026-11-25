@@ -20,17 +20,18 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
   - `30` your progress (notes per 1,000 words across essays, habits);
   - `31` testers (the first-visit welcome, Send feedback, the owner's inbox, the shared dialog);
   - `33` consistent terms (the Terms tab; the writer's terms, marked in every essay);
+  - `34` Grow and Unfold (Plan mode's other views: one question at a time, then the answers at five levels of detail);
   - `90` event wiring;
   - `99` start-up, which runs last.
 
   New modules go in `20`–`89` so their `const` values exist before start-up.
-- **Data:** each document is stored as `{kind:'doc', v:2, role:'essay'|'source', title, text, review, marks, brief, use, index, argmap, plan, history, defences, activity, terms}` (`terms` holds Claude's groups of different words for one idea, re-checked against the text whenever they're shown). The legacy `kind:'essay'` is still read. Everything loaded passes through `fromStored()` in `02`. The research map is one more record in the same place, id `rmap` (`{kind:'rmap', v:1, at, sig, themes, links, threads, hidden}`), loaded through `cleanRmap()` in `27`. Your habits are another, id `growth` (`{kind:'growth', v:1, at, sig, habits}`), loaded through `cleanGrowth()` in `30`. Your terms are another, id `terms` (`{kind:'terms', v:1, rules:[{id, keep, forms, label}], apart}`), loaded through `cleanTermRules()` in `lib.js`; each term lives in one rule, and other spellings of a kept form are matched by key, so they need no rule. Records like these register in `SPECIAL` (`03`). Testers' feedback is one record each at `feedback/<their id>` (`{kind:'feedback', v:1, name, items}`), outside `data/users` so the owner can read it; `cleanFeedback()` in `31`.
+- **Data:** each document is stored as `{kind:'doc', v:2, role:'essay'|'source', title, text, review, marks, brief, use, index, argmap, plan, history, defences, activity, terms, grow}` (`terms` holds Claude's groups of different words for one idea, re-checked against the text whenever they're shown; `grow` holds the writer's starting thought, one-line point and answers as a tree, `{root, line, nodes:[{id, p, k, q, a}], park, ask, order}`, loaded through `cleanGrow()`). The legacy `kind:'essay'` is still read. Everything loaded passes through `fromStored()` in `02`. The research map is one more record in the same place, id `rmap` (`{kind:'rmap', v:1, at, sig, themes, links, threads, hidden}`), loaded through `cleanRmap()` in `27`. Your habits are another, id `growth` (`{kind:'growth', v:1, at, sig, habits}`), loaded through `cleanGrowth()` in `30`. Your terms are another, id `terms` (`{kind:'terms', v:1, rules:[{id, keep, forms, label}], apart}`), loaded through `cleanTermRules()` in `lib.js`; each term lives in one rule, and other spellings of a kept form are matched by key, so they need no rule. Records like these register in `SPECIAL` (`03`). Testers' feedback is one record each at `feedback/<their id>` (`{kind:'feedback', v:1, name, items}`), outside `data/users` so the owner can read it; `cleanFeedback()` in `31`.
 
 ## Build and test
 - `npm ci --ignore-scripts`, then `npm test`. That runs the unit tests (`node --test`), the build (`dist/index.html`, which syntax-checks the script) and the browser tests (`tools/test_app.py`, Playwright and Chrome at `/usr/bin/google-chrome`, against a mocked runtime in `tools/mock.js`).
 - `test_app.py` exits non-zero on any failed check.
 - Optional private data is gitignored: `test/fixtures/*.pdf` and `seed/test-essays.json`. The tests read them from there (the build never copies `seed/` into `dist/`). Without them, those steps skip.
-- After editing `REVIEW_RULES`, `RECHECK_RULES`, `ARG_RULES`, `IDEA_RULES`, `MAP_RULES`, `EXAM_RULES`, `JUDGE_RULES`, `HABIT_RULES` or `TERM_RULES`, run `npm run sync-prompt-doc`; a unit test enforces the match.
+- After editing `REVIEW_RULES`, `RECHECK_RULES`, `ARG_RULES`, `IDEA_RULES`, `MAP_RULES`, `EXAM_RULES`, `JUDGE_RULES`, `HABIT_RULES`, `TERM_RULES` or `GROW_RULES`, run `npm run sync-prompt-doc`; a unit test enforces the match.
 - **Workflow:** feature branch → PR → CI green (`.github/workflows/ci.yml`) → merge → publish.
 
 ## Publish
@@ -42,7 +43,7 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
 ## Rules
 - The repo is public. Never commit essays, PDFs, `seed/` or notes about the owner's essays.
 - Model output, file text and database data are data, never markup. Build DOM with `h()` or `textContent`. `innerHTML` is only for the fixed icon strings.
-- Validate the model's JSON with the `lib.js` validators (`parseReview`, `validateIndex`, `validateArgmap`, `validateIdeas`, `validateRmap`, `validateExam`, `validateJudge`, `validateHabits`, `validateTerms`): quotes must anchor in the real text, and types and values must be from known lists. For lookups keyed by untrusted strings, use `hasOwn()` and `safeId()`, never `obj[key]` truthiness.
+- Validate the model's JSON with the `lib.js` validators (`parseReview`, `validateIndex`, `validateArgmap`, `validateIdeas`, `validateRmap`, `validateExam`, `validateJudge`, `validateHabits`, `validateTerms`, `validateGrowQ`): quotes must anchor in the real text, and types and values must be from known lists. For lookups keyed by untrusted strings, use `hasOwn()` and `safeId()`, never `obj[key]` truthiness.
 - Document text goes into prompts only through `fence()`, inside its own block.
 - Third-party scripts load only via `loadScript(LIBS.x)`, which uses subresource integrity. To bump pdf.js or mammoth, update the version, URL and `sha384` in `00-config.js`; a unit test checks them against `node_modules`.
 - **AI calls:** spend the viewer's plan, so only call on a user action. Claims-index reads run one at a time and are cached by text hash.
@@ -58,6 +59,7 @@ A visual essay editor. The AI review marks problems in place and never rewrites 
   - argument roles reuse these colours (`ROLE_INFO`): thesis and conclusion rust, evidence teal, objection violet, reply blue, context slate; weak points are rust rings and a dashed rust break in the line. Drift always runs away from the text.
 
   - brainstorm cards: angle ink, objection violet, source teal, question blue (`IDEA_INFO`).
+  - Grow's questions (`GROW_INFO`): why teal, what you mean blue, who disagrees violet, your reply blue, what follows ink, how it connects slate. Open and parked questions are dashed; gaps in Unfold are dashed in the colour of the question they ask.
   - map links (`MAP_KIND`): clash rust, supports teal, critiques dashed violet, builds on and cites slate (cites dotted).
   - viva verdicts (`VERDICT_INFO`): strong green `--ok`, partial amber `--warn`, weak rust, skipped slate.
   - terms: a place where one of the writer's terms is written another way gets a light blue background (`--clar`, a background so it never hides an underline), and the place in view a blue outline. Groups found on the device or by Claude are only listed in the Terms tab until the writer keeps a form.

@@ -160,7 +160,7 @@ function cleanFlags(x, allowed) {
 }
 // Text placed inside a prompt block can't close that block or open another one.
 function fence(text) {
-  return String(text == null ? '' : text).replace(/<(?=\s*\/?\s*(?:document|brief|essay|claims|plan|question|notes|answer)\b)/gi, '\u2039');
+  return String(text == null ? '' : text).replace(/<(?=\s*\/?\s*(?:document|brief|essay|claims|plan|question|notes|answer|idea)\b)/gi, '\u2039');
 }
 
 // ---- review context: what goes into the prompt, and checking what comes back ----
@@ -722,4 +722,84 @@ function cleanTermCache(x) {
     if (forms.length) groups.push({label: clip(o.label, 50), keep: termText(o.keep) || forms[0], forms});
   }
   return {sig: r.sig, at: Number.isFinite(r.at) ? r.at : 0, groups};
+}
+
+// ---- Grow: thinking an idea through, one question at a time ----
+// The kinds of question, in the order they are tried when two are equally thin. "reply" answers an objection.
+const GROW_KINDS = ['why', 'mean', 'against', 'follow', 'link', 'reply'];
+const growKids = (G, id) => G.nodes.filter(n => n.p === id);
+function growCounts(G) {
+  const c = {why: 0, mean: 0, against: 0, follow: 0, link: 0, reply: 0};
+  for (const n of G.nodes) c[n.k]++;
+  return c;
+}
+// The writer's idea as stored: their starting thought and one-line point, their answers as a tree (each answer under
+// the one it was asked about, '' being the starting thought), questions they parked, the question on screen, and the
+// order of their reasons.
+function cleanGrow(x) {
+  const r = plainObj(x), nodes = [], ids = new Set(['']), at = v => Number.isFinite(v) ? v : 0;
+  for (const y of (Array.isArray(r.nodes) ? r.nodes : []).slice(0, 300)) {
+    const o = plainObj(y), p = typeof o.p === 'string' ? o.p : '', a = clip(o.a, 1200).trim();
+    if (!safeId(o.id) || ids.has(o.id) || !GROW_KINDS.includes(o.k) || !ids.has(p) || !a) continue;
+    nodes.push({id: o.id, p, k: o.k, q: clip(o.q, 240), a, at: at(o.at)});
+    ids.add(o.id);
+  }
+  const park = [];
+  for (const y of (Array.isArray(r.park) ? r.park : []).slice(0, 40)) {
+    const o = plainObj(y), p = typeof o.p === 'string' ? o.p : '', q = clip(o.q, 240).trim();
+    if (safeId(o.id) && GROW_KINDS.includes(o.k) && ids.has(p) && q && !park.some(z => z.id === o.id)) park.push({id: o.id, p, k: o.k, q, at: at(o.at)});
+  }
+  const a = plainObj(r.ask), ap = typeof a.p === 'string' ? a.p : '';
+  const ask = GROW_KINDS.includes(a.k) && ids.has(ap) && clip(a.q, 240).trim() ? {p: ap, k: a.k, q: clip(a.q, 240).trim(), why: clip(a.why, 200), src: a.src === 'ai' ? 'ai' : 'tpl'} : null;
+  const order = [...new Set((Array.isArray(r.order) ? r.order : []).filter(id => typeof id === 'string' && ids.has(id) && id))];
+  return {root: clip(r.root, 600), line: clip(r.line, 600), nodes, park, ask, order, at: at(r.at)};
+}
+// The reasons for the starting thought (its "why" and "what follows" answers), in the writer's order.
+function growReasons(G) {
+  const rs = growKids(G, '').filter(n => n.k === 'why' || n.k === 'follow');
+  const pos = id => { const i = G.order.indexOf(id); return i < 0 ? 1e6 + rs.findIndex(n => n.id === id) : i; };
+  return rs.sort((a, b) => pos(a.id) - pos(b.id));
+}
+// What to ask next, as {p: the answer it is about ('' for the starting thought), k: the kind of question}.
+// An objection waiting for a reply comes first. Otherwise the move made least so far: another reason, what you mean,
+// who disagrees, what follows, what backs a reason up, how answers connect. With `focus` (an answer's id, or '' for
+// the starting thought), the writer chose what to be asked about. Questions they parked aren't asked again, and after
+// a skip (`avoid`, the kind skipped) another kind comes first.
+function growNext(G, focus, avoid) {
+  const kids = id => growKids(G, id), parked = (p, k) => G.park.some(q => q.p === p && q.k === k), ok = (p, k) => !parked(p, k);
+  const has = (id, k) => kids(id).some(n => n.k === k), latest = G.nodes.slice().sort((a, b) => b.at - a.at);
+  const c = growCounts(G), reasons = kids('').filter(n => n.k === 'why');
+  if (focus != null) {
+    const f = focus === '' ? {id: '', k: 'root'} : G.nodes.find(n => n.id === focus);
+    if (!f) return growNext(G, null);
+    if (f.k === 'against') return ok(f.id, 'reply') && !has(f.id, 'reply') ? {p: f.id, k: 'reply'} : {p: f.id, k: 'why'};
+    const order = ['why', 'against', 'mean', 'follow', 'link'].filter(k => (k !== 'link' || G.nodes.length >= 2) && ok(f.id, k));
+    const n = k => kids(f.id).filter(x => x.k === k).length;
+    const k = order.reduce((b, k) => (n(k) < n(b) || (n(k) === n(b) && c[k] < c[b]) ? k : b), order[0] || 'why');
+    return {p: f.id, k};
+  }
+  const wait = G.nodes.find(n => n.k === 'against' && !has(n.id, 'reply') && ok(n.id, 'reply'));
+  if (wait) return {p: wait.id, k: 'reply'};
+  // among answers not yet asked this, the least developed one (fewest answers under it), the newest first
+  const fresh = (list, k) => list.filter(x => !has(x.id, k) && x.k !== 'against' && x.k !== 'reply' && ok(x.id, k))
+    .sort((a, b) => kids(a.id).length - kids(b.id).length || b.at - a.at)[0];
+  const moves = {
+    reason: {n: reasons.length, k: 'why', at: () => ok('', 'why') ? '' : null},
+    mean: {n: c.mean, k: 'mean', at: () => !has('', 'mean') && ok('', 'mean') ? '' : (fresh(reasons, 'mean') || fresh(latest, 'mean') || {}).id},
+    against: {n: c.against, k: 'against', at: () => !has('', 'against') && ok('', 'against') ? '' : (fresh(reasons, 'against') || {}).id},
+    follow: {n: c.follow, k: 'follow', at: () => !has('', 'follow') && ok('', 'follow') ? '' : (fresh(reasons, 'follow') || fresh(latest, 'follow') || {}).id},
+    support: {n: c.why - reasons.length, k: 'why', at: () => (fresh(reasons, 'why') || {}).id},
+    link: {n: c.link, k: 'link', at: () => (latest.find(x => ok(x.id, 'link')) || {}).id},
+  };
+  const order = Object.keys(moves).filter(m => m === 'reason' || (m === 'link' ? G.nodes.length >= 3 : reasons.length >= 1));
+  if (!reasons.length) order.splice(1);
+  order.sort((a, b) => (moves[a].k === avoid) - (moves[b].k === avoid) || moves[a].n - moves[b].n || Object.keys(moves).indexOf(a) - Object.keys(moves).indexOf(b));
+  for (const m of order) { const p = moves[m].at(); if (p != null) return {p, k: moves[m].k}; }
+  return null;
+}
+// One question from the model: a single line ending with a question mark, and a short reason it matters.
+function validateGrowQ(raw) {
+  const r = plainObj(raw), q = clip(r.question, 400).replace(/\s+/g, ' ').trim(), why = clip(r.why, 400).replace(/\s+/g, ' ').trim();
+  if (!q || q.length > 240 || !q.includes('?')) return null;
+  return {question: q, why: why.length <= 200 ? why : ''};
 }
