@@ -37,6 +37,8 @@ It suggests; you decide what changes. It never rewrites your essay.
 - **Your progress:** how your writing changes from essay to essay.
   - For each kind of note, how often it comes up per 1,000 words in each essay's first draft, on one scale, plus how many notes your later drafts fixed.
   - **Find my habits** asks Claude for the patterns behind your notes, each with the passages that show it and one thing to try next time.
+- **Grow:** think an idea through, one question at a time. In Plan mode, Throughline asks why, what you mean, who disagrees (then how you'd answer), what follows, and how it connects. Each answer becomes a branch of a tree, and the next question goes where your thinking is thinnest. Claude only phrases the questions; plain ones stand in without it. Answers can be typed or spoken.
+- **Unfold:** the same answers at five levels of detail: one line, your reasons, what backs each one up (with the other side), a plan for each paragraph, then the draft. Gaps are dashed and ask a question; "Answer in Grow" takes you there. "Start writing" adds a heading per paragraph, never prose.
 - **Consistent terms:** each term written one way.
   - As you write, the Terms tab finds terms written more than one way: "e-mail" and "email", "fare-free" and "fare free", "al-Ghazālī" and "al-Ghazali". Quotations, headings and capitals that only start a sentence are left out.
   - **Find them** asks Claude for different words for one idea, like "remote work" and "working from home".

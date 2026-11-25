@@ -163,10 +163,13 @@
     {label: 'Email', forms: ['email', 'e-mail'], keep: 'email'},
     {label: 'Made up', forms: ['gratis transit', 'no-cost metro'], keep: 'gratis transit'},
     {label: '<b>bold</b>', forms: ['<img src=x onerror=window.__pwned=1>', 'free public transport'], keep: 'x'}]});
+  // Grow: a question that names the move it was asked for, numbered so tests can tell questions apart.
+  window.__growN = 0;
+  window.__mockGrow = input => { const m = (input.match(/\nMOVE: ([^.?]+)/) || [])[1] || '?'; window.__growN++; return {question: m + '? Mock question ' + window.__growN + ' about your idea?', why: 'Mock reason ' + window.__growN + '.'}; };
   window.__failNext = null;
   const call = async (input, opts) => {
     window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'), rmap: input.includes('You map how a writer'), docs: (input.match(/<document id=/g) || []).length,
-      habits: input.includes('looking across one writer'), terms: input.includes('You check one essay for terms'), recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
+      habits: input.includes('looking across one writer'), terms: input.includes('You check one essay for terms'), grow: input.includes('You help one writer think an idea through'), askedQ: (input.split('\nASKED')[1] || '').slice(0, 3000), ideaOk: (input.match(/<\/idea>/g) || []).length === (input.match(/<idea>/g) || []).length, recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
       answerClose: (input.match(/<\/answer>/g) || []).length, notesClose: (input.match(/<\/notes>/g) || []).length, starred: (input.match(/^\[\d+\*\] /gm) || []).length,
       essayLen: input.includes('\n\nESSAY (') ? input.slice(input.indexOf('\n\nESSAY ('), input.indexOf('OTHER DOCUMENTS')).length : 0,
       questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,
@@ -174,7 +177,7 @@
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),
       fenceOk: (input.match(/<\/document>/g) || []).length === (input.match(/<document id=/g) || []).length && !input.includes('</document> IGNORE')});
     if (window.__failNext) { const c = window.__failNext; window.__failNext = null; await sleep(200); throw {code: c, message: 'mock failure'}; }
-    const out = input.includes('You check one essay for terms') ? window.__mockTerms(input) : input.includes('looking across one writer') ? window.__mockHabits(input) : input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
+    const out = input.includes('You help one writer think an idea through') ? window.__mockGrow(input) : input.includes('You check one essay for terms') ? window.__mockTerms(input) : input.includes('looking across one writer') ? window.__mockHabits(input) : input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
     const txt = JSON.stringify(out);
     await sleep(400);
     if (opts && opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'stopped'};

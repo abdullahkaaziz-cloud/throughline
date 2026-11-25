@@ -4,7 +4,7 @@
 
 **Where it's going:** plan → write → check → improve → connect. Version 1 covers *write* and *check*. The five features below add the rest, ending with a map of everything you've written and read.
 
-Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boards 1–5 show version 1, and [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map) shows feature 5, the research map. Boards 7–10 explore thinking an essay through (below).
+Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boards 1–5 show version 1, and [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map) shows feature 5, the research map. Boards 7–10 explore thinking an essay through: Grow and Unfold are built; the loom and Build-up are next (below).
 
 ## Foundations (built alongside the features)
 
@@ -139,10 +139,12 @@ From the November 2026 review of what would make Throughline stand out: Grammarl
 - **Find them** asks Claude for different words for one idea ("remote work", "working from home"). It keeps only forms the essay really uses (`validateTerms`).
 - Keeping a form makes it one of your terms, kept in a `terms` record and checked in every essay: other spellings are marked and change in one undoable edit; other words are marked for the writer to rewrite, or replace one at a time.
 
-### Next: thinking it through (mockups)
-[Boards 7–10](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Grow) explore helping people develop their own ideas with questions, not answers:
-- **Grow:** one question at a time (why? what do you mean? what follows? who disagrees?), each answer a branch, the next question aimed where the thinking is thinnest.
-- **Unfold:** the same idea at five levels of detail, from one line to the draft, with dashed gaps that ask rather than fill.
+### 10. Grow and Unfold (shipped in v0.12)
+- **Grow** (Plan mode): one question at a time about the writer's own idea. The app chooses the kind of question and the answer it's about (`growNext`): an objection waiting for a reply first, then the move made least so far (another reason, what you mean, who disagrees, what follows, what backs a reason up, how answers connect), aimed at the least developed answer. Claude phrases it (`GROW_RULES`); plain questions stand in without it. Skip parks a question; "Ask it another way" asks again; choosing an answer lets the writer change it, remove it (with undo) or be asked about it. A meter shows which kinds of thinking are thin.
+- **Unfold**: one line, reasons, support and the other side, paragraph plans, draft. All from the writer's answers; gaps ask questions and open Grow. "Start writing" adds headings only.
+
+### Next: the loom and Build-up (mockups, boards 9–10)
+[Boards 9–10](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Loom) look at a written essay:
 - **The loom:** every idea as a thread through the paragraphs: knots where ideas pull against each other, loose ends where one is dropped, and new ideas that first appear in the conclusion.
 - **Build-up:** the steps a reader needs (hook, stakes, claim, reasons, the other side, reply, conclusion), which ones the essay makes, how much the reader wants to read on at each paragraph, and what to change first.
 

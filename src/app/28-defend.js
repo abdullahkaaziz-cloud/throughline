@@ -12,18 +12,21 @@ async function initVoice() {
   st.tts = t || null; st.dl = dl || null; st.dict = dc || null;
   if (st.dict) {
     try {
+      // Spoken words go into the viva's answer box, or Grow's in Plan mode.
+      const at = () => st.mode === 'plan' ? {box: '#growAns', part: '#growPartial'} : {box: '#vivaAns', part: '#vivaPartial'};
       st.dict.onFinal(({text}) => {
-        const box = $('#vivaAns'); if (!box || !text) return;
+        const box = $(at().box); if (!box || !text) return;
         const v = box.value;
         box.value = (v ? v + (/\s$/.test(v) || /^\s/.test(text) ? '' : ' ') + text : text.replace(/^\s+/, '')).slice(0, 1200);
-        if (st.viva) { st.viva.spoken = true; st.viva.draft = box.value; }
-        const p = $('#vivaPartial'); if (p) p.textContent = '';
+        if (st.mode === 'plan') st.growDraft = box.value;
+        else if (st.viva) { st.viva.spoken = true; st.viva.draft = box.value; }
+        const p = $(at().part); if (p) p.textContent = '';
       });
-      st.dict.onPartial(({text}) => { const p = $('#vivaPartial'); if (p) p.textContent = text; });
+      st.dict.onPartial(({text}) => { const p = $(at().part); if (p) p.textContent = text; });
       st.dict.onState(({state, reason}) => {
         st.dictOn = state !== 'idle';
         if (reason === 'not_granted' || reason === 'unavailable') st.dictBlocked = true;
-        const b = $('#vivaMic'); if (b) { b.setAttribute('aria-pressed', String(st.dictOn)); b.lastChild.textContent = st.dictOn ? 'Stop listening' : 'Answer out loud'; b.hidden = !!st.dictBlocked; }
+        for (const b of [$('#vivaMic'), $('#growMic')]) if (b) { b.setAttribute('aria-pressed', String(st.dictOn)); b.lastChild.textContent = st.dictOn ? 'Stop listening' : 'Answer out loud'; b.hidden = !!st.dictBlocked; }
       });
     } catch (e) { st.dict = null; }
   }
@@ -37,7 +40,7 @@ function toggleDictation() {
   hush();
   dc.start().catch(err => {
     const c = err && err.code;
-    if (c === 'not_granted' || c === 'unavailable') { st.dictBlocked = true; const b = $('#vivaMic'); if (b) b.hidden = true; toast('Speaking isn’t available here. Type your answer instead.'); }
+    if (c === 'not_granted' || c === 'unavailable') { st.dictBlocked = true; for (const b of [$('#vivaMic'), $('#growMic')]) if (b) b.hidden = true; toast('Speaking isn’t available here. Type your answer instead.'); }
     else if (c !== 'stopped' && c !== 'dismissed') toast('Couldn’t start listening. Try again, or type your answer.');
   });
 }
