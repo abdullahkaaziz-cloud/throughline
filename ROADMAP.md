@@ -4,7 +4,7 @@
 
 **Where it's going:** plan → write → check → improve → connect. Version 1 covers *write* and *check*. The five features below add the rest, ending with a map of everything you've written and read.
 
-Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boards 1–5 show version 1, and [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map) shows feature 5, the research map. Boards 7–10 explore thinking an essay through: Grow and Unfold are built; the loom and Build-up are next (below).
+Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boards 1–5 show version 1, and [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map) shows feature 5, the research map. Boards 7–10 explore thinking an essay through: Grow, Unfold and the loom are built; Build-up is next (below).
 
 ## Foundations (built alongside the features)
 
@@ -143,10 +143,13 @@ From the November 2026 review of what would make Throughline stand out: Grammarl
 - **Grow** (Plan mode): one question at a time about the writer's own idea. The app chooses the kind of question and the answer it's about (`growNext`): an objection waiting for a reply first, then the move made least so far (another reason, what you mean, who disagrees, what follows, what backs a reason up, how answers connect), aimed at the least developed answer. Claude phrases it (`GROW_RULES`); plain questions stand in without it. Skip parks a question; "Ask it another way" asks again; choosing an answer lets the writer change it, remove it (with undo) or be asked about it. A meter shows which kinds of thinking are thin.
 - **Unfold**: one line, reasons, support and the other side, paragraph plans, draft. All from the writer's answers; gaps ask questions and open Grow. "Start writing" adds headings only.
 
-### Next: the loom and Build-up (mockups, boards 9–10)
-[Boards 9–10](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Loom) look at a written essay:
-- **The loom:** every idea as a thread through the paragraphs: knots where ideas pull against each other, loose ends where one is dropped, and new ideas that first appear in the conclusion.
-- **Build-up:** the steps a reader needs (hook, stakes, claim, reasons, the other side, reply, conclusion), which ones the essay makes, how much the reader wants to read on at each paragraph, and what to change first.
+### 11. The loom (shipped in v0.13)
+- A full-width view in Write mode, from the essay menu or the Argument tab. Claude names the thesis and up to five other ideas and says where each appears: woven in, running underneath, or knotted against another (`LOOM_RULES`).
+- `validateLoom` checks every quote against the paragraphs, follows quotes that moved, and renumbers threads; the same check runs whenever the loom is shown. `loomFacts` works out loose ends (unresolved, and not reaching the last paragraph) and ideas new in the conclusion.
+- Each thread shows what happens to it, a question for the writer, how it relates to the others, and where it appears. "Show it in the essay" lights up its words; "I meant to drop it" clears a loose end.
+
+### Next: Build-up (mockup, board 10)
+[Board 10](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Arc): the steps a reader needs (hook, stakes, claim, reasons, the other side, reply, conclusion), which ones the essay makes, how much the reader wants to read on at each paragraph, and what to change first.
 
 ## Order
 The claims index and feature 1 come first, because features 2, 3 and 5 all read from them. Feature 4 makes the core loop sticky and cheaper. Feature 5 ties everything together: it is where planning, writing and checking meet.

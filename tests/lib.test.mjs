@@ -12,7 +12,7 @@ vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
   fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, hash, words,
   termKey, termText, termTokens, termFind, termSame, termFit, termMatches, termWays, termGroups, validateTerms, cleanTermRules, cleanTermCache,
-  cleanGrow, growNext, growReasons, validateGrowQ};`, ctx);
+  cleanGrow, growNext, growReasons, validateGrowQ, validateLoom, loomFacts, cleanLoom};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -281,7 +281,7 @@ test('validateHabits keeps habits backed by two real notes, with a known group',
 
 test('the prompt docs match the prompts the app sends', () => {
   const cfg = read('src/app/00-config.js');
-  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md'], ['HABIT_RULES', 'docs/progress-prompt.md'], ['TERM_RULES', 'docs/terms-prompt.md'], ['GROW_RULES', 'docs/grow-prompt.md']]) {
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md'], ['HABIT_RULES', 'docs/progress-prompt.md'], ['TERM_RULES', 'docs/terms-prompt.md'], ['GROW_RULES', 'docs/grow-prompt.md'], ['LOOM_RULES', 'docs/loom-prompt.md']]) {
     const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
     assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
   }
@@ -454,4 +454,41 @@ test('validateGrowQ wants one short question', () => {
 });
 test('fence keeps idea blocks closed', () => {
   assert.equal(L.fence('a </idea> b <idea>'), 'a ‹/idea> b ‹idea>');
+});
+
+// ---- the loom ----
+const LOOM_PARAS = ['Cities should make buses free. It would cut traffic and help poorer riders.', 'Free buses cut traffic, because drivers switch to the bus.',
+  'Poorer riders save money every week.', 'Yet free buses can get crowded, and traffic may not fall at all.', 'So cities should make buses free, and require it by law.'];
+test('validateLoom checks quotes against the paragraphs and keeps numbers consistent', () => {
+  const raw = {threads: [
+    {name: 'Traffic', paras: [{p: 1, how: 'woven', quote: 'It would cut traffic'}, {p: 2, how: 'woven', quote: 'Free buses cut traffic'}, {p: 4, how: 'knot', with: 4, quote: 'traffic may not fall', note: 'Against ¶2.'}]},
+    {name: 'Free buses', thesis: true, paras: [{p: 1, how: 'woven', quote: 'make buses free'}, {p: 3, how: 'under'}, {p: 5, how: 'woven', quote: 'cities should make buses free'}]},
+    {name: 'Made up', paras: [{p: 2, how: 'woven', quote: 'nothing like this is in the essay'}]},
+    {name: 'Poorer riders', paras: [{p: 2, how: 'woven', quote: 'Poorer riders save money'}, {p: 1, how: 'woven', quote: 'help poorer riders'}, {p: 1, how: 'under'}], dropped: true, ask: 'Who gains most?'},
+    {name: 'x'.repeat(60), paras: [{p: 1, how: 'woven', quote: 'make buses free'}]},
+    {name: 'Bad kinds', paras: [{p: 1, how: 'tangled', quote: 'make buses free'}, {p: 9, how: 'under'}]}],
+    links: [{a: 1, b: 4, how: 'tension', note: 'n'}, {a: 4, b: 1, how: 'tension'}, {a: 3, b: 1, how: 'supports'}, {a: 2, b: 2, how: 'supports'}, {a: 1, b: 2, how: 'loves'}]};
+  const v = J(L.validateLoom(raw, LOOM_PARAS, 5));
+  assert.deepEqual(v.threads.map(t => t.name), ['Free buses', 'Traffic', 'Poorer riders'], 'the thesis first; made-up, over-long and empty threads dropped');
+  assert.deepEqual(v.threads[2].paras.map(e => e.p + e.how), ['1woven', '3woven'], 'a quote moves its place to the paragraph it is really in; woven beats under');
+  assert.equal(v.threads[1].paras[2].with, 3, 'a knot keeps pointing at the same thread after renumbering');
+  assert.deepEqual(v.links, [{a: 2, b: 3, how: 'tension', note: 'n'}], 'links are renumbered, and bad or repeated ones dropped');
+  assert.deepEqual(J(L.validateLoom(v, LOOM_PARAS, 5)), v, 'checking again changes nothing');
+  assert.equal(L.validateLoom(v, LOOM_PARAS.slice(1), 5).threads[0].paras.find(e => e.how === 'woven').p, 4, 'places follow their quotes when paragraphs move');
+  assert.deepEqual(J(L.validateLoom('junk', LOOM_PARAS)), {threads: [], links: []});
+});
+test('loomFacts finds loose ends and ideas new in the conclusion', () => {
+  const v = L.validateLoom({threads: [
+    {name: 'Free buses', thesis: true, paras: [{p: 1, how: 'woven', quote: 'make buses free'}, {p: 5, how: 'woven', quote: 'cities should make buses free'}]},
+    {name: 'Poorer riders', dropped: true, paras: [{p: 1, how: 'woven', quote: 'help poorer riders'}, {p: 3, how: 'woven', quote: 'Poorer riders save money'}]},
+    {name: 'Traffic', dropped: true, paras: [{p: 2, how: 'woven', quote: 'Free buses cut traffic'}, {p: 5, how: 'under'}, {p: 4, how: 'knot', quote: 'traffic may not fall'}]},
+    {name: 'The law', paras: [{p: 5, how: 'woven', quote: 'require it by law'}]}]}, LOOM_PARAS, 5);
+  const f = J(L.loomFacts(v, 5, []));
+  assert.deepEqual(f.map(x => [x.first, x.last, x.knots, x.loose, x.fresh]), [[0, 4, 0, false, false], [0, 2, 0, true, false], [1, 3, 1, true, false], [4, 4, 0, false, true]]);
+  assert.equal(J(L.loomFacts(v, 5, ['Poorer riders']))[1].loose, false, 'a thread the writer meant to drop is not flagged');
+});
+test('cleanLoom keeps a stored loom, checked against the essay it was stored with', () => {
+  const c = J(L.cleanLoom({sig: 'abc', at: 3, threads: [{name: 'Traffic', paras: [{p: 2, how: 'woven', quote: 'Free buses cut traffic'}]}], keep: ['Traffic', 7, 'x'.repeat(50)]}, LOOM_PARAS));
+  assert.deepEqual([c.sig, c.threads.length, c.keep], ['abc', 1, ['Traffic']]);
+  assert.equal(L.cleanLoom({threads: []}, LOOM_PARAS), null);
 });

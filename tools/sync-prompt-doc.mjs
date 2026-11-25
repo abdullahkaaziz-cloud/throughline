@@ -266,4 +266,28 @@ ${rules('GROW_RULES')}
 \`\`\`
 `;
 fs.writeFileSync(new URL('docs/grow-prompt.md', root), grow);
+const loom = `# Loom prompt (ideas as threads)
+
+The loom, a full-width view in Write mode, shows the essay's ideas as threads through its paragraphs. Claude is asked only when the writer presses "Find the threads" or "Check again". The source of truth is \`LOOM_RULES\` in \`src/app/00-config.js\`; regenerate this file with \`npm run sync-prompt-doc\` (a unit test checks they match).
+
+After the rules (with \`{n}\` replaced by 5), the app sends:
+
+\`\`\`
+ESSAY TITLE: <title>
+
+ESSAY (each paragraph starts with its number in brackets; never include these numbers in a quote):
+<essay>
+[1] <first paragraph>
+
+[2] <second paragraph>
+</essay>
+\`\`\`
+
+${FENCE} Every quote must be in the essay, and a quote found in another paragraph moves the place there; each thread keeps one place per paragraph; numbers that point at missing threads are dropped; the thesis comes first, then at most five other threads (\`validateLoom\` in \`src/lib.js\`). The same check runs again whenever the loom is shown, against the essay as it is then. Loose ends and ideas new in the conclusion are worked out by the app (\`loomFacts\`): a thread is a loose end only if Claude calls it unresolved and it doesn't reach the last paragraph.
+
+\`\`\`
+${rules('LOOM_RULES')}
+\`\`\`
+`;
+fs.writeFileSync(new URL('docs/loom-prompt.md', root), loom);
 console.log('prompt docs updated');

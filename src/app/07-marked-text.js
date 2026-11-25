@@ -19,6 +19,7 @@ function renderBackdrop() {
   for (const m of termMarks()) ranges.push({s: m.s, e: m.e, term: true});
   for (const r of st.termHi || []) ranges.push({s: r[0], e: r[1], thi: true});
   if (st.termCur) ranges.push({s: st.termCur[0], e: st.termCur[1], tnow: true});
+  for (const r of (st.loomHi && st.loomHi.r) || []) ranges.push({s: r[0], e: r[1], lhi: true});
   const cuts = new Set([0, text.length]);
   for (const r of ranges) { cuts.add(r.s); cuts.add(r.e); }
   const pts = [...cuts].sort((a, b) => a - b), frag = document.createDocumentFragment();
@@ -34,6 +35,7 @@ function renderBackdrop() {
     if (cov.some(r => r.term)) { cls.push('term'); span.dataset.ts = s; }
     if (cov.some(r => r.thi)) cls.push('tmhi');
     if (cov.some(r => r.tnow)) cls.push('tmnow');
+    if (cov.some(r => r.lhi)) cls.push('lhi');
     span.className = cls.join(' '); span.textContent = seg; frag.append(span);
   }
   frag.append('​');

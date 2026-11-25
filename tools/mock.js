@@ -166,10 +166,25 @@
   // Grow: a question that names the move it was asked for, numbered so tests can tell questions apart.
   window.__growN = 0;
   window.__mockGrow = input => { const m = (input.match(/\nMOVE: ([^.?]+)/) || [])[1] || '?'; window.__growN++; return {question: m + '? Mock question ' + window.__growN + ' about your idea?', why: 'Mock reason ' + window.__growN + '.'}; };
+  // The loom, for the sample essay: the threads drawn on the mockup, a made-up thread, and markup in a note.
+  window.__mockLoom = input => ({threads: [
+    {name: 'Remote work as the default', thesis: true, paras: [{p: 1, how: 'woven', quote: 'remote work should become the default for knowledge workers'}, {p: 2, how: 'under'},
+      {p: 3, how: 'woven', quote: 'Remote work also opens jobs'}, {p: 4, how: 'knot', with: 2, quote: 'most companies saw productivity fall', note: 'This paragraph argues against the thesis.'},
+      {p: 5, how: 'woven', quote: 'remote work is clearly better for everyone'}], note: 'Stated in ¶1 and again in ¶5, but ¶4 argues against it.', ask: 'How does your conclusion answer the fall in productivity in ¶4?'},
+    {name: 'Productivity', paras: [{p: 1, how: 'woven', quote: 'it improves productivity'}, {p: 2, how: 'woven', quote: 'consistently more productive'},
+      {p: 4, how: 'knot', with: 0, quote: 'saw productivity fall', note: 'Says the opposite of ¶2.'}, {p: 5, how: 'woven', quote: 'The benefits for productivity'}], note: 'Claimed, contradicted, then claimed again.', ask: 'Which is it: more productive or less, and for whom?'},
+    {name: 'Made up', paras: [{p: 2, how: 'woven', quote: 'words that are nowhere in this essay'}], note: 'x', ask: 'y?'},
+    {name: 'Access to jobs', paras: [{p: 2, how: 'woven', quote: 'widens access to jobs'}, {p: 3, how: 'woven', quote: 'opens jobs to people who cannot easily travel'}], dropped: true,
+      note: 'Promised in ¶1 and made in ¶3, then gone.', ask: 'If remote work opens jobs to parents and disabled workers, what does that add to your conclusion?'},
+    {name: 'Commuting emissions', paras: [{p: 1, how: 'woven', quote: 'cuts commuting emissions'}], dropped: true, note: 'Promised in ¶1, never developed.', ask: 'What would show that remote work cuts emissions?'},
+    {name: 'Junior staff', paras: [{p: 4, how: 'woven', quote: 'Junior staff in particular struggled'}, {p: 5, how: 'knot', with: 1, quote: 'better for everyone', note: '<b>Everyone</b> leaves out the junior staff in ¶4.'}],
+      note: '<img src=x onerror=window.__pwned=1>', ask: 'Who is left out of “better for everyone”?'},
+    {name: 'A legal requirement', paras: [{p: 5, how: 'woven', quote: 'governments should require companies to offer it'}], note: 'Appears only in the conclusion.', ask: 'Does your essay argue for a law, or only for a default?'}],
+    links: [{a: 4, b: 1, how: 'supports', note: 'More people can take the jobs.'}, {a: 4, b: 6, how: 'tension', note: 'Who gets left out?'}, {a: 3, b: 1, how: 'supports'}, {a: 9, b: 1, how: 'supports'}]});
   window.__failNext = null;
   const call = async (input, opts) => {
     window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'), rmap: input.includes('You map how a writer'), docs: (input.match(/<document id=/g) || []).length,
-      habits: input.includes('looking across one writer'), terms: input.includes('You check one essay for terms'), grow: input.includes('You help one writer think an idea through'), askedQ: (input.split('\nASKED')[1] || '').slice(0, 3000), ideaOk: (input.match(/<\/idea>/g) || []).length === (input.match(/<idea>/g) || []).length, recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
+      habits: input.includes('looking across one writer'), terms: input.includes('You check one essay for terms'), grow: input.includes('You help one writer think an idea through'), loom: input.includes('trace its ideas through its paragraphs'), askedQ: (input.split('\nASKED')[1] || '').slice(0, 3000), ideaOk: (input.match(/<\/idea>/g) || []).length === (input.match(/<idea>/g) || []).length, recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
       answerClose: (input.match(/<\/answer>/g) || []).length, notesClose: (input.match(/<\/notes>/g) || []).length, starred: (input.match(/^\[\d+\*\] /gm) || []).length,
       essayLen: input.includes('\n\nESSAY (') ? input.slice(input.indexOf('\n\nESSAY ('), input.indexOf('OTHER DOCUMENTS')).length : 0,
       questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,
@@ -177,7 +192,7 @@
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),
       fenceOk: (input.match(/<\/document>/g) || []).length === (input.match(/<document id=/g) || []).length && !input.includes('</document> IGNORE')});
     if (window.__failNext) { const c = window.__failNext; window.__failNext = null; await sleep(200); throw {code: c, message: 'mock failure'}; }
-    const out = input.includes('You help one writer think an idea through') ? window.__mockGrow(input) : input.includes('You check one essay for terms') ? window.__mockTerms(input) : input.includes('looking across one writer') ? window.__mockHabits(input) : input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
+    const out = input.includes('trace its ideas through its paragraphs') ? window.__mockLoom(input) : input.includes('You help one writer think an idea through') ? window.__mockGrow(input) : input.includes('You check one essay for terms') ? window.__mockTerms(input) : input.includes('looking across one writer') ? window.__mockHabits(input) : input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
     const txt = JSON.stringify(out);
     await sleep(400);
     if (opts && opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'stopped'};
