@@ -17,6 +17,7 @@ function renderRail() {
   if (!st.cur) return;
   renderHead();
   if (st.view === 'argument') { renderArg(); return; }
+  if (st.view === 'terms') { renderTerms(); return; }
   const keep = rbody.scrollTop, d = st.cur, rv = d.review, kids = [];
   const busy = st.reviewing && st.reviewing.doc === d;
   if (busy) kids.push(progressEl());

@@ -1,7 +1,7 @@
 // Unit tests for src/lib.js (pure helpers shared by the page). Run: node --test tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync, readdirSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import vm from 'node:vm';
 
@@ -10,7 +10,8 @@ const read = p => readFileSync(new URL(p, root), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
-  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, hash, words};`, ctx);
+  fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, hash, words,
+  termKey, termText, termTokens, termFind, termSame, termFit, termMatches, termWays, termGroups, validateTerms, cleanTermRules, cleanTermCache};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -279,8 +280,124 @@ test('validateHabits keeps habits backed by two real notes, with a known group',
 
 test('the prompt docs match the prompts the app sends', () => {
   const cfg = read('src/app/00-config.js');
-  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md'], ['HABIT_RULES', 'docs/progress-prompt.md']]) {
+  for (const [name, doc] of [['REVIEW_RULES', 'docs/review-prompt.md'], ['RECHECK_RULES', 'docs/review-prompt.md'], ['ARG_RULES', 'docs/argument-prompt.md'], ['IDEA_RULES', 'docs/brainstorm-prompt.md'], ['MAP_RULES', 'docs/map-prompt.md'], ['EXAM_RULES', 'docs/defend-prompt.md'], ['JUDGE_RULES', 'docs/defend-prompt.md'], ['HABIT_RULES', 'docs/progress-prompt.md'], ['TERM_RULES', 'docs/terms-prompt.md']]) {
     const rules = cfg.match(new RegExp('const ' + name + ' = `([\\s\\S]*?)`;'))[1];
     assert.ok(read(doc).includes(rules), 'run: npm run sync-prompt-doc');
   }
+});
+
+// ---- consistent terms ----
+const TERMS_TEXT = ['Email at Work',
+  'We sent an e-mail to every co-operative. The email was short. E-mail is fast, and email is cheap.',
+  'She wrote “send the e mail now” on the board. The e-mail’s subject was blank.',
+  'Long-term plans matter in the long term. The Church and the church differ. Al-Ghazālī and al-Ghazali agree.',
+  'The cooperative grew, and remote work spread. Working from home suits some; remote work suits others.'].join('\n\n');
+
+test('termKey ignores capitals, accents, hyphens, apostrophes and spaces', () => {
+  assert.equal(L.termKey('Al-Ghazālī'), 'alghazali');
+  assert.equal(L.termKey('al ghazali'), 'alghazali');
+  assert.equal(L.termKey('Qurʾān'), L.termKey("Qur'an"));
+  assert.equal(L.termKey('Qur’an'), 'quran');
+  assert.equal(L.termKey('E-mail'), L.termKey('e mail'));
+  assert.notEqual(L.termKey('remote work'), L.termKey('remote worker'));
+});
+
+test('termText keeps one to four plain words', () => {
+  assert.equal(L.termText('  working   from home '), 'working from home');
+  assert.equal(L.termText('one two three four five'), '');
+  assert.equal(L.termText('!!!'), '');
+  assert.equal(L.termText('x'.repeat(80)), '');
+  assert.equal(L.termText(null), '');
+});
+
+test('termTokens marks sentence starts, headings, quotations and possessives', () => {
+  const t = L.termTokens(TERMS_TEXT), at = w => t.find(x => x.t === w);
+  assert.ok(at('Email').head, 'a short line without a full stop is a heading');
+  assert.ok(at('We').start && !at('sent').start);
+  assert.ok(at('E-mail').start, 'after a full stop');
+  assert.ok(at('send').quoted && at('mail').quoted && !at('board').quoted);
+  const pos = t.find(x => x.t === 'e-mail’s');
+  assert.equal(pos.kb, 'email'); assert.equal(TERMS_TEXT.slice(pos.s, pos.eb), 'e-mail');
+  assert.ok(at('from').soft && !at('remote').soft === false);
+});
+
+test('termGroups finds a term written more than one way, and leaves out what is right both ways', () => {
+  const g = J(L.termGroups(TERMS_TEXT, L.termTokens(TERMS_TEXT)));
+  const ways = key => (g.find(x => x.key === key) || {ways: []}).ways.map(w => w.t + ':' + w.n);
+  assert.deepEqual(ways('email'), ['e-mail:3', 'email:2'], 'a capital that starts a sentence joins the lowercase way; the quotation and the heading are left out');
+  assert.deepEqual(ways('cooperative'), ['co-operative:1', 'cooperative:1']);
+  assert.deepEqual(ways('alghazali'), ['al-Ghazālī:1', 'al-Ghazali:1'], 'accents count, and a sentence-start capital follows the others');
+  assert.ok(!g.some(x => x.key === 'longterm'), 'a long-term plan, in the long term: both right');
+  assert.ok(!g.some(x => x.key === 'church'), 'one plain word capitalised two ways is left to the writer');
+  const open = J(L.termGroups('An all powerful king. The all-powerful king.', L.termTokens('An all powerful king. The all-powerful king.')));
+  assert.equal(open.length, 1); assert.ok(open[0].open); assert.deepEqual(open[0].ways.map(w => w.t), ['all powerful', 'all-powerful']);
+});
+
+test('termMatches marks other spellings and other words, never the kept form or a quotation', () => {
+  const t = L.termTokens(TERMS_TEXT), rules = [{keep: 'email', forms: []}, {keep: 'remote work', forms: ['working from home', 'telework']}];
+  const m = J(L.termMatches(TERMS_TEXT, t, rules)).map(x => [x.t, x.how, x.fix]);
+  assert.deepEqual(m, [['e-mail', 'spell', 'email'], ['E-mail', 'spell', 'Email'], ['e-mail', 'spell', 'email'], ['Working from home', 'word', 'Remote work']]);
+  assert.ok(!m.some(x => x[0] === 'e mail'), 'quoted words are someone else’s');
+  // the longest match wins, and a possessive stays outside it
+  const s = 'The all merciful king’s court and the merciful king.';
+  const mm = J(L.termMatches(s, L.termTokens(s), [{keep: 'all-merciful king', forms: []}, {keep: 'merciful', forms: ['kind']}]));
+  assert.deepEqual(mm.map(x => x.t), ['all merciful king']);
+});
+
+test('termSame and termFit: capitals that only start a sentence or sit in a heading', () => {
+  assert.ok(L.termSame('Email', 'email', true, false));
+  assert.ok(!L.termSame('Email', 'email', false, false));
+  assert.ok(L.termSame('Remote Work', 'remote work', false, true));
+  assert.ok(L.termSame('Qur’an', "Qur'an", false, false), 'curly and straight apostrophes are one way');
+  assert.equal(L.termFit('email', 'E-mail', true, false), 'Email');
+  assert.equal(L.termFit('all-merciful', 'All Merciful', false, true), 'All-Merciful');
+  assert.equal(L.termFit('Dostoevsky', 'dostoyevsky', false, false), 'Dostoevsky');
+});
+
+test('validateTerms keeps only forms the essay uses, each in one group', () => {
+  const raw = {groups: [
+    {label: 'Working away from the office', forms: ['remote work', 'Working from home', 'telecommuting'], keep: 'remote work'},
+    {label: 'Same again', forms: ['remote work', 'working from home'], keep: 'remote work'},
+    {label: 'Only one', forms: ['cooperative'], keep: 'cooperative'},
+    {label: 'Two ways', forms: ['e-mail'], keep: 'email'},
+    {label: 'Too long', forms: ['one two three four five', 'church'], keep: 'church'},
+    'junk', {forms: 'not a list'}]};
+  const g = J(L.validateTerms(raw, TERMS_TEXT));
+  assert.deepEqual(g.map(x => x.label), ['Working away from the office', 'Only one', 'Two ways', 'Too long'], 'a repeated group and junk are dropped');
+  assert.deepEqual(g[0].forms, ['remote work', 'Working from home'], 'a made-up form is dropped');
+  assert.equal(g[0].keep, 'remote work');
+  assert.deepEqual(g[0].ways.map(w => w.t + ':' + w.n), ['remote work:2', 'working from home:1']);
+  assert.deepEqual(g[1].ways.map(w => w.t), ['co-operative', 'cooperative'], 'one term is enough when the essay writes it two ways');
+  assert.deepEqual(g[2].ways.map(w => w.t), ['e-mail', 'email']);
+  assert.deepEqual(g[3].forms, ['church'], 'a form of more than four words is dropped');
+  assert.deepEqual(J(L.validateTerms({groups: [{forms: ['remote work', 'remote worker']}]}, TERMS_TEXT)), [], 'one way of one term is no group');
+  assert.deepEqual(J(L.validateTerms({groups: [{forms: ['church', 'Church']}]}, TERMS_TEXT)).length, 1);
+  assert.deepEqual(J(L.validateTerms(null, TERMS_TEXT)), []);
+});
+
+test('cleanTermRules keeps each term in one rule, and only well-formed data', () => {
+  assert.equal(L.cleanTermRules({kind: 'doc'}), null);
+  const r = J(L.cleanTermRules({kind: 'terms', rules: [
+    {id: 'a1', keep: 'remote work', forms: ['working from home', 'Remote-work', 'telework', 'x'.repeat(90)], label: 'Work'},
+    {id: 'a1', keep: 'Telework', forms: []},
+    {id: 'r2', keep: 'phone', forms: []},
+    {id: '__proto__', keep: 'email', forms: ['e-mail']},
+    {keep: '<b>bold</b>', forms: []}, {keep: 'one two three four five'}, 'junk'],
+    apart: ['email', 'a|b', 'bad key!', 7, 'email']}));
+  assert.deepEqual(r.rules.map(x => [x.id, x.keep, x.forms]), [['a1', 'remote work', ['working from home', 'telework']], ['r2', 'phone', []], ['r3', 'email', []], ['r4', '<b>bold</b>', []]],
+    'another spelling of a kept form needs no rule of its own; text stays text');
+  assert.deepEqual(r.apart, ['email', 'a|b']);
+  const c = J(L.cleanTermCache({sig: 'abc', at: 5, groups: [{label: 'L', forms: ['a b', ''], keep: 'zz'}, {forms: []}]}));
+  assert.deepEqual(c, {sig: 'abc', at: 5, groups: [{label: 'L', keep: 'zz', forms: ['a b']}]});
+  assert.equal(L.cleanTermCache({sig: ''}), null);
+});
+
+test('no two modules declare a function with the same name', () => {
+  // The app's modules share one scope, so a second declaration silently replaces the first.
+  const files = ['src/lib.js', ...readdirSync(new URL('src/app/', root)).filter(f => f.endsWith('.js')).sort().map(f => 'src/app/' + f)];
+  const seen = new Map(), twice = [];
+  for (const f of files) for (const m of read(f).matchAll(/^(?:async )?function\*? ?([A-Za-z0-9_$]+)/gm)) {
+    if (seen.has(m[1])) twice.push(m[1] + ' (' + seen.get(m[1]) + ', ' + f + ')'); else seen.set(m[1], f);
+  }
+  assert.deepEqual(twice, []);
 });

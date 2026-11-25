@@ -37,6 +37,10 @@ It suggests; you decide what changes. It never rewrites your essay.
 - **Your progress:** how your writing changes from essay to essay.
   - For each kind of note, how often it comes up per 1,000 words in each essay's first draft, on one scale, plus how many notes your later drafts fixed.
   - **Find my habits** asks Claude for the patterns behind your notes, each with the passages that show it and one thing to try next time.
+- **Consistent terms:** each term written one way.
+  - As you write, the Terms tab finds terms written more than one way: "e-mail" and "email", "fare-free" and "fare free", "al-Ghazālī" and "al-Ghazali". Quotations, headings and capitals that only start a sentence are left out.
+  - **Find them** asks Claude for different words for one idea, like "remote work" and "working from home".
+  - Pick the form to keep and it becomes one of your terms, checked in every essay. Other spellings change in one click; other words are marked in blue for you to rewrite, or replace one at a time.
 - **Ask about any passage:** select text and ask "What's wrong?", "Make it stronger", "Does it follow?" or your own question.
 - **Sources and brief:** add the papers you're using and your assignment brief. For each essay, switch sources on or off.
   - Reviews flag claims a source contradicts and citations a source doesn't back up.

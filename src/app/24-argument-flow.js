@@ -252,13 +252,14 @@ function spyHere() {
   if (cur && !narrow.matches && !rail.matches(':hover')) keepInRail(cur);
 }
 function setView(v) {
-  if (v !== 'notes' && v !== 'argument') return;
+  if (v !== 'notes' && v !== 'argument' && v !== 'terms') return;
   const changed = st.view !== v;
   st.view = v; st.argHover = []; st.argSel = []; st.argHere = 0;
   for (const t of document.querySelectorAll('.rtab')) { const on = t.dataset.view === v; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; }
-  rbody.setAttribute('aria-labelledby', v === 'argument' ? 'tabArg' : 'tabNotes');
+  rbody.setAttribute('aria-labelledby', v === 'argument' ? 'tabArg' : v === 'terms' ? 'tabTerms' : 'tabNotes');
   if (!changed) return;
-  if (v === 'argument' && st.active) { st.active = null; applyStates(); }
+  if (v !== 'notes' && st.active) { st.active = null; applyStates(); }
+  if (v !== 'terms' && (st.termCur || st.termHi)) { st.termCur = null; st.termHi = null; renderBackdrop(); }
   st.lastSig = openSig(); renderRail(); rbody.scrollTop = 0; scheduleLines(); placeParaHi();
   if (v === 'argument') requestAnimationFrame(spyHere);
 }

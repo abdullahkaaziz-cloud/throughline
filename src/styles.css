@@ -66,6 +66,9 @@ button{cursor:pointer}
 .mk.on{background:var(--hl)}
 .ask{background:var(--askbg);border-radius:3px}
 .sup{background:color-mix(in srgb,var(--evid) 18%,transparent);border-radius:3px}
+.term{background:color-mix(in srgb,var(--clar) 16%,transparent);border-radius:3px}
+.tmhi{background:color-mix(in srgb,var(--clar) 28%,transparent);border-radius:3px}
+.tmnow{background:color-mix(in srgb,var(--clar) 30%,transparent);border-radius:3px;outline:2px solid color-mix(in srgb,var(--clar) 75%,transparent);outline-offset:1px}
 .rl path.v{fill:none;stroke:var(--rel);stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;opacity:.6;transition:opacity .15s,stroke-width .15s}
 .rl.ten path.v{stroke-dasharray:4 4}
 .rl circle,.rl .bk{fill:var(--rel);stroke:var(--paper);stroke-width:2;opacity:.75}
@@ -645,3 +648,44 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .icard h3{margin:0 0 8px;font:600 16px/1.3 "Source Serif 4",Georgia,serif}
 .icard ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 .icard p{margin:2px 0 0;font-size:15px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* consistent terms */
+.tmsec{margin:6px 4px 0;font-size:13px;font-weight:600;color:var(--ink2)}
+.tmcard{border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:12px 14px;display:grid;gap:9px}
+.tmcard.on{border-color:var(--clar);box-shadow:inset 0 0 0 1px var(--clar)}
+.tmhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.tmkeep{font:600 17px/1.3 "Source Serif 4",Georgia,serif;color:var(--ink);overflow-wrap:anywhere}
+.tmlabel{font-size:13px;color:var(--ink2)}
+.tmkind,.tmsub{margin:0;font-size:13px;color:var(--ink2)}
+.tmkind{font-weight:600}
+.tmways{display:flex;flex-wrap:wrap;gap:6px}
+.tmway{display:inline-flex;align-items:center;gap:7px;min-height:34px;max-width:100%;padding:0 11px;border:1px solid color-mix(in srgb,var(--clar) 35%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--clar) 9%,var(--paper));font:15px "Source Serif 4",Georgia,serif;color:var(--ink)}
+.tmway:hover{background:color-mix(in srgb,var(--clar) 16%,var(--paper))}
+.tmway .tmw,.tmrow .tmw{overflow-wrap:anywhere}
+.tmway .n,.tmrow .n{font:12px Inter,system-ui,sans-serif;color:var(--ink3);font-variant-numeric:tabular-nums}
+.tmact{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.tmcur{display:grid;gap:8px;padding:10px 12px;border-radius:8px;background:var(--hover)}
+.tmctx{margin:0;font:15px/1.55 "Source Serif 4",Georgia,serif;color:var(--ink2);overflow-wrap:anywhere}
+.tmctx mark{background:color-mix(in srgb,var(--clar) 30%,transparent);color:var(--ink);border-radius:3px;padding:0 1px}
+.tmrows{display:grid;gap:2px}
+.tmrow{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 8px;border-radius:8px;cursor:pointer}
+.tmrow:hover{background:var(--hover)}
+.tmrow input{flex:none;margin:0;width:16px;height:16px;accent-color:var(--clar)}
+.tmrow .tmw{flex:1;font:16px "Source Serif 4",Georgia,serif;color:var(--ink)}
+.tmnote{margin:0;font-size:13px;color:var(--ink3)}
+.tmfind{display:grid;gap:8px;margin-top:4px;padding:12px 4px 2px;border-top:1px solid var(--line);font-size:14px;color:var(--ink2)}
+.tmfind .tmsec{margin:0}
+.tmfind p{margin:0}
+.tmfind .btn{justify-self:start}
+.tmadd,.tmall{font-size:14px;color:var(--ink2);border-top:1px solid var(--line)}
+.tmadd summary,.tmall summary{cursor:pointer;padding:10px 4px;font-weight:500;color:var(--ink)}
+.tmall summary .n{font-weight:400;color:var(--ink3)}
+.tmadd form{display:grid;gap:10px;padding:0 4px 12px}
+.tmadd label{display:grid;gap:4px;font-size:13px;font-weight:500;color:var(--ink2)}
+.tmadd input{min-height:40px;padding:0 10px;border:1px solid var(--line2);border-radius:8px;background:var(--paper);color:var(--ink);font:16px "Source Serif 4",Georgia,serif}
+.tmadd .btn{justify-self:start}
+.tmall .tmnote{padding:0 4px 8px}
+.tmall ul{list-style:none;margin:0;padding:0 4px 10px;display:grid;gap:8px}
+.tmall li{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
+.tmall li .tmkeep{font-size:15px}
+.tmall .tminst{flex:1;min-width:0;font-size:13px;color:var(--ink3);overflow-wrap:anywhere}

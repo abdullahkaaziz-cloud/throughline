@@ -206,4 +206,26 @@ ${rules('HABIT_RULES')}
 fs.writeFileSync(new URL('docs/map-prompt.md', root), map);
 fs.writeFileSync(new URL('docs/progress-prompt.md', root), progress);
 fs.writeFileSync(new URL('docs/defend-prompt.md', root), defend);
+const terms = `# Terms prompt ("Consistent terms")
+
+The Terms tab finds terms written more than one way on the device, as the writer types: the same words with other hyphens, spaces, capitals, accents or apostrophes. The AI is asked only when the writer presses "Find them" or "Check again", to find different words for the same idea. The source of truth is \`TERM_RULES\` in \`src/app/00-config.js\`; regenerate this file with \`npm run sync-prompt-doc\` (a unit test checks they match).
+
+After the rules (with \`{n}\` replaced by 8), the app sends:
+
+\`\`\`
+ESSAY TITLE: <title>
+
+ESSAY:
+<essay>
+<the essay>
+</essay>
+\`\`\`
+
+${FENCE} The app keeps a form only when the essay really uses it outside headings and quotations, puts each term in one group at most, needs two different terms in a group (or one term the essay writes in two ways), and caps every field (\`validateTerms\` in \`src/lib.js\`). The essay changes only when the writer asks: once they choose the form to keep, other spellings of it can be changed in one go, and other words for it are marked for the writer to rewrite or replace one at a time.
+
+\`\`\`
+${rules('TERM_RULES')}
+\`\`\`
+`;
+fs.writeFileSync(new URL('docs/terms-prompt.md', root), terms);
 console.log('prompt docs updated');
