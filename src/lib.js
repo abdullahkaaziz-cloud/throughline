@@ -803,3 +803,72 @@ function validateGrowQ(raw) {
   if (!q || q.length > 240 || !q.includes('?')) return null;
   return {question: q, why: why.length <= 200 ? why : ''};
 }
+
+// ---- the loom: an essay's ideas as threads through its paragraphs ----
+const LOOM_HOW = ['woven', 'under', 'knot'];
+// The model's threads checked against the paragraphs (`paras`, as textParas gives them). Every quote must be in the
+// essay, and moves its place to the paragraph it's really in; a thread keeps one place per paragraph (a knot over
+// woven over under); references to other threads must exist. The thesis comes first, then at most `max` other
+// threads. Numbers stay as the model gives them (paragraphs and threads from 1), so the result can be checked again
+// later against the essay as it is then.
+function validateLoom(raw, paras, max) {
+  const r = plainObj(raw), N = paras.length, norms = paras.map(p => normMap(p)), rank = {knot: 3, woven: 2, under: 1};
+  const found = (i, q) => i >= 0 && i < N && !!anchorFuzzy(paras[i], q, null, norms[i]);
+  const where = (q, hint) => {
+    if (found(hint, q)) return hint;
+    let best = -1;
+    for (let i = 0; i < N; i++) if (found(i, q) && (best < 0 || Math.abs(i - hint) < Math.abs(best - hint))) best = i;
+    return best;
+  };
+  const kept = [];
+  (Array.isArray(r.threads) ? r.threads : []).slice(0, 12).forEach((t0, ti) => {
+    const o = plainObj(t0), name = clip(o.name, 60).replace(/\s+/g, ' ').trim();
+    if (!name || name.length > 40) return;
+    const at = new Map();
+    for (const x of (Array.isArray(o.paras) ? o.paras : []).slice(0, 80)) {
+      const e = plainObj(x), how = LOOM_HOW.includes(e.how) ? e.how : null, hint = Number.isInteger(e.p) ? e.p - 1 : -1, quote = clip(e.quote, 240).trim();
+      if (!how) continue;
+      let p = hint;
+      if (quote) { p = where(quote, hint); if (p < 0) continue; }
+      else if (how !== 'under' || hint < 0 || hint >= N) continue;
+      const cur = at.get(p);
+      if (cur && rank[cur.how] >= rank[how]) continue;
+      at.set(p, {p: p + 1, how, quote, with: how === 'knot' && Number.isInteger(e.with) && e.with > 0 ? e.with : 0, note: how === 'knot' ? clip(e.note, 200) : ''});
+    }
+    if (!at.size) return;
+    const ask = clip(o.ask, 400).replace(/\s+/g, ' ').trim();
+    kept.push({from: ti + 1, t: {name, thesis: o.thesis === true, paras: [...at.values()].sort((a, b) => a.p - b.p), dropped: o.dropped === true,
+      note: clip(o.note, 300), ask: ask.includes('?') && ask.length <= 240 ? ask : ''}});
+  });
+  const thesis = kept.find(k => k.t.thesis), rest = kept.filter(k => k !== thesis).slice(0, max || 5);
+  for (const k of rest) k.t.thesis = false;
+  const order = (thesis ? [thesis] : []).concat(rest), num = new Map(order.map((k, i) => [k.from, i + 1]));
+  const threads = order.map((k, i) => Object.assign(k.t, {paras: k.t.paras.map(e => Object.assign(e, {with: e.with && num.get(e.with) !== i + 1 ? num.get(e.with) || 0 : 0}))}));
+  const links = [], seen = new Set();
+  for (const x of (Array.isArray(r.links) ? r.links : []).slice(0, 40)) {
+    const e = plainObj(x), a = num.get(e.a), b = num.get(e.b), key = [a, b].sort().join('-');
+    if (!a || !b || a === b || !['supports', 'tension'].includes(e.how) || seen.has(key)) continue;
+    seen.add(key); links.push({a, b, how: e.how, note: clip(e.note, 200)});
+  }
+  return {threads, links};
+}
+// What the loom shows for each thread, given the paragraph count and the threads the writer meant to drop: where it
+// first and last appears (0-based), its knots, whether it's a loose end (the model says it's left unresolved and it
+// doesn't reach the last paragraph), and whether it's new in the conclusion (first seen in the last paragraph).
+function loomFacts(L, N, keep) {
+  return L.threads.map(t => {
+    const on = t.paras.filter(x => x.how !== 'under').map(x => x.p - 1);
+    const first = on.length ? Math.min(...on) : -1, last = on.length ? Math.max(...on) : -1;
+    return {first, last, knots: t.paras.filter(x => x.how === 'knot').length,
+      loose: !t.thesis && t.dropped && last >= 0 && last < N - 1 && !(keep || []).includes(t.name),
+      fresh: !t.thesis && N >= 3 && first === N - 1};
+  });
+}
+// The loom kept with an essay: the text's hash when it was woven, and the names of threads the writer meant to drop.
+function cleanLoom(x, paras) {
+  const r = plainObj(x);
+  if (typeof r.sig !== 'string' || !r.sig || r.sig.length > 40) return null;
+  const v = validateLoom(r, paras || [], 5);
+  return {sig: r.sig, at: Number.isFinite(r.at) ? r.at : 0, threads: v.threads, links: v.links,
+    keep: [...new Set((Array.isArray(r.keep) ? r.keep : []).filter(s => typeof s === 'string' && s.length <= 40))].slice(0, 20)};
+}

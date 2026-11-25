@@ -23,6 +23,7 @@ function renderDocMenu() {
   }
   items.push(h('hr'),
     st.cur && !st.cur.isSample && st.cur.role !== 'source' && st.cur.text.trim() ? h('button', {class: 'mi', id: 'menuRecord', onclick: openRecord}, h('span', {class: 'mt'}, h('b', null, 'Writing record'), h('span', {class: 'sub'}, 'How this essay was written: time, typed and pasted text, drafts, vivas and AI use'))) : null,
+    st.cur && st.cur.role !== 'source' && textParas(st.cur.text).length >= 3 ? h('button', {class: 'mi', id: 'menuLoom', onclick: openLoom}, h('span', {class: 'mt'}, h('b', null, 'The loom'), h('span', {class: 'sub'}, 'Your ideas as threads through the paragraphs'))) : null,
     docs.some(d => !d.isSample && (d.review || (d.history && d.history.list.length))) ? h('button', {class: 'mi', id: 'menuProgress', onclick: openProgress}, h('span', {class: 'mt'}, h('b', null, 'Your progress'), h('span', {class: 'sub'}, 'How your writing is changing from essay to essay, and the habits behind your notes'))) : null,
     h('button', {class: 'mi', onclick: newEssay}, h('span', {class: 'mt'}, h('b', null, 'New essay'))),
     h('button', {class: 'mi', onclick: () => { closeMenus(); pickFiles('essay'); }}, h('span', {class: 'mt'}, h('b', null, 'Upload essays'), h('span', {class: 'sub'}, 'Word, PDF or text, several at once. Each one joins your library.'))));
