@@ -181,10 +181,25 @@
       note: '<img src=x onerror=window.__pwned=1>', ask: 'Who is left out of “better for everyone”?'},
     {name: 'A legal requirement', paras: [{p: 5, how: 'woven', quote: 'governments should require companies to offer it'}], note: 'Appears only in the conclusion.', ask: 'Does your essay argue for a law, or only for a default?'}],
     links: [{a: 4, b: 1, how: 'supports', note: 'More people can take the jobs.'}, {a: 4, b: 6, how: 'tension', note: 'Who gets left out?'}, {a: 3, b: 1, how: 'supports'}, {a: 9, b: 1, how: 'supports'}]});
+  // Build-up, for the sample essay: the reading drawn on the mockup, a paragraph that doesn't exist, a made-up quote,
+  // markup in a reason, and a fourth fix over the cap.
+  window.__mockBuild = input => ({shape: 'problem', paras: [
+    {p: 1, moves: ['hook', 'claim'], quote: 'This essay argues that remote work should become the default', pull: 60, why: 'A clear claim, but nothing at stake yet.'},
+    {p: 2, moves: ['reason'], quote: 'Remote workers are consistently more productive', pull: 55, why: 'A reason, with no build.'},
+    {p: 3, moves: ['reason'], quote: 'words that are not in this paragraph', pull: 50, why: 'Another reason in a row.'},
+    {p: 4, moves: ['other'], quote: 'most companies saw productivity fall', pull: 85, why: 'The strongest point against you.'},
+    {p: 5, moves: ['close', 'claim'], quote: 'remote work is clearly better for everyone', pull: 40, why: 'Ends without answering ¶4.'},
+    {p: 9, moves: ['hook'], pull: 99}],
+    open: [{q: 'Why does this matter now?', raised: 1, answered: 0}, {q: 'What about junior staff?', raised: 4, answered: 0}, {q: 'Is it more productive?', raised: 2, answered: 2}],
+    fixes: [
+      {kind: 'missing', move: 'stakes', p: 1, title: 'Show what’s at stake before you claim it', why: 'Your claim arrives before the reader knows why it matters.', ask: 'Who loses if offices stay the default?'},
+      {kind: 'missing', move: 'reply', p: 4, title: 'Answer the other side, then conclude', why: '¶4 raises the strongest point against you, and the conclusion ignores it.', ask: 'What would make remote work fair for junior staff?'},
+      {kind: 'order', move: 'reason', p: 2, title: 'Save your strongest reason for last', why: '<img src=x onerror=window.__pwned=1>', ask: 'Which reason can you prove best?', order: [1, 3, 2, 4, 5]},
+      {kind: 'weak', move: 'close', p: 5, title: 'Over the cap', why: 'x', ask: 'y?'}]});
   window.__failNext = null;
   const call = async (input, opts) => {
     window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'), rmap: input.includes('You map how a writer'), docs: (input.match(/<document id=/g) || []).length,
-      habits: input.includes('looking across one writer'), terms: input.includes('You check one essay for terms'), grow: input.includes('You help one writer think an idea through'), loom: input.includes('trace its ideas through its paragraphs'), askedQ: (input.split('\nASKED')[1] || '').slice(0, 3000), ideaOk: (input.match(/<\/idea>/g) || []).length === (input.match(/<idea>/g) || []).length, recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
+      habits: input.includes('looking across one writer'), terms: input.includes('You check one essay for terms'), grow: input.includes('You help one writer think an idea through'), loom: input.includes('trace its ideas through its paragraphs'), build: input.includes('how it builds up to its point'), askedQ: (input.split('\nASKED')[1] || '').slice(0, 3000), ideaOk: (input.match(/<\/idea>/g) || []).length === (input.match(/<idea>/g) || []).length, recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
       answerClose: (input.match(/<\/answer>/g) || []).length, notesClose: (input.match(/<\/notes>/g) || []).length, starred: (input.match(/^\[\d+\*\] /gm) || []).length,
       essayLen: input.includes('\n\nESSAY (') ? input.slice(input.indexOf('\n\nESSAY ('), input.indexOf('OTHER DOCUMENTS')).length : 0,
       questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,
@@ -192,7 +207,7 @@
       lib: (input.match(/<document id=/g) || []).length, brief: input.includes('<brief>'), titles: [...input.matchAll(/<document id="D\d+" role="\w+" title="([^"]*)"/g)].map(m => m[1]),
       fenceOk: (input.match(/<\/document>/g) || []).length === (input.match(/<document id=/g) || []).length && !input.includes('</document> IGNORE')});
     if (window.__failNext) { const c = window.__failNext; window.__failNext = null; await sleep(200); throw {code: c, message: 'mock failure'}; }
-    const out = input.includes('trace its ideas through its paragraphs') ? window.__mockLoom(input) : input.includes('You help one writer think an idea through') ? window.__mockGrow(input) : input.includes('You check one essay for terms') ? window.__mockTerms(input) : input.includes('looking across one writer') ? window.__mockHabits(input) : input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
+    const out = input.includes('how it builds up to its point') ? window.__mockBuild(input) : input.includes('trace its ideas through its paragraphs') ? window.__mockLoom(input) : input.includes('You help one writer think an idea through') ? window.__mockGrow(input) : input.includes('You check one essay for terms') ? window.__mockTerms(input) : input.includes('looking across one writer') ? window.__mockHabits(input) : input.includes('Judge their answer') ? window.__mockJudge(input) : input.includes('You are an examiner holding') ? window.__mockExam(input) : input.includes('You map how a writer') ? window.__mockRmap(input) : input.includes('You help a writer brainstorm') ? window.__mockIdeas(input) : input.includes('You map the argument') ? window.__mockArgmap(input) : input.includes('ESSAY (each paragraph') ? window.__mockReview(input) : input.includes('You index a document') ? window.__mockIndex(input) : window.__mockAsk(input);
     const txt = JSON.stringify(out);
     await sleep(400);
     if (opts && opts.signal && opts.signal.aborted) throw {code: 'cancelled', message: 'stopped'};

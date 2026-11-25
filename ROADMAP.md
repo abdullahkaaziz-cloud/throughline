@@ -4,7 +4,7 @@
 
 **Where it's going:** plan → write → check → improve → connect. Version 1 covers *write* and *check*. The five features below add the rest, ending with a map of everything you've written and read.
 
-Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boards 1–5 show version 1, and [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map) shows feature 5, the research map. Boards 7–10 explore thinking an essay through: Grow, Unfold and the loom are built; Build-up is next (below).
+Mockups: [design canvas](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ). Boards 1–5 show version 1, and [board 6](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Map) shows feature 5, the research map. Boards 7–10 explore thinking an essay through: all four are now built (sections 10–12 below).
 
 ## Foundations (built alongside the features)
 
@@ -148,8 +148,10 @@ From the November 2026 review of what would make Throughline stand out: Grammarl
 - `validateLoom` checks every quote against the paragraphs, follows quotes that moved, and renumbers threads; the same check runs whenever the loom is shown. `loomFacts` works out loose ends (unresolved, and not reaching the last paragraph) and ideas new in the conclusion.
 - Each thread shows what happens to it, a question for the writer, how it relates to the others, and where it appears. "Show it in the essay" lights up its words; "I meant to drop it" clears a loose end.
 
-### Next: Build-up (mockup, board 10)
-[Board 10](https://claude.ai/artifact/HBp9wn9DgjAvdjWxKyRXfZ#artboard-Arc): the steps a reader needs (hook, stakes, claim, reasons, the other side, reply, conclusion), which ones the essay makes, how much the reader wants to read on at each paragraph, and what to change first.
+### 12. Build-up (shipped in v0.14)
+- A full-width view in Write mode, from the essay menu or the Argument tab. Claude says what each paragraph does (hook, stakes, claim, reason, the other side, reply, close), how much a reader would want to read on after it, which questions are left open, and up to three changes, each with a question for the writer (`BUILD_RULES`, checked by `validateBuild`).
+- The steps of each shape (problem → answer, myth → reality, two sides → verdict) are worked out by the app from those moves (`buildSteps`), so switching shapes asks nothing more. The strong build-up is a fixed curve per shape (`buildIdeal`).
+- "Preview this order" lists the paragraphs in a better order; "Use this order" moves whole paragraphs in one undoable edit; "Go to ¶n" puts the caret there.
 
 ## Order
 The claims index and feature 1 come first, because features 2, 3 and 5 all read from them. Feature 4 makes the core loop sticky and cheaper. Feature 5 ties everything together: it is where planning, writing and checking meet.

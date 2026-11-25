@@ -2,7 +2,7 @@
 function openDoc(d) {
   if (!srcWrap.hidden) flushBrief();
   st.cur = d; st.active = null; st.hover = null; st.filter = 'all'; st.anchors = new Map(); st.reviewError = null;
-  st.argHover = []; st.argSel = []; st.argHere = 0; st.termCur = null; st.termHi = null; st.termErr = null; st.loomSel = null; st.loomHi = null;
+  st.argHover = []; st.argSel = []; st.argHere = 0; st.termCur = null; st.termHi = null; st.termErr = null; st.loomSel = null; st.loomHi = null; st.buildOrder = -1;
   hideSelbar(); closeMenus();
   loadEditor();
   st.tlSel = -1; st.lastLen = ed.value.length; st.lastInputAt = 0; st.pasteText = null;
@@ -12,6 +12,7 @@ function openDoc(d) {
   else if (st.mode === 'defend') { hush(); stopDictation(); st.vivaView = null; renderDefend(); }
   else if (st.mode === 'record') renderRecord();
   else if (st.mode === 'loom') renderLoom();
+  else if (st.mode === 'build') renderBuild();
   else if (st.mode === 'progress' || st.mode === 'inbox') setMode('write');
   if (!srcWrap.hidden) buildSources();
   updateTermCount();
