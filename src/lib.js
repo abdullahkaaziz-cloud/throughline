@@ -463,3 +463,263 @@ function validateHabits(raw, refs, max) {
   }
   return out;
 }
+
+// ---- consistent terms ----
+// Two ways of writing a term share a key when they differ only in capitals, accents, hyphens, apostrophes or spaces:
+// "e-mail", "E-mail", "email" and "e mail" all have the key "email".
+const TERM_APOS = /[ʹ-ʿˈˊˋ]/gu;   // modifier letters used as apostrophes, for ʿayn and for hamza
+const TERM_WORD = /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:[-‐‑'’ʼ][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
+const termKeys = new Map();
+function termKey(s) {
+  s = String(s == null ? '' : s);
+  let k = termKeys.get(s);
+  if (k == null) {
+    k = s.normalize('NFKD').replace(/\p{M}+/gu, '').replace(TERM_APOS, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+    if (termKeys.size > 50000) termKeys.clear();
+    termKeys.set(s, k);
+  }
+  return k;
+}
+// The same way of writing: curly and straight apostrophes, and the different hyphen characters, count as one.
+const termForm = s => String(s == null ? '' : s).normalize('NFC').replace(/[‘’ʼ`´]/g, "'").replace(/[‐‑]/g, '-').replace(/\s+/g, ' ').trim();
+// A term as the writer keeps it: plain text of one to four words.
+function termText(v) {
+  const t = clip(v, 200).replace(/\s+/g, ' ');
+  if (t.length > 60) return '';
+  const n = (t.match(TERM_WORD) || []).length;
+  return n >= 1 && n <= 4 && termKey(t).length >= 2 ? t : '';
+}
+// Per character of the text: 1 inside a quotation (another writer's words are left alone), 2 on a heading line
+// (short, with no closing punctuation, or in title case), where capitals are a matter of style.
+function termFlags(text) {
+  const f = new Uint8Array(text.length + 1), letter = c => /\p{L}/u.test(c || '');
+  for (let p = 0; p <= text.length;) {
+    let q = text.indexOf('\n', p); if (q < 0) q = text.length;
+    const line = text.slice(p, q).trim(), ws = line.match(/\S+/g) || [];
+    const long = ws.filter(w => /^\p{L}{4,}/u.test(w)), title = long.length > 1 && long.filter(w => /^\p{Lu}/u.test(w)).length / long.length >= 0.6;
+    if (line && ws.length <= 12 && (!/[.!?:;…"”'’)\]]$/.test(line) || title)) f.fill(2, p, q);
+    for (let i = p, open = -1, kind = ''; i < q; i++) {
+      const c = text[i];
+      if (open < 0) { if (c === '“' || c === '"' || (c === '‘' && !letter(text[i - 1]))) { open = i; kind = c; } }
+      else if ((kind === '“' && c === '”') || (kind === '"' && c === '"') || (kind === '‘' && c === '’' && !(letter(text[i - 1]) && letter(text[i + 1])))) {
+        for (let j = open; j <= i; j++) f[j] |= 1;
+        open = -1;
+      }
+    }
+    p = q + 1;
+  }
+  return f;
+}
+// Whether the word at s starts a sentence (or a paragraph), so its capital says nothing about how the term is written.
+function termStart(text, s) {
+  for (let i = s - 1; i >= 0; i--) {
+    const c = text[i];
+    if (c === '\n') return true;
+    if (/[\s"“”'‘’«»(\[{*_–—-]/.test(c)) continue;
+    return /[.!?:…]/.test(c);
+  }
+  return true;
+}
+// The words of a text, each with its key. A possessive ending ("’s") is kept apart (kb, eb) so "the e-mail’s" still
+// counts as "e-mail"; soft: only spaces since the word before, so the two can be read as one term.
+function termTokens(text) {
+  text = String(text == null ? '' : text);
+  const fl = termFlags(text), out = [];
+  let prev = null;
+  for (const m of text.matchAll(TERM_WORD)) {
+    const s = m.index, t = m[0], e = s + t.length, pos = t.length > 2 && /['’ʼ][sS]$/.test(t);
+    const tk = {s, e, t, k: termKey(t), kb: pos ? termKey(t.slice(0, -2)) : null, eb: pos ? e - 2 : e,
+      soft: !!prev && /^[ \t ]+$/.test(text.slice(prev.e, s)), start: termStart(text, s), head: (fl[s] & 2) > 0, quoted: (fl[s] & 1) > 0};
+    out.push(tk); prev = tk;
+  }
+  return out;
+}
+function termPrefixes(keys) {
+  const pre = new Set();
+  for (const k of keys.keys()) for (let i = 1; i <= k.length; i++) pre.add(k.slice(0, i));
+  return pre;
+}
+// Every place one of these keys is written: runs of up to four words, the longest first, never overlapping, and never
+// inside a quotation. A possessive ending stays outside the match.
+function termFind(tokens, keys, pre) {
+  pre = pre || termPrefixes(keys);
+  const c = [];
+  for (let i = 0; i < tokens.length; i++) {
+    let acc = '';
+    for (let n = 0; n < 4 && i + n < tokens.length; n++) {
+      const tk = tokens[i + n];
+      if (n && !tk.soft) break;
+      if (tk.kb != null && keys.has(acc + tk.kb)) c.push({i, j: i + n, s: tokens[i].s, e: tk.eb, k: acc + tk.kb});
+      acc += tk.k;
+      if (keys.has(acc)) c.push({i, j: i + n, s: tokens[i].s, e: tk.e, k: acc});
+      if (!pre.has(acc)) break;
+    }
+  }
+  c.sort((a, b) => (b.e - b.s) - (a.e - a.s) || a.s - b.s);
+  const end = tokens.length ? tokens[tokens.length - 1].e : 0, used = new Uint8Array(end + 1), out = [];
+  for (const x of c) {
+    let free = true; for (let p = x.s; p < x.e; p++) if (used[p]) { free = false; break; }
+    if (!free) continue;
+    used.fill(1, x.s, x.e);
+    let q = false; for (let j = x.i; j <= x.j; j++) if (tokens[j].quoted) q = true;
+    if (!q) out.push(x);
+  }
+  return out.sort((a, b) => a.s - b.s);
+}
+// Whether a written form is the form the writer keeps. A capital that only starts a sentence doesn't count, and
+// in a heading neither do capitals.
+function termSame(written, keep, start, head) {
+  const a = termForm(written), b = termForm(keep);
+  if (a === b) return true;
+  if (head) return a.toLowerCase() === b.toLowerCase();
+  return !!start && a.slice(1) === b.slice(1) && a[0].toLowerCase() === b[0].toLowerCase();
+}
+// The form to keep, capitalised to fit where it goes: at the start of a sentence, or in a heading in title case.
+function termFit(keep, written, start, head) {
+  const up = /^\p{Lu}/u.test(written);
+  if (head && up) return keep.replace(/(^|[\s-])(\p{Ll})/gu, (m, a, c) => a + c.toUpperCase());
+  if ((start || head) && up && /^\p{Ll}/u.test(keep)) return keep[0].toUpperCase() + keep.slice(1);
+  return keep;
+}
+// The writer's terms by key, built once for many texts: which rule each key belongs to, and whether it's the kept form.
+function termIndex(rules) {
+  const by = new Map();
+  rules.forEach((r, ri) => {
+    const set = (f, keep) => { const k = termKey(f); if (k.length >= 2 && !by.has(k)) by.set(k, {ri, keep}); };
+    set(r.keep, true); for (const f of r.forms || []) set(f, false);
+  });
+  return {by, pre: termPrefixes(by)};
+}
+// The places to change for the writer's terms ({keep, forms}): another way of writing the form they keep ("spell",
+// which can be changed for them in one go) or another word for it ("word", which they rewrite themselves).
+function termMatches(text, tokens, rules, ix) {
+  const {by, pre} = ix || termIndex(rules);
+  if (!by.size) return [];
+  const out = [];
+  for (const x of termFind(tokens, by, pre)) {
+    const info = by.get(x.k), r = rules[info.ri], t = text.slice(x.s, x.e), a = tokens[x.i];
+    if (info.keep && termSame(t, r.keep, a.start, a.head)) continue;
+    out.push({s: x.s, e: x.e, t, ri: info.ri, how: info.keep ? 'spell' : 'word', start: a.start, head: a.head, fix: termFit(r.keep, t, a.start, a.head)});
+  }
+  return out;
+}
+// The different ways one term is written in these places ({s, e, t, start}), most used first. A capital that only
+// starts a sentence goes with the way the term is written elsewhere.
+function termWays(list) {
+  const forms = new Map();
+  const put = (id, t, o, fromStart) => { let f = forms.get(id); if (!f) forms.set(id, f = {t, n: 0, occ: [], fromStart}); f.n++; f.occ.push({s: o.s, e: o.e}); };
+  const raw = o => String(o.t).replace(/\s+/g, ' ').trim();   // shown as the writer wrote it, curly apostrophes and all
+  for (const o of list) if (!o.start) { const x = termForm(o.t); put(x, raw(o), o, false); }
+  for (const o of list) if (o.start) {
+    const x = termForm(o.t), hit = [...forms.keys()].find(id => id.slice(1) === x.slice(1) && id[0].toLowerCase() === x[0].toLowerCase());
+    if (hit) put(hit, null, o); else put(x, raw(o), o, true);
+  }
+  // a way seen only at the start of sentences takes the capital most of the other places use
+  const all = [...forms.values()], rest = all.filter(f => !f.fromStart);
+  const low = rest.reduce((n, f) => n + (/^\p{Ll}/u.test(f.t) ? f.n : -f.n), 0);
+  for (const f of all) if (f.fromStart && rest.length && low >= 0) f.t = f.t[0].toLowerCase() + f.t.slice(1);
+  for (const f of all) f.occ.sort((a, b) => a.s - b.s);
+  return all.sort((a, b) => b.n - a.n || a.occ[0].s - b.occ[0].s).map(f => ({t: f.t, n: f.n, occ: f.occ}));
+}
+// Pairs where both ways are right, for different jobs: "every day" and "everyday", "set up" and "setup".
+const TERM_BOTH = new Set(('everyday anyone anymore anyway anybody anything anywhere everyone everybody everything everywhere sometime sometimes ' +
+  'someday somebody someone something somewhere maybe already altogether alright awhile apart into onto upon nobody cannot forever overall ' +
+  'whatever however whoever wherever whenever backup setup login logout workout checkout breakdown takeover makeup turnover layout lookup ' +
+  'cutoff followup buildup tradeoff signup checkin handout printout payoff startup standby walkthrough rollout spinoff shutdown dropout pickup ' +
+  'grownup longterm shortterm fulltime parttime firsthand inperson daytoday facetoface uptodate decisionmaking wellknown highquality').split(' '));
+// Terms written more than one way, found on the device: the same words with other hyphens, spaces, capitals, accents
+// or apostrophes ("e-mail", "email", "e mail"). The same plain word capitalised two ways ("Church", "church") is often
+// deliberate, so it's left out; so are headings and quotations.
+function termGroups(text, tokens, max) {
+  const occ = new Map(), add = (k, o) => { let a = occ.get(k); if (!a) occ.set(k, a = []); a.push(o); };
+  const ok = tk => !tk.quoted && !tk.head;
+  for (const tk of tokens) {
+    if (!ok(tk)) continue;
+    const k = tk.kb != null ? tk.kb : tk.k;
+    if (k.length >= 4 && !/^\p{N}+$/u.test(k) && !TERM_BOTH.has(k)) add(k, {s: tk.s, e: tk.eb, t: text.slice(tk.s, tk.eb), start: tk.start, open: false});
+  }
+  for (let i = 0; i < tokens.length; i++) {
+    if (!ok(tokens[i])) continue;
+    let acc = tokens[i].k;
+    for (let n = 1; n < 3 && i + n < tokens.length; n++) {
+      const tk = tokens[i + n]; if (!tk.soft || !ok(tk)) break;
+      const kb = tk.kb != null ? acc + tk.kb : null; acc += tk.k;
+      const k = occ.has(acc) ? acc : kb && occ.has(kb) ? kb : null;
+      if (k) { const e = k === acc ? tk.e : tk.eb; add(k, {s: tokens[i].s, e, t: text.slice(tokens[i].s, e), start: tokens[i].start, open: true}); }
+    }
+  }
+  const out = [];
+  for (const [k, list] of occ) {
+    if (list.length < 2) continue;
+    const ways = termWays(list);
+    if (ways.length < 2) continue;
+    const open = list.some(o => o.open), ts = ways.map(w => w.t);
+    if (!open && !ts.some(t => /[-'ʾʿ]/.test(t)) && new Set(ts.map(t => t[0].toLowerCase() + t.slice(1))).size === 1) continue;
+    out.push({key: k, open, n: list.length, ways});
+  }
+  return out.sort((a, b) => b.n - a.n || a.ways[0].occ[0].s - b.ways[0].occ[0].s).slice(0, max || 12);
+}
+// The model's groups of forms that mean the same thing. A form stays only where the essay really uses it (outside
+// headings and quotations), each term goes in one group at most, and a group needs two different terms, or one term
+// written in two ways. Each group comes back with the ways it is written and how often.
+function validateTerms(raw, text, tokens, max) {
+  text = String(text == null ? '' : text); tokens = tokens || termTokens(text);
+  const cand = [];
+  for (const g of (Array.isArray(plainObj(raw).groups) ? plainObj(raw).groups : []).slice(0, 20)) {
+    const o = plainObj(g), forms = [];
+    for (const f of (Array.isArray(o.forms) ? o.forms : []).slice(0, 8)) { const t = termText(f), k = termKey(t); if (t && !forms.some(x => x.k === k)) forms.push({t, k}); }
+    cand.push({label: clip(o.label, 50), keep: termKey(termText(o.keep)), forms});
+  }
+  const keys = new Map(cand.flatMap(c => c.forms.map(f => [f.k, 1])));
+  if (!keys.size) return [];
+  const found = new Map();
+  for (const x of termFind(tokens, keys)) {
+    if (tokens[x.i].head) continue;
+    let a = found.get(x.k); if (!a) found.set(x.k, a = []);
+    a.push({s: x.s, e: x.e, t: text.slice(x.s, x.e), start: tokens[x.i].start});
+  }
+  const out = [], used = new Set();
+  for (const c of cand) {
+    const forms = c.forms.filter(f => found.has(f.k) && !used.has(f.k));
+    if (!forms.length) continue;
+    const ways = termWays(forms.flatMap(f => found.get(f.k))).map(w => Object.assign(w, {k: termKey(w.t)}));
+    if (forms.length < 2 && ways.length < 2) continue;
+    forms.forEach(f => used.add(f.k));
+    const keep = forms.find(f => f.k === c.keep) || forms[0];
+    out.push({label: c.label, keep: keep.t, forms: [keep.t, ...forms.filter(f => f !== keep).map(f => f.t)], ways});
+    if (out.length >= (max || 8)) break;
+  }
+  return out;
+}
+// The writer's terms as stored: the form to keep and other words for it, each term in one place only; and the groups
+// they said are different (sorted keys joined by "|").
+function cleanTermRules(x) {
+  const r = plainObj(x);
+  if (r.kind !== 'terms') return null;
+  const rules = [], seen = new Set(), ids = new Set();
+  for (const y of (Array.isArray(r.rules) ? r.rules : []).slice(0, 150)) {
+    const o = plainObj(y), keep = termText(o.keep), k = termKey(keep);
+    if (!keep || seen.has(k)) continue;
+    seen.add(k);
+    const forms = [];
+    for (const f of (Array.isArray(o.forms) ? o.forms : []).slice(0, 12)) { const t = termText(f), fk = termKey(t); if (t && !seen.has(fk)) { seen.add(fk); forms.push(t); } }
+    let id = safeId(o.id) && !ids.has(o.id) ? o.id : '';
+    for (let n = rules.length; !id; n++) if (!ids.has('r' + n)) id = 'r' + n;
+    ids.add(id);
+    rules.push({id, keep, forms, label: clip(o.label, 50)});
+    if (rules.length >= 100) break;
+  }
+  const apart = [...new Set((Array.isArray(r.apart) ? r.apart : []).filter(s => typeof s === 'string' && s.length <= 300 && /^[\p{L}\p{N}]+(?:\|[\p{L}\p{N}]+)*$/u.test(s)))].slice(-300);
+  return {rules, apart};
+}
+// The AI's groups kept with an essay: shapes only. They are checked against the text each time they're shown.
+function cleanTermCache(x) {
+  const r = plainObj(x);
+  if (typeof r.sig !== 'string' || !r.sig || r.sig.length > 40) return null;
+  const groups = [];
+  for (const g of (Array.isArray(r.groups) ? r.groups : []).slice(0, 12)) {
+    const o = plainObj(g), forms = (Array.isArray(o.forms) ? o.forms : []).slice(0, 8).map(termText).filter(Boolean);
+    if (forms.length) groups.push({label: clip(o.label, 50), keep: termText(o.keep) || forms[0], forms});
+  }
+  return {sig: r.sig, at: Number.isFinite(r.at) ? r.at : 0, groups};
+}

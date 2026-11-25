@@ -16,6 +16,9 @@ function renderBackdrop() {
   }
   for (const r of askRanges()) ranges.push({s: r[0], e: r[1], ask: true});
   for (const r of st.supHi || []) ranges.push({s: r[0], e: r[1], sup: true});
+  for (const m of termMarks()) ranges.push({s: m.s, e: m.e, term: true});
+  for (const r of st.termHi || []) ranges.push({s: r[0], e: r[1], thi: true});
+  if (st.termCur) ranges.push({s: st.termCur[0], e: st.termCur[1], tnow: true});
   const cuts = new Set([0, text.length]);
   for (const r of ranges) { cuts.add(r.s); cuts.add(r.e); }
   const pts = [...cuts].sort((a, b) => a - b), frag = document.createDocumentFragment();
@@ -28,6 +31,9 @@ function renderBackdrop() {
     if (iss.length) { cls.push('mk', 't-' + iss[0].type); span.dataset.ids = [...new Set(iss.map(r => r.id))].join(' '); }
     if (cov.some(r => r.ask)) cls.push('ask');
     if (cov.some(r => r.sup)) cls.push('sup');
+    if (cov.some(r => r.term)) { cls.push('term'); span.dataset.ts = s; }
+    if (cov.some(r => r.thi)) cls.push('tmhi');
+    if (cov.some(r => r.tnow)) cls.push('tmnow');
     span.className = cls.join(' '); span.textContent = seg; frag.append(span);
   }
   frag.append('​');
