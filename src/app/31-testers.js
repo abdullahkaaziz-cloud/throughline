@@ -25,18 +25,22 @@ dlgEl.addEventListener('pointerdown', e => { if (e.target === dlgEl) closeDlg();
 // ---- the welcome, once per browser, for anyone but the owner ----
 function maybeWelcome() {
   if (st.isOwner || !dlgEl.hidden) return;
-  try { if (localStorage.getItem(WKEY)) return; localStorage.setItem(WKEY, '1'); } catch (e) {}
-  const ai = st.ai === 'ready';
+  let seen = false;
+  try { seen = !!localStorage.getItem(WKEY); if (!seen) localStorage.setItem(WKEY, '1'); } catch (e) {}
+  if (seen) { maybeTellUsage(); return; }
+  const ai = st.ai === 'ready', counting = st.store === 'db' && !!dbApi && !!myId;
   openDlg('Welcome to Throughline',
     h('p', {class: 'wlead'}, 'Throughline reads your essay and marks what needs work, right where it is: contradictions, gaps in the argument, claims that need evidence, unclear sentences. It never rewrites your essay.'),
     h('ul', {class: 'wlist'},
       h('li', null, h('b', null, 'Your own Claude plan. '), ai ? 'Reviews run on your Claude plan, so they count toward your usage, not anyone else’s.' : 'Sign in to Claude to run reviews. They use your own plan.'),
       h('li', null, h('b', null, 'Private to you. '), st.store === 'db' ? 'Your essays are saved in your own space. Nobody else can open them, including whoever shared Throughline with you.'
         : 'Your essays are saved in this browser only, so use the same browser to come back to them.'),
-      h('li', null, h('b', null, 'A test version. '), 'Tell us what works and what doesn’t: ', h('b', null, 'Send feedback'), ' is in the essay menu.')),
+      h('li', null, h('b', null, 'A test version. '), 'Tell us what works and what doesn’t: ', h('b', null, 'Send feedback'), ' is in the essay menu.'),
+      counting ? h('li', null, h('b', null, 'Usage counts. '), 'To work out what Throughline should cost, it counts which features you use and how much text goes to Claude, never the text itself. Only whoever shared Throughline sees the counts. Switch them off in ', h('b', null, 'Privacy and your data'), ', in the essay menu.') : null),
     h('div', {class: 'wacts'},
       h('button', {class: 'btn primary', type: 'button', id: 'welcomeSample', onclick: () => { closeDlg(); if (!(st.cur && st.cur.isSample)) openDoc(makeSample()); }}, 'Try the sample essay'),
       h('button', {class: 'btn', type: 'button', onclick: () => { closeDlg(); newEssay(); }}, 'Start my own essay')));
+  if (counting && !trackPrefs().told) setTracking(trackPrefs().track, Date.now());
 }
 
 // ---- feedback ----

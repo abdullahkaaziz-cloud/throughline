@@ -58,8 +58,7 @@ async function runMap() {
     if (ctx.length < 2) throw {code: 'prompt_too_large'};
     const prompt = MAP_RULES + '\n\nDOCUMENTS (role "essay": the writer’s own essays; role "source": material they use):\n' + docsBlock(ctx);
     const opts = {signal: R.ctl.signal}; if (tier) opts.modelTier = tier;
-    const m = validateRmap(await sampleFn.json(prompt, opts), {resolveDoc: ctxResolver(ctx)});
-    if (!m.themes.length && !m.links.length) throw {code: 'invalid_json'};
+    const m = await askClaude('map', null, prompt, opts, raw => { const v = validateRmap(raw, {resolveDoc: ctxResolver(ctx)}); if (!v.themes.length && !v.links.length) throw {code: 'invalid_json'}; return v; });
     const rid = Date.now().toString(36);
     st.rmap = {at: Date.now(), sig: mapSig(docs), hidden: [], themes: m.themes, links: m.links.map((l, i) => Object.assign({id: 'l' + i + '-' + rid}, l)), threads: m.threads};
     st.mapSel = null;

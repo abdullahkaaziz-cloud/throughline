@@ -92,8 +92,7 @@ async function runHabits() {
   try {
     const refs = Object.create(null); for (const x of notes) refs[x.id] = {g: TYPES[x.t].g};
     const opts = {signal: R.ctl.signal}; if (tier) opts.modelTier = tier;
-    const found = validateHabits(await sampleFn.json(habitPrompt(notes, 5), opts), refs, 5);
-    if (!found.length) throw {code: 'invalid_json'};
+    const found = await askClaude('habits', null, habitPrompt(notes, 5), opts, raw => { const v = validateHabits(raw, refs, 5); if (!v.length) throw {code: 'invalid_json'}; return v; });
     const byId = new Map(notes.map(x => [x.id, x]));
     st.growth = {at: Date.now(), sig: habitSig(notes), habits: found.map(hb => ({title: hb.title, group: hb.group, detail: hb.detail, tip: hb.tip,
       ex: hb.notes.map(id => { const x = byId.get(id); return {doc: x.doc, t: x.t, x: x.x, q: x.q}; })}))};

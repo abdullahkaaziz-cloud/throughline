@@ -48,8 +48,7 @@ async function runArgmap() {
   try {
     const opts = {signal: R.ctl.signal, onText: ({text: t}) => { if (st.argRun !== R) return; R.done = Math.min(R.total, (t.match(/"para"\s*:/g) || []).length); updateArgProgress(); }};
     if (tier) opts.modelTier = tier;
-    const m = validateArgmap(await sampleFn.json(prompt, opts), text);
-    if (!m.paras.length) throw {code: 'invalid_json'};
+    const m = await askClaude('argument', d, prompt, opts, raw => { const v = validateArgmap(raw, text); if (!v.paras.length) throw {code: 'invalid_json'}; return v; });
     d.argmap = Object.assign({at: Date.now(), hash: hash(text)}, m); d.updatedAt = Date.now();
     persist(d, 0);
     if (st.cur === d) { st.argSel = []; st.argHover = []; }

@@ -55,7 +55,7 @@ async function runAsk(a, d) {
   renderBackdrop(); renderRail(); openSheet(); rbody.scrollTop = 0;
   try {
     logAct(d, 'asks');
-    const res = await sampleFn.json(askPrompt(d, ed.value, a.s, a.e, a.question), {signal: a.ctl.signal, modelTier: 'default'});
+    const res = await askClaude('ask', d, askPrompt(d, ed.value, a.s, a.e, a.question), {signal: a.ctl.signal, modelTier: 'default'});
     const pts = (res && Array.isArray(res.points) ? res.points : []).slice(0, 5).map(p => ({label: str(p && p.label, 80), detail: str(p && p.detail, 700)})).filter(p => p.label || p.detail);
     a.points = pts.length ? pts : [{label: 'No clear answer', detail: 'Try asking in a different way.'}];
     const sg = res && typeof res.suggestion === 'string' ? res.suggestion.trim() : '';

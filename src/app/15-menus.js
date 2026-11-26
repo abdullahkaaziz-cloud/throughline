@@ -31,7 +31,9 @@ function renderDocMenu() {
   if (!(st.cur && st.cur.isSample)) items.push(h('button', {class: 'mi', onclick: () => openDoc(makeSample())}, h('span', {class: 'mt'}, h('b', null, 'Open the sample essay'))));
   items.push(h('hr'), st.isOwner
     ? h('button', {class: 'mi', id: 'menuInbox', onclick: openInbox}, h('span', {class: 'mt'}, h('b', null, 'Feedback from testers'), h('span', {class: 'sub'}, st.inbox ? plural(st.inbox.reduce((s, f) => s + f.items.length, 0), 'message') : 'What people you share Throughline with have sent')))
-    : h('button', {class: 'mi', id: 'menuFeedback', onclick: openFeedback}, h('span', {class: 'mt'}, h('b', null, 'Send feedback'), h('span', {class: 'sub'}, 'What works, what doesn’t, and what would make it better'))));
+    : h('button', {class: 'mi', id: 'menuFeedback', onclick: openFeedback}, h('span', {class: 'mt'}, h('b', null, 'Send feedback'), h('span', {class: 'sub'}, 'What works, what doesn’t, and what would make it better'))),
+    st.isOwner && dbApi ? h('button', {class: 'mi', id: 'menuUsage', onclick: openUsage}, h('span', {class: 'mt'}, h('b', null, 'Usage'), h('span', {class: 'sub'}, 'Who uses Throughline, what for, and what it would cost'))) : null,
+    h('button', {class: 'mi', id: 'menuPrivacy', onclick: openPrivacy}, h('span', {class: 'mt'}, h('b', null, 'Privacy and your data'), h('span', {class: 'sub'}, 'What’s kept and sent, usage counts, and downloading or deleting your data'))));
   fill(docMenu, items);
 }
 function renderAiMenu() {

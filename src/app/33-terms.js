@@ -257,8 +257,7 @@ async function runTerms() {
   const tick = setInterval(() => { const b = $('#ttime'); if (b) b.textContent = termTime(); }, 1000);
   try {
     const opts = {signal: R.ctl.signal}; if (tier) opts.modelTier = tier;
-    const raw = await sampleFn.json(prompt, opts);
-    const groups = validateTerms(raw, text, termTokens(text), 8);
+    const groups = await askClaude('terms', d, prompt, opts, raw => validateTerms(raw, text, termTokens(text), 8));
     const e = ensureReal(d);
     e.terms = {sig: hash(text), at: Date.now(), groups: groups.map(g => ({label: g.label, keep: g.keep, forms: g.forms}))};
     e.updatedAt = Date.now(); persist(e, 0);

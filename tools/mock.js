@@ -4,6 +4,9 @@
   const mem = new Map(), listeners = [];
   // window.__seedDb ({path: record}), set by an earlier init script, starts the store with records already in it.
   for (const [p, v] of Object.entries(window.__seedDb || {})) mem.set(p, JSON.parse(JSON.stringify(v)));
+  // window.__persistDb keeps the store across reloads in this tab, as the real database would.
+  if (window.__persistDb) { try { for (const [p, v] of JSON.parse(sessionStorage.getItem('__mockDb') || '[]')) mem.set(p, v); } catch (e) {} }
+  const keep = () => { if (window.__persistDb) try { sessionStorage.setItem('__mockDb', JSON.stringify([...mem])); } catch (e) {} };
   // window.__dbPut(path, record) adds a record while the page is open, as another device would.
   window.__dbPut = (p, v) => { mem.set(p, JSON.parse(JSON.stringify(v))); notify(); };
   window.__dbWrites = 0; window.__calls = [];
@@ -25,8 +28,8 @@
   const deliver = l => { const s = snapFor(l); if (l.first || s.docChanges().length || true) { l.first = false; l.next(s); } };
   const notify = () => { for (const l of listeners) setTimeout(() => deliver(l), 10); };
   const docRef = p => ({id: p.split('/').pop(), path: p,
-    async set(data) { await sleep(15); if (window.__dbDeny) throw {code: 'permission_denied', message: 'mock: view only'}; mem.set(p, clone(data)); window.__dbWrites++; notify(); },
-    async delete() { await sleep(10); mem.delete(p); notify(); },
+    async set(data) { await sleep(15); if (window.__dbDeny) throw {code: 'permission_denied', message: 'mock: view only'}; mem.set(p, clone(data)); window.__dbWrites++; keep(); notify(); },
+    async delete() { await sleep(10); mem.delete(p); keep(); notify(); },
     async get() { return {id: p.split('/').pop(), exists: mem.has(p), data: () => mem.get(p)}; }});
   const db = {
     doc: docRef,

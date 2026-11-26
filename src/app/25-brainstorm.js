@@ -13,16 +13,16 @@ const headingFrom = t => trunc(String(t || '').replace(/\s+/g, ' ').replace(/[.!
 // Plan shows the board, Write the essay, Compare (opened from the drafts strip) two drafts side by side, and Map
 // the whole library.
 // Defend it (opened from the notes or the argument map) is a viva on the open essay.
-const SUB_MODES = ['compare', 'defend', 'record', 'progress', 'inbox', 'loom', 'build'];
+const SUB_MODES = ['compare', 'defend', 'record', 'progress', 'inbox', 'loom', 'build', 'usage'];
 function setMode(m) {
-  if (!['plan', 'write', 'compare', 'map', 'defend', 'record', 'progress', 'inbox', 'loom', 'build'].includes(m)) return;
+  if (!['plan', 'write', 'compare', 'map', 'defend', 'record', 'progress', 'inbox', 'loom', 'build', 'usage'].includes(m)) return;
   if (st.mode === 'defend' && m !== 'defend') { hush(); stopDictation(); }
   if (st.mode === 'plan' && m !== 'plan') stopDictation();
   st.mode = m;
   layoutEl.classList.toggle('planning', m === 'plan');
   layoutEl.classList.toggle('comparing', SUB_MODES.includes(m));
   layoutEl.classList.toggle('mapping', m === 'map');
-  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend'; recEl.hidden = m !== 'record'; progEl.hidden = m !== 'progress'; inboxEl.hidden = m !== 'inbox'; loomEl.hidden = m !== 'loom'; buildEl.hidden = m !== 'build';
+  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend'; recEl.hidden = m !== 'record'; progEl.hidden = m !== 'progress'; inboxEl.hidden = m !== 'inbox'; loomEl.hidden = m !== 'loom'; buildEl.hidden = m !== 'build'; usageEl.hidden = m !== 'usage';
   for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === (SUB_MODES.includes(m) ? 'write' : m)));
   hideSelbar(); closePop();
   if (m === 'plan') { closeSheet(); renderBoard(); window.scrollTo(0, 0); }
@@ -34,6 +34,7 @@ function setMode(m) {
   else if (m === 'inbox') { closeSheet(); renderInbox(); window.scrollTo(0, 0); }
   else if (m === 'loom') { closeSheet(); renderLoom(); window.scrollTo(0, 0); }
   else if (m === 'build') { closeSheet(); renderBuild(); window.scrollTo(0, 0); }
+  else if (m === 'usage') { closeSheet(); renderUsage(); window.scrollTo(0, 0); }
   else { fitTitle(); refresh(); }
 }
 function savePlan() { const d = ensureReal(st.cur); planOf(d).at = Date.now(); d.updatedAt = Date.now(); persist(d); }
@@ -267,8 +268,7 @@ async function runIdeas() {
     let prompt = ideasPrompt(d, q, ctx);
     while (bytes(prompt) > LIMITS.promptBytes && ctx.length) { ctx.pop(); prompt = ideasPrompt(d, q, ctx); }
     const opts = {signal: R.ctl.signal}; if (tier) opts.modelTier = tier;
-    const cards = validateIdeas(await sampleFn.json(prompt, opts), {resolveDoc: ctxResolver(ctx), have: planOf(d).cards.map(c => c.text)});
-    if (!cards.length) throw {code: 'empty_completion'};
+    const cards = await askClaude('ideas', d, prompt, opts, raw => { const c = validateIdeas(raw, {resolveDoc: ctxResolver(ctx), have: planOf(d).cards.map(c => c.text)}); if (!c.length) throw {code: 'empty_completion'}; return c; });
     addCards(cards, d);
     toast(plural(cards.length, 'new card'));
   } catch (err) {
