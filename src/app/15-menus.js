@@ -74,12 +74,20 @@ function newEssay() {
   openDoc(d); st.readOnly = false; ed.readOnly = false; renderMeta(); titleIn.focus();
 }
 async function removeDoc(id) {
-  if (!st.docs.has(id)) return;
-  st.docs.delete(id); clearTimeout(pending.get(id)); pending.delete(id); st.asks.delete(id);
+  const d = st.docs.get(id); if (!d) return;
+  const was = st.cur && st.cur.id === id;
+  st.docs.delete(id); clearTimeout(pending.get(id)); pending.delete(id); st.asks.delete(id); written.delete(id);
   try { if (st.store === 'db') await col.doc(id).delete(); else if (st.store === 'local') writeLocal(); } catch (e) {}
-  if (st.cur && st.cur.id === id) openDoc(sortedDocs()[0] || makeSample());
+  if (was) openDoc(sortedDocs()[0] || makeSample());
   if (!docMenu.hidden) renderDocMenu();
   renderSources();
-  toast('Deleted');
+  // Undo puts it back, as it was.
+  toast('Deleted “' + trunc(d.title || 'Untitled essay', 40) + '”.', () => {
+    if (st.docs.has(id)) return;
+    st.docs.set(id, d); written.delete(id); persist(d, 0);
+    if (was) openDoc(d);
+    if (!docMenu.hidden) renderDocMenu();
+    renderSources(); toast('Restored.');
+  });
 }
 

@@ -30,5 +30,10 @@ function ago(t) {
   return new Date(t).toLocaleDateString(undefined, {day: 'numeric', month: 'short'});
 }
 let toastT = 0;
-function toast(msg) { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), 2800); }
+// undo, when given, puts an Undo button in the toast, which stays a little longer.
+function toast(msg, undo) {
+  fill(toastEl, h('span', null, msg), undo ? h('button', {class: 'tundo', type: 'button', onclick: () => { toastEl.classList.remove('show'); clearTimeout(toastT); undo(); }}, 'Undo') : null);
+  toastEl.classList.toggle('act', !!undo); toastEl.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), undo ? 7000 : 2800);
+}
 

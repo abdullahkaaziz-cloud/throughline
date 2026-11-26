@@ -89,7 +89,7 @@ function loomSide(d, now) {
   const status = f.loose ? (f.first === f.last ? 'Promised in ¶' + (f.first + 1) + ', never developed' : 'Dropped after ¶' + (f.last + 1))
     : f.fresh ? 'New in your conclusion' : f.knots ? plural(f.knots, 'knot') : f.first < 0 ? 'Runs underneath' : f.first === f.last ? 'In ¶' + (f.first + 1) : 'Woven through ¶' + (f.first + 1) + '–¶' + (f.last + 1);
   const rel = v.links.filter(l => l.a === ti + 1 || l.b === ti + 1).map(l => ({other: v.threads[(l.a === ti + 1 ? l.b : l.a) - 1], how: l.how, note: l.note}));
-  return h('aside', {class: 'lside', style: '--tc:var(' + loomColor(v, ti) + ')', 'aria-label': 'The thread “' + t.name + '”'},
+  return h('section', {class: 'lside', style: '--tc:var(' + loomColor(v, ti) + ')', 'aria-label': 'The thread “' + t.name + '”'},
     h('p', {class: 'lkind'}, h('i', {'aria-hidden': 'true'}), t.thesis ? 'Your thesis' : 'Thread'),
     h('h3', null, t.name),
     h('p', {class: 'lstat' + (f.loose || f.fresh || f.knots ? ' warn' : '')}, status),

@@ -963,6 +963,107 @@ with sync_playwright() as p:
     mp.click('#moreBtn'); mp.wait_for_timeout(200); mp.click('#menuHelp'); mp.wait_for_timeout(300)
     check('mobile: Help fits the screen', ev(mp, "document.documentElement.scrollWidth <= innerWidth + 1"))
     mctx.close()
+    nctx2 = browser.new_context(viewport={'width': 1280, 'height': 900}); route(nctx2); nctx2.add_init_script(MOCK)
+    nctx2.route('**/dist/help/**', lambda r: r.fulfill(status=404, body=''))
+    np2 = nctx2.new_page(); watch(np2, 'no-clips')
+    np2.goto(URL); np2.wait_for_timeout(900)
+    np2.click('#moreBtn'); np2.wait_for_timeout(200); np2.click('#menuHelp'); np2.wait_for_timeout(600)
+    check('without the clips published, Help still explains everything, with no Watch buttons', ev(np2, "document.querySelectorAll('#help .hitem').length") == 17 and ev(np2, "document.querySelectorAll('#help .hclip').length") == 0)
+    nctx2.close()
+
+    # 13g. reliability: undo, saves that fail and come back, plain errors; review quality: length, the last review's notes
+    rctx = browser.new_context(viewport={'width': 1280, 'height': 900}); route(rctx)
+    rctx.add_init_script("window.__persistDb = true;"); rctx.add_init_script(MOCK)
+    rp = rctx.new_page(); watch(rp, 'reliable')
+    rp.goto(URL); rp.wait_for_timeout(1000)
+    rp.click('.card .cbtn >> nth=0'); rp.wait_for_timeout(250)
+    rp.click('.card.on .cmore button:has-text("Dismiss")'); rp.wait_for_timeout(250)
+    check('dismissing a note offers Undo', 'Dismissed.' in ev(rp, "document.getElementById('toast').textContent") and ev(rp, "document.querySelectorAll('.card').length") == 7)
+    rp.click('#toast .tundo'); rp.wait_for_timeout(250)
+    check('and Undo brings it back', ev(rp, "document.querySelectorAll('.card').length") == 8)
+    rp.click('.card:has-text("Irregardless") .cbtn'); rp.wait_for_timeout(250)
+    rp.click('.card.on .sugg button'); rp.wait_for_timeout(300)
+    check('applying a suggestion offers Undo', ev(rp, "document.getElementById('ed').value.includes('Companies regardless of size')") and 'Applied.' in ev(rp, "document.getElementById('toast').textContent"))
+    rp.click('#toast .tundo'); rp.wait_for_timeout(300)
+    check('and Undo puts the words back and reopens the note', ev(rp, "document.getElementById('ed').value.includes('Companies irregardless of size')") and ev(rp, "document.querySelectorAll('.card').length") == 8)
+    rp.click('#docBtn'); rp.wait_for_timeout(200); rp.click('#menuNew'); rp.wait_for_timeout(300)
+    rp.keyboard.type('Keep me'); set_text(rp, DRAFT_ESSAY); rp.wait_for_timeout(1300)
+    rp.click('#docBtn'); rp.wait_for_timeout(200)
+    rp.click('#docMenu .mi:has-text("Keep me") .del'); rp.click('#docMenu .mi:has-text("Keep me") .del'); rp.wait_for_timeout(400)
+    check('deleting an essay offers Undo', 'Deleted “Keep me”.' in ev(rp, "document.getElementById('toast').textContent") and not ev(rp, "window.__dbDump().some(d => d.title === 'Keep me')"))
+    rp.click('#toast .tundo'); rp.wait_for_timeout(500)
+    check('and Undo restores it, saved', ev(rp, "window.__dbDump().some(d => d.title === 'Keep me' && d.text.startsWith('Libraries should stay open'))") and ev(rp, "document.getElementById('title').value") == 'Keep me')
+    ev(rp, "window.__dbFail = 1")
+    ev(rp, "() => { const ed = document.getElementById('ed'); ed.value = ed.value + ' One more sentence.'; ed.dispatchEvent(new Event('input', {bubbles: true})); }"); rp.wait_for_timeout(1300)
+    check('a failed save says it will try again, and keeps a copy in the browser', 'trying again' in ev(rp, "document.getElementById('save').textContent")
+      and 'One more sentence.' in ev(rp, "localStorage.getItem('throughline.unsaved.v1') || ''"))
+    rp.wait_for_timeout(5500)
+    check('then saves on its own, and drops the copy', ev(rp, "document.getElementById('save').textContent") == 'Saved' and ev(rp, "window.__dbDump().some(d => d.text && d.text.endsWith('One more sentence.'))")
+      and 'One more sentence.' not in ev(rp, "localStorage.getItem('throughline.unsaved.v1') || ''"))
+    keep_id = ev(rp, "window.__dbDump().length && Object.keys(JSON.parse(sessionStorage.getItem('__mockDb')).reduce((o, [p]) => (o[p] = 1, o), {})).find(p => p.startsWith('data/users/u_test/') && JSON.parse(sessionStorage.getItem('__mockDb')).find(([q, v]) => q === p && v.title === 'Keep me'))")
+    ev(rp, "([p, t]) => { const id = p.split('/').pop(); const rec = JSON.parse(sessionStorage.getItem('__mockDb')).find(([q]) => q === p)[1]; rec.text = t; rec.updatedAt = Date.now() + 60000; localStorage.setItem('throughline.unsaved.v1', JSON.stringify({[id]: rec})); }", [keep_id, DRAFT_ESSAY + '\n\nWritten while offline.'])
+    rp.reload(); rp.wait_for_timeout(1500)
+    check('changes that never saved come back when the page opens again', 'Restored changes that hadn’t saved.' in ev(rp, "document.getElementById('toast').textContent")
+      and ev(rp, "window.__dbDump().some(d => d.title === 'Keep me' && d.text.endsWith('Written while offline.'))"))
+    rp.click('#docBtn'); rp.wait_for_timeout(200); rp.click('#docMenu .mi:has-text("Keep me")'); rp.wait_for_timeout(300)
+    ev(rp, "window.__failNext = 'timeout'"); rp.click('#reviewBtn'); rp.wait_for_timeout(900)
+    check('a review that times out says so plainly', 'took too long' in ev(rp, "(document.querySelector('.errc') || {}).textContent || ''"))
+    rp.click('#reviewBtn'); rp.wait_for_timeout(2600)
+    first = ev(rp, "window.__calls.filter(c => c.review).slice(-1)[0]")
+    check('a review tells Claude how long the essay is', first and first['lengthLine'] == str(len(ev(rp, "document.getElementById('ed').value").split())) and not first['lastNotes'], first and first['lengthLine'])
+    rp.click('.card .cbtn >> nth=0'); rp.wait_for_timeout(200); rp.click('.card.on .cmore button:has-text("Dismiss")'); rp.wait_for_timeout(200)
+    rp.click('#reviewBtn'); rp.wait_for_timeout(2600)   # the same text again: a full review, which should agree with the first
+    second = ev(rp, "window.__calls.filter(c => c.review).slice(-1)[0]")
+    check('a second review carries the first one’s notes, the dismissed ones apart, fenced', second and second['lastNotes'] and second['dismissedNotes'] and second['notesClose'] == 2 and not second['recheck'], second)
+    rctx.close()
+    # a 10,000-word essay: reviewed, quick to type in, and saved
+    random_words = 'policy evidence workers remote office study productivity mentoring junior managers survey data growth cost budget council library evening students housing transport carbon emissions argument reason claim source journal results method sample trial effect change rate level public private sector national local region city town market price wage tax service health school teacher learning skill time week month year'.split()
+    import random as _r; _r.seed(7)
+    def _para(n):
+        out = []
+        while sum(len(x.split()) for x in out) < n:
+            k = _r.randint(12, 22); x = ' '.join(_r.choice(random_words) for _ in range(k)); out.append(x[0].upper() + x[1:] + '.')
+        return ' '.join(out)
+    LONG = '\n\n'.join(_para(100) for _ in range(100))
+    lctx2 = browser.new_context(viewport={'width': 1280, 'height': 900}); route(lctx2); lctx2.add_init_script(MOCK)
+    lp2 = lctx2.new_page(); watch(lp2, 'long')
+    lp2.goto(URL); lp2.wait_for_timeout(900)
+    lp2.click('#docBtn'); lp2.wait_for_timeout(200); lp2.click('#menuNew'); lp2.wait_for_timeout(300)
+    lp2.keyboard.type('A long essay'); set_text(lp2, LONG); lp2.click('#reviewBtn'); lp2.wait_for_timeout(3500)
+    check('a 10,000-word essay is reviewed and its notes placed', ev(lp2, "document.querySelectorAll('.card').length") >= 4 and len(LONG.split()) > 10000)
+    lat = ev(lp2, """() => { const ed = document.getElementById('ed'); ed.focus(); ed.setSelectionRange(ed.value.length / 2, ed.value.length / 2); const t = [];
+      for (let i = 0; i < 20; i++) { const a = performance.now(); ed.setRangeText('x', ed.selectionStart, ed.selectionStart, 'end'); ed.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: 'x'})); t.push(performance.now() - a); }
+      return t.reduce((s, x) => s + x, 0) / t.length; }""")
+    check('typing in it stays quick', lat < 60, round(lat, 1))
+    lp2.wait_for_timeout(1500)
+    check('and it saves, under the size limit', ev(lp2, "document.getElementById('save').textContent") == 'Saved' and ev(lp2, "JSON.stringify(window.__dbDump().filter(d => d.title === 'A long essay')[0]).length") < 250000)
+    lctx2.close()
+    # accessibility: axe finds nothing in the main views, in both themes
+    AXE = open(NM + '/axe-core/axe.min.js').read()
+    def axe(pg, label):
+        pg.add_script_tag(content=AXE)
+        v = ev(pg, "axe.run(document, {resultTypes: ['violations'], runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']}}).then(r => r.violations.map(v => v.id + ' (' + v.impact + '): ' + v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(', ')))")
+        return label + ': ' + ('; '.join(v) if v else 'none')
+    for theme in ['light', 'dark']:
+        actx = browser.new_context(viewport={'width': 1280, 'height': 900}, color_scheme=theme); route(actx); actx.add_init_script(MOCK)
+        ap = actx.new_page(); watch(ap, 'axe-' + theme)
+        ap.goto(URL); ap.wait_for_timeout(1000)
+        found = [axe(ap, 'notes')]
+        ap.click('.card .cbtn >> nth=0'); ap.wait_for_timeout(200); ap.click('#keyBtn'); ap.wait_for_timeout(200); found.append(axe(ap, 'an open note and the key'))
+        for btn, label in [('#docBtn', 'essay menu'), ('#moreBtn', 'More'), ('#aiBtn', 'AI menu')]:
+            ap.click(btn); ap.wait_for_timeout(200); found.append(axe(ap, label)); ap.keyboard.press('Escape'); ap.wait_for_timeout(100)
+        for tab, label in [('#tabArg', 'Argument tab'), ('#tabTerms', 'Terms tab')]:
+            ap.click(tab); ap.wait_for_timeout(300); found.append(axe(ap, label))
+        ap.click('#tabNotes')
+        for mode in ['plan', 'map']:
+            ap.click('.mode[data-mode=' + mode + ']'); ap.wait_for_timeout(300); found.append(axe(ap, mode))
+        ap.click('.mode[data-mode=write]'); ap.wait_for_timeout(200)
+        ap.click('#srcBtn'); ap.wait_for_timeout(300); found.append(axe(ap, 'sources')); ap.keyboard.press('Escape')
+        for item, label in [('#menuHelp', 'help'), ('#menuPrivacy', 'privacy'), ('#menuLoom', 'loom'), ('#menuBuild', 'build-up')]:
+            ap.click('#moreBtn'); ap.wait_for_timeout(200); ap.click(item); ap.wait_for_timeout(300); found.append(axe(ap, label)); ap.keyboard.press('Escape'); ap.wait_for_timeout(150)
+        bad = [f for f in found if not f.endswith(': none')]
+        check('accessibility (' + theme + '): no axe violations in the main views', not bad, bad)
+        actx.close()
 
     # 13e. consistent terms: spellings found on the device, Claude's groups when asked, and the writer's terms in every essay
     TERMS_ESSAY = '\n\n'.join([

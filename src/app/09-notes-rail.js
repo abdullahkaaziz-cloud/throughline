@@ -47,7 +47,7 @@ function startEl() {
 function emptyEl() {
   const ctx = contextDocs(st.cur), nSrc = ctx.filter(x => x.role === 'source').length, nEss = ctx.length - nSrc;
   return h('section', {class: 'empty'},
-    h('h3', null, 'No review yet'),
+    h('h2', null, 'No review yet'),
     h('p', null, 'Press Review and Claude reads the whole essay, then marks what needs work:'),
     h('ul', {class: 'legend'}, LEGEND.map(([g, name, desc]) => h('li', null, h('span', {class: 'sw', html: SW[g]}), h('span', null, h('b', null, name), desc)))),
     h('p', null, 'Or select any sentence to ask about it. Claude suggests; you decide what changes.'),
@@ -109,7 +109,7 @@ function moreEl(is) {
   }
   box.append(h('div', {class: 'acts'},
     narrow.matches ? h('button', {class: 'btn sm', onclick: () => { closeSheet(); scrollToIssue(is.id, 0.25); }}, 'Show in essay') : null,
-    h('button', {class: 'btn sm ghost', onclick: () => markIssue(is.id, 'dismissed')}, 'Dismiss')), rateEl(is));
+    h('button', {class: 'btn sm ghost', onclick: () => { markIssue(is.id, 'dismissed'); toast('Dismissed.', () => markIssue(is.id, null)); }}, 'Dismiss')), rateEl(is));
   return box;
 }
 function doneEl(done) {

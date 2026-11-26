@@ -146,7 +146,7 @@ function openSource(src) { const d = st.docs.get(src.id); if (d) openReader(d, s
 // ---- the outline ----
 function outlineEl(P) {
   const byId = new Map(P.cards.map(c => [c.id, c]));
-  return h('aside', {class: 'outline', 'aria-label': 'Outline', ondragover: onOutlineOver, ondragleave: onOutlineLeave, ondrop: onOutlineDrop},
+  return h('section', {class: 'outline', 'aria-label': 'Outline', ondragover: onOutlineOver, ondragleave: onOutlineLeave, ondrop: onOutlineDrop},
     h('div', {class: 'chead'}, h('b', null, 'Outline'), h('span', {class: 'n'}, P.outline.length || '')),
     P.outline.length ? h('ol', {class: 'oitems'}, P.outline.map((o, i) => outlineItemEl(o, i, byId, P.outline.length)))
       : h('p', {class: 'khint ohint'}, 'Drag cards here, or press “Outline →” on a card. Drop a card onto a point to group it under that point.'),

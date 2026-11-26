@@ -33,7 +33,7 @@ function renderGrow() {
           h('p', {class: 'fine'}, 'Throughline asks one question at a time: why, what you mean, who disagrees, what follows. Your answers grow into a map of your idea.'))),
       started ? h('section', {class: 'gmain', 'aria-label': 'Your idea, as it grows'}, h('div', {class: 'gtreewrap'}, growTree(G)),
         h('p', {class: 'fine'}, 'Each branch is one of your answers. Choose one to see it in full, change it, or be asked about it.')) : null,
-      started ? h('aside', {class: 'gside', 'aria-label': 'The next question'}, st.growSel != null ? growSelEl(G) : null, growAskEl(d, G), growMeter(G),
+      started ? h('section', {class: 'gside', 'aria-label': 'The next question'}, st.growSel != null ? growSelEl(G) : null, growAskEl(d, G), growMeter(G),
         h('button', {class: 'btn gnext', type: 'button', onclick: () => { st.planView = 'unfold'; renderBoard(); window.scrollTo(0, 0); }}, 'Shape it into an outline', h('span', {'aria-hidden': 'true'}, ' →'))) : null));
   for (const t of boardEl.querySelectorAll('#groot, #growAns, #growEdit')) fitArea(t);
   restoreFocus(focus);

@@ -4,7 +4,7 @@
    COLOUR and TYPE: white paper on stone grey, ink text, rust for contradictions and four quiet note colours; Source Serif 4 for the essay, Inter for the tools
    LAYOUT: slim bar; paper in the middle with a margin gutter; notes rail on the right, a bottom sheet under 1000px */
 :root{color-scheme:light dark;
---ground:light-dark(#F1F0EC,#121211);--paper:light-dark(#FFFFFF,#1B1B19);--ink:light-dark(#1C1B19,#ECEAE5);--ink2:light-dark(#57544D,#ADA9A0);--ink3:light-dark(#7E7A71,#86827A);
+--ground:light-dark(#F1F0EC,#121211);--paper:light-dark(#FFFFFF,#1B1B19);--ink:light-dark(#1C1B19,#ECEAE5);--ink2:light-dark(#57544D,#ADA9A0);--ink3:light-dark(#6B675F,#928E86);
 --line:light-dark(#E3E0D8,#2E2D2A);--line2:light-dark(#CFCBC1,#45433E);--hover:light-dark(#F6F5F1,#232321);--sh:light-dark(rgba(28,27,25,.14),rgba(0,0,0,.6));
 --rel:light-dark(#C2410C,#FB8A5A);--logic:light-dark(#6D28D9,#B69CFF);--evid:light-dark(#0F766E,#4FD1C5);--clar:light-dark(#1D4ED8,#8AB0FF);--gram:light-dark(#64748B,#9AA6B8);
 --askbg:light-dark(rgba(234,179,8,.24),rgba(250,204,21,.17));--hov:light-dark(rgba(28,27,25,.07),rgba(255,255,255,.09));--ok:light-dark(#15803D,#6EE7A0);--warn:light-dark(#B45309,#F59E0B);
@@ -19,7 +19,7 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--clar);outline-offset:2px}
 [hidden]{display:none!important}
 .bar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:6px;height:60px;padding:0 16px;background:color-mix(in srgb,var(--ground) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px;letter-spacing:-.01em;margin-right:4px;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px;letter-spacing:-.01em;margin:0 4px 0 0;white-space:nowrap}
 .docbtn{display:flex;align-items:center;gap:6px;max-width:min(40vw,420px);height:40px;padding:0 10px;border:1px solid transparent;border-radius:8px;background:none;color:var(--ink2)}
 .docbtn:hover,.docbtn[aria-expanded=true]{background:var(--hover);border-color:var(--line)}
 .docbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -99,7 +99,7 @@ button{cursor:pointer}
 .kind{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--tc)}
 .kind .dot{width:8px;height:8px;border-radius:50%;background:var(--tc);flex:none}
 .kind .where{font-weight:400;color:var(--ink3)}
-.kind .sev{margin-left:auto;font-weight:500;padding:0 7px;border-radius:999px;background:color-mix(in srgb,var(--tc) 12%,transparent)}
+.kind .sev{margin-left:auto;font-weight:500;padding:0 7px;border-radius:999px;color:color-mix(in srgb,var(--tc) 80%,var(--ink));background:color-mix(in srgb,var(--tc) 12%,transparent)}
 .ctitle{display:block;margin-top:3px;font-size:15px;font-weight:500;line-height:1.35}
 .cmore{padding:0 14px 14px;font-size:14px;line-height:1.5;color:var(--ink2)}
 .q{display:block;width:100%;text-align:left;margin:0 0 8px;padding:7px 10px;border:0;border-left:2px solid var(--tc);background:color-mix(in srgb,var(--tc) 7%,transparent);border-radius:0 6px 6px 0;color:var(--ink)}
@@ -129,7 +129,8 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .done li span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .done .st{flex:none;font-size:13px;color:var(--ok)}
 .empty{padding:4px 4px 8px;color:var(--ink2);font-size:14px}
-.empty h3{margin:2px 0 6px;font-size:16px;color:var(--ink)}
+.empty h2{margin:2px 0 6px;font-size:16px;color:var(--ink)}
+.dtitle{margin:0;font:inherit;font-weight:600;color:var(--ink)}
 .empty p{margin:0 0 10px}
 .legend{list-style:none;margin:12px 0 14px;padding:0;display:grid;gap:11px}
 .legend li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;align-items:start}
@@ -173,7 +174,7 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .del.sure{background:var(--rel);color:#fff}
 .menu hr{border:0;border-top:1px solid var(--line);margin:6px 4px}
 .prov{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px}
-.prov.off{opacity:.6}
+.prov.off b{color:var(--ink2)}.prov.off .pdot{opacity:.6}
 .prov b{display:block;font-weight:500}
 .soon{margin-left:auto;font-size:13px;color:var(--ink3);border:1px solid var(--line);border-radius:999px;padding:1px 8px}
 .okmark{margin-left:auto;color:var(--ok);font-weight:600}
@@ -188,7 +189,7 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .overlay{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:16px;background:rgba(18,18,17,.45)}
 .sheet{width:min(720px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:var(--paper);border-radius:14px;box-shadow:0 20px 60px var(--sh);overflow:hidden}
 .shead{display:flex;align-items:center;gap:10px;padding:14px 16px 12px 24px;border-bottom:1px solid var(--line)}
-.shead b{flex:1;font:600 18px/1.3 "Source Serif 4",Georgia,serif}
+.shead b,.shead .dtitle{flex:1;margin:0;font:600 18px/1.3 "Source Serif 4",Georgia,serif}
 .sbody{overflow:auto;padding:12px 32px 28px;font:17px/1.7 "Source Serif 4",Georgia,serif}
 .sbody mark{background:color-mix(in srgb,var(--rel) 18%,transparent);color:inherit;border-bottom:2px solid var(--rel);border-radius:2px}
 .drop{position:fixed;inset:12px;z-index:65;display:grid;place-items:center;border:2px dashed var(--ink3);border-radius:16px;background:color-mix(in srgb,var(--ground) 88%,transparent);font-size:18px;font-weight:500;pointer-events:none}
@@ -206,7 +207,7 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .drawer{position:absolute;top:0;bottom:0;left:0;width:min(420px,100vw);display:flex;flex-direction:column;background:var(--paper);box-shadow:10px 0 40px var(--sh)}
 .dhead{display:flex;align-items:flex-start;gap:10px;padding:16px 14px 12px 20px;border-bottom:1px solid var(--line)}
 .dhead>div{flex:1}
-.dhead b{display:block;font-size:17px}
+.dhead b,.dhead .dtitle{display:block;margin:0;font-size:17px;font-weight:600}
 .dhead .x{flex:none;width:44px;height:44px;border:0;border-radius:8px;background:none;color:var(--ink3);font-size:22px}
 .dhead .x:hover{background:var(--hover)}
 .dbody{overflow:auto;overscroll-behavior:contain;padding:4px 20px 24px}
@@ -261,7 +262,7 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 }
 @media (max-width:600px){
  .bar{padding:0 10px;gap:4px}
- .brand b{display:none}
+ .brand b{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
  .aichip #aiName{display:none}
  .txt{font-size:17px}
  .title{font-size:25px}
@@ -277,7 +278,7 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .rtab[aria-selected=true]{background:var(--paper);color:var(--ink);box-shadow:0 1px 2px var(--sh)}
 .rtab small:empty{display:none}
 .aempty{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;align-items:start}
-.aempty h3{margin-top:0}
+.aempty h2{margin-top:0}
 .fine{margin:10px 0 0;font-size:13px;color:var(--ink3)}
 .warnp{margin:0;font-size:14px;color:var(--warn)}
 .athesis .lnk{justify-self:start;min-height:24px}
@@ -296,7 +297,7 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .amap.off .abtn{cursor:default;opacity:.7}
 .akind{display:flex;flex-wrap:wrap;align-items:center;gap:3px 7px;font-size:12.5px;line-height:18px;font-weight:600;color:var(--rc)}
 .akind .where{font-weight:400;color:var(--ink3)}
-.abadge{padding:0 7px;border-radius:999px;font-weight:500;color:var(--rel);background:color-mix(in srgb,var(--rel) 11%,transparent)}
+.abadge{padding:0 7px;border-radius:999px;font-weight:500;color:color-mix(in srgb,var(--rel) 80%,var(--ink));background:color-mix(in srgb,var(--rel) 11%,transparent)}
 .apoint{display:block;margin-top:1px;font-size:14px;line-height:1.4}
 .anode.r-heading .apoint{font-weight:600}
 .anode.r-aside .apoint{font-size:13px;color:var(--ink3)}
@@ -391,7 +392,7 @@ button.q:hover{background:color-mix(in srgb,var(--tc) 13%,transparent)}
 /* the bar: only the essay name gives way on narrow screens, so icons never get squeezed */
 .bar>*:not(.docbtn):not(.spacer){flex:none}
 @media (max-width:760px){.mode span,.srcbtn .srclabel{display:none}.mode{padding:0 9px}}
-@media (max-width:600px){.brand{display:none}.modes{margin-left:0;padding:0;background:none}.mode[aria-pressed=true]{display:none}.mode{width:40px;padding:0;justify-content:center}.bar .btn{padding:0 9px}.docbtn{padding:0 6px;gap:4px}}
+@media (max-width:600px){.brand{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.modes{margin-left:0;padding:0;background:none}.mode[aria-pressed=true]{display:none}.mode{width:40px;padding:0;justify-content:center}.bar .btn{padding:0 9px}.docbtn{padding:0 6px;gap:4px}}
 /* draft timeline: the strip in the Notes view, and Compare */
 .tline{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
 .thead{display:flex;align-items:center;justify-content:space-between}
@@ -997,3 +998,6 @@ button.gstem:hover{background:color-mix(in srgb,var(--ink) 88%,var(--paper))}
 kbd{display:inline-block;min-width:28px;padding:1px 6px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:6px;font:500 12.5px/1.6 Inter,system-ui,sans-serif;text-align:center;color:var(--ink);background:var(--hover);white-space:nowrap}
 .hitem.playing{grid-column:1/-1}
 .hitem.playing video{max-width:900px}
+.toast{display:flex;align-items:center;gap:14px}
+.toast.act{pointer-events:auto}
+.tundo{border:0;background:none;padding:4px 0;color:inherit;font:600 14px/1 Inter,system-ui,sans-serif;text-decoration:underline;text-underline-offset:3px}

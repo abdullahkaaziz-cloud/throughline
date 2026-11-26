@@ -196,7 +196,7 @@ function linkPanelEl(l, byId) {
     h('div', {class: 'acts'},
       h('button', {class: 'btn sm primary', type: 'button', onclick: () => openBoth(l, byId)}, 'Open both side by side'),
       h('button', {class: 'btn sm', type: 'button', onclick: () => brainstormFrom(l.kind === 'clash' ? 'Can both be true? ' + (l.note || '') : l.note || linkTitle(l, A, B), [A, B], [[A, l.qa], [B, l.qb]])}, 'Brainstorm this'),
-      h('button', {class: 'btn sm ghost', type: 'button', onclick: () => { st.rmap.hidden.push(l.id); st.mapSel = null; saveMap(); renderMap(); }}, l.kind === 'clash' ? 'Not a clash' : 'Hide this link')));
+      h('button', {class: 'btn sm ghost', type: 'button', onclick: () => { st.rmap.hidden.push(l.id); st.mapSel = null; saveMap(); renderMap(); toast('Hidden.', () => { if (!st.rmap) return; st.rmap.hidden = st.rmap.hidden.filter(x => x !== l.id); saveMap(); renderMap(); }); }}, l.kind === 'clash' ? 'Not a clash' : 'Hide this link')));
 }
 function nodePanelEl(d, links, byId) {
   const isSrc = d.role === 'source', mine = links.filter(l => l.from === d.id || l.to === d.id), others = essayDocs().filter(e => e.id !== d.id);

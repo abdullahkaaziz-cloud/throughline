@@ -99,7 +99,7 @@ function argSketch() {
 function argEmptyEl() {
   const off = st.ai === 'denied' || st.ai === 'off';
   return h('section', {class: 'empty aempty'}, argSketch(), h('div', null,
-    h('h3', null, 'See how the argument develops'),
+    h('h2', null, 'See how the argument develops'),
     h('p', null, 'Claude reads every paragraph and draws the essay as one line: what each paragraph does for your thesis, which paragraphs back each other up, and where the thread drifts or breaks.'),
     h('div', {class: 'acts'}, h('button', {class: 'btn sm primary', id: 'argRunBtn', onclick: runArgmap, disabled: off || !!st.argRun}, 'Map the argument')),
     h('p', {class: 'fine'}, off && st.aiWhy ? st.aiWhy : 'Uses your Claude plan, like a review. Your essay isn’t changed.')));

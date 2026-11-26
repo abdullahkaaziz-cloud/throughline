@@ -9,7 +9,7 @@ const FB_FOR_MODE = {plan: 'plan', compare: 'drafts', map: 'map', defend: 'viva'
 let dlgBack = null;
 function openDlg(title, ...kids) {
   dlgBack = document.activeElement;
-  fill(dlgEl.querySelector('.sheet'), h('div', {class: 'shead'}, h('b', {id: 'dlgTitle'}, title), h('button', {class: 'btn sm ghost', type: 'button', onclick: closeDlg}, 'Close')),
+  fill(dlgEl.querySelector('.sheet'), h('div', {class: 'shead'}, h('h2', {id: 'dlgTitle', class: 'dtitle'}, title), h('button', {class: 'btn sm ghost', type: 'button', onclick: closeDlg}, 'Close')),
     h('div', {class: 'dlgbody'}, kids));
   dlgEl.hidden = false;
   const f = dlgEl.querySelector('textarea, .btn.primary'); if (f) f.focus({preventScroll: true});

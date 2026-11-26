@@ -7,7 +7,7 @@ function openPrivacy() {
   const box = h('input', {type: 'checkbox', id: 'trackOn', checked: counting && P.track && !st.usageOff, disabled: !counting || !!st.usageOff,
     onchange: async () => { box.disabled = true; await setTracking(box.checked, Date.now()); box.disabled = false;
       stat.textContent = box.checked ? 'Usage counts are on.' : 'Usage counts are off, and what was counted has been deleted.'; }});
-  const where = st.store === 'db' ? 'Saved in your own space in Throughline. Nobody else can open them, including whoever shared Throughline with you.'
+  const where = st.store === 'db' ? 'Saved in your own space in Throughline. Nobody else can open them, including whoever shared Throughline with you. If a save fails, a copy waits in this browser until it goes through.'
     : st.store === 'local' ? 'Saved in this browser only. Nobody else can see them. Use the same browser to come back to them.' : 'Not saved in this view: they’re gone when you close it.';
   openDlg('Privacy and your data',
     h('ul', {class: 'wlist'},
