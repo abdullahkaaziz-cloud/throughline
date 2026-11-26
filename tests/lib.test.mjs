@@ -12,7 +12,8 @@ vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
   fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, hash, words,
   termKey, termText, termTokens, termFind, termSame, termFit, termMatches, termWays, termGroups, validateTerms, cleanTermRules, cleanTermCache,
-  cleanGrow, growNext, growReasons, validateGrowQ, validateLoom, loomFacts, cleanLoom, validateBuild, buildSteps, buildIdeal, cleanBuild};`, ctx);
+  cleanGrow, growNext, growReasons, validateGrowQ, validateLoom, loomFacts, cleanLoom, validateBuild, buildSteps, buildIdeal, cleanBuild,
+  cleanUsage, usageMerge, weekOf, lastWeeks, activeWeeks, usageSum, usageCost, pctile};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -530,4 +531,64 @@ test('cleanBuild keeps a stored reading and the shape the writer chose', () => {
   assert.deepEqual([c.sig, c.pick, c.paras.length, c.fixes.length], ['s1', 'myth', 5, 3]);
   assert.equal(J(L.cleanBuild(Object.assign({}, BUILD_RAW, {sig: 's1', pick: 'saga'}), LOOM_PARAS)).pick, null);
   assert.equal(L.cleanBuild(BUILD_RAW, LOOM_PARAS), null);
+});
+
+// ---- usage ----
+const NT = ['contradiction', 'logic', 'evidence', 'grammar'];
+test('cleanUsage keeps known features, kinds of note and bounded counts only', () => {
+  const u = L.cleanUsage({kind: 'usage', v: 1, name: '<b>Sam</b>', own: 'yes', since: -5, at: 1e20,
+    days: {'2026-11-20': {f: {review: {n: 2, ok: 1, i: 4e4, o: 'lots', t: {complex: 2, turbo: 9}, x: {limit: 1, explode: 3}}, hack: {n: 9}},
+      q: {logic: {s: 3, u: 1, d: -1, w: {wrong: 1, rude: 2}}, villain: {s: 1}, __proto__: {s: 5}}, e: {js: 1, other: 4}},
+      'yesterday': {f: {review: {n: 1}}}, '2026-11-21': 'nope'},
+    errs: [{at: 5, n: 'TypeError', l: 12, c: 3}, {n: '<script>', l: -1}, 'x']}, NT);
+  assert.equal(u.name, '<b>Sam</b>');   // names are shown as text, never markup
+  assert.equal(u.own, false);
+  assert.equal(u.since, 0);
+  assert.ok(u.at <= 4e12);
+  assert.deepEqual(J(u.days['2026-11-20'].f), {review: {n: 2, ok: 1, i: 40000, t: {complex: 2}, x: {limit: 1}}});
+  assert.deepEqual(J(u.days['2026-11-20'].q), {logic: {s: 3, u: 1, d: -1, w: {wrong: 1}}});
+  assert.deepEqual(J(u.days['2026-11-20'].e), {js: 1});
+  assert.deepEqual(Object.keys(u.days).sort(), ['2026-11-20', '2026-11-21']);
+  assert.deepEqual(J(u.errs), [{at: 5, n: 'TypeError', l: 12, c: 3}, {at: 0, n: 'Error', l: 0, c: 0}, {at: 0, n: 'Error', l: 0, c: 0}]);
+  assert.equal(L.cleanUsage({kind: 'feedback'}, NT), null);
+});
+
+test('usageMerge adds what a browser counted and rolls old days into one total', () => {
+  const day = (n, i) => ({f: {review: {n, ok: n, i, t: {complex: n}}}, q: {logic: {s: 2, u: 1}}, e: {}});
+  let u = L.usageMerge(null, {days: {'2026-11-20': day(1, 100)}, errs: [{at: 1, n: 'TypeError', l: 1, c: 1}]}, '2026-11-26', {name: 'Sam', own: false, at: 1000});
+  u = L.usageMerge(u, {days: {'2026-11-20': day(2, 50), '2026-11-26': day(1, 10)}, errs: []}, '2026-11-26', {name: 'Sam', at: 2000});
+  assert.deepEqual(J(u.days['2026-11-20'].f.review), {n: 3, ok: 3, i: 150, t: {complex: 3}});
+  assert.deepEqual(J(u.days['2026-11-20'].q.logic), {s: 4, u: 2});
+  assert.equal(u.since, 1000);
+  assert.equal(u.at, 2000);
+  assert.equal(u.errs.length, 1);
+  u = L.usageMerge(u, {days: {}, errs: []}, '2027-04-01', {name: 'Sam', at: 3000});   // 120 days on: November rolls up
+  assert.deepEqual(Object.keys(u.days), []);
+  assert.deepEqual(J(u.old.f.review), {n: 4, ok: 4, i: 160, t: {complex: 4}});
+});
+
+test('weeks start on Monday, and active weeks can leave out the sample essay', () => {
+  assert.equal(L.weekOf('2026-11-26'), '2026-11-23');
+  assert.equal(L.weekOf('2026-11-23'), '2026-11-23');
+  assert.equal(L.weekOf('2026-11-29'), '2026-11-23');
+  assert.deepEqual(J(L.lastWeeks('2026-11-26', 3)), ['2026-11-09', '2026-11-16', '2026-11-23']);
+  const u = L.cleanUsage({kind: 'usage', days: {'2026-11-10': {f: {review: {n: 1, s: 1}}}, '2026-11-18': {f: {ask: {n: 2, s: 1}}}}}, NT);
+  assert.deepEqual([...L.activeWeeks(u, false)].sort(), ['2026-11-09', '2026-11-16']);
+  assert.deepEqual([...L.activeWeeks(u, true)], ['2026-11-16']);
+  assert.deepEqual(J(L.usageSum(u, '2026-11-11', '2026-11-30').f), {ask: {n: 2, s: 1}});
+});
+
+test('usageCost prices estimated tokens, with the long-prompt rate when prompts are long', () => {
+  const sonnet = {in: 2, out: 10}, haiku = {in: 0.1, out: 0.5, long: {over: 100000, in: 0.5, out: 2.5}};
+  assert.equal(L.usageCost({n: 1, i: 100000, o: 20000}, sonnet, 4), 0.1);   // 25,000 in and 5,000 out
+  assert.equal(+L.usageCost({n: 1, i: 100000, o: 20000}, haiku, 4).toFixed(6), 0.005);
+  assert.equal(+L.usageCost({n: 1, i: 800000, o: 4000}, haiku, 4).toFixed(6), 0.1025);
+  assert.equal(L.usageCost(null, sonnet, 4), 0);
+});
+
+test('pctile takes the nearest rank', () => {
+  assert.equal(L.pctile([5, 1, 3], 50), 3);
+  assert.equal(L.pctile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 90), 9);
+  assert.equal(L.pctile([4], 90), 4);
+  assert.equal(L.pctile([], 50), 0);
 });

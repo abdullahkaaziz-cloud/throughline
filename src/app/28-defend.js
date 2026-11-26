@@ -91,8 +91,7 @@ async function startViva() {
   renderDefend();
   try {
     const opts = {}, tier = pickTier(); if (tier) opts.modelTier = tier;
-    const qs = validateExam(await sampleFn.json(examPrompt(d, text, st.vivaN, st.vivaStyle), opts), text, st.vivaN);
-    if (!qs.length) throw {code: 'invalid_json'};
+    const qs = await askClaude('viva', d, examPrompt(d, text, st.vivaN, st.vivaStyle), opts, raw => { const v = validateExam(raw, text, st.vivaN); if (!v.length) throw {code: 'invalid_json'}; return v; });
     const e = ensureReal(d), s = {id: 'v' + Date.now().toString(36), at: Date.now(), style: st.vivaStyle, done: false, qs: qs.map(q => Object.assign(q, {turns: []}))};
     listOf(e).push(s);
     while (e.defences.length > 12) e.defences.shift();
@@ -123,8 +122,7 @@ async function submitAnswer() {
   hush(); V.busy = 'judge'; V.err = null; renderDefend();
   try {
     const opts = {}, tier = pickTier(); if (tier) opts.modelTier = tier;
-    const j = validateJudge(await sampleFn.json(judgePrompt(d, d === st.cur ? ed.value : d.text, Q, Q.turns, V.s.style), opts), Q.turns.length > 1);
-    if (!j) throw {code: 'invalid_json'};
+    const j = await askClaude('judge', d, judgePrompt(d, d === st.cur ? ed.value : d.text, Q, Q.turns, V.s.style), opts, raw => { const v = validateJudge(raw, Q.turns.length > 1); if (!v) throw {code: 'invalid_json'}; return v; });
     Object.assign(turn, {verdict: j.verdict, feedback: j.feedback, fix: j.fix});
     V.busy = null; d.updatedAt = Date.now(); persist(d, 0);
     if (j.follow && Q.turns.length < 2) {

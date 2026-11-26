@@ -106,7 +106,7 @@ function moreEl(is) {
   }
   box.append(h('div', {class: 'acts'},
     narrow.matches ? h('button', {class: 'btn sm', onclick: () => { closeSheet(); scrollToIssue(is.id, 0.25); }}, 'Show in essay') : null,
-    h('button', {class: 'btn sm ghost', onclick: () => markIssue(is.id, 'dismissed')}, 'Dismiss')));
+    h('button', {class: 'btn sm ghost', onclick: () => markIssue(is.id, 'dismissed')}, 'Dismiss')), rateEl(is));
   return box;
 }
 function doneEl(done) {

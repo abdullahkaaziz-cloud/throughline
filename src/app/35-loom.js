@@ -155,8 +155,7 @@ async function runLoom() {
   const tick = setInterval(() => { const b = $('#loomTime'); if (b) b.textContent = loomTime(); }, 1000);
   try {
     const opts = {signal: R.ctl.signal}; if (tier) opts.modelTier = tier;
-    const v = validateLoom(await sampleFn.json(prompt, opts), paras, 5);
-    if (!v.threads.length) throw Object.assign(new Error('No threads could be traced in the essay.'), {code: 'bad_output'});
+    const v = await askClaude('loom', d, prompt, opts, raw => { const x = validateLoom(raw, paras, 5); if (!x.threads.length) throw Object.assign(new Error('No threads could be traced in the essay.'), {code: 'bad_output'}); return x; });
     const e = ensureReal(d), keep = (d.loom && d.loom.keep) || [];
     e.loom = {sig: hash(text), at: Date.now(), threads: v.threads, links: v.links, keep};
     e.updatedAt = Date.now(); persist(e, 0);

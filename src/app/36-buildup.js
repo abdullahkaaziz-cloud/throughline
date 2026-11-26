@@ -154,8 +154,7 @@ async function runBuild() {
   const tick = setInterval(() => { const b = $('#buildTime'); if (b) b.textContent = buildTime(); }, 1000);
   try {
     const opts = {signal: R.ctl.signal}; if (tier) opts.modelTier = tier;
-    const B = validateBuild(await sampleFn.json(prompt, opts), paras, 3);
-    if (!B.paras.some(e => e.moves.length || e.pull != null)) throw Object.assign(new Error('Nothing came back that matches the essay.'), {code: 'bad_output'});
+    const B = await askClaude('build', d, prompt, opts, raw => { const x = validateBuild(raw, paras, 3); if (!x.paras.some(e => e.moves.length || e.pull != null)) throw Object.assign(new Error('Nothing came back that matches the essay.'), {code: 'bad_output'}); return x; });
     const e = ensureReal(d);
     e.build = Object.assign(B, {sig: hash(text), at: Date.now(), pick: null});
     e.updatedAt = Date.now(); persist(e, 0);

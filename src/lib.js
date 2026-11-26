@@ -943,3 +943,102 @@ function cleanBuild(x, paras) {
   if (typeof r.sig !== 'string' || !r.sig || r.sig.length > 40) return null;
   return Object.assign(validateBuild(r, paras || [], 3), {sig: r.sig, at: Number.isFinite(r.at) ? r.at : 0, pick: hasOwn(BUILD_SHAPES, r.pick) ? r.pick : null});
 }
+
+// ---- usage: what each tester uses, counted per day, never any text ----
+// One record per tester: {kind:'usage', v:1, name, own, since, at, days:{'YYYY-MM-DD': day}, old: day, errs}.
+// A day: f, per feature: n calls, ok, i characters sent, o characters back, ms (finished calls), s (calls on the
+// sample essay), t calls per tier, x failures by kind; q, per kind of note: s shown, u useful, d not useful, f fixed,
+// x dismissed, w why not useful; e: js page errors, save failed saves. Days older than USAGE_KEEP roll into old.
+const USAGE_FEATURES = ['review', 'recheck', 'ask', 'index', 'argument', 'ideas', 'map', 'viva', 'judge', 'habits', 'terms', 'grow', 'loom', 'build'];
+const USAGE_FAILS = ['limit', 'busy', 'timeout', 'unusable', 'denied', 'error', 'cancelled'];
+const USAGE_TIERS = ['quick', 'default', 'complex'];
+const NOTE_FIELDS = ['s', 'u', 'd', 'f', 'x'];
+const NOTE_WHY = ['wrong', 'minor', 'unclear', 'repeat'];
+const FEAT_FIELDS = ['n', 'ok', 'i', 'o', 'ms', 's'];
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const USAGE_KEEP = 120;
+const ucount = v => Number.isFinite(v) ? Math.max(-1e6, Math.min(1e12, Math.round(v))) : 0;
+const uts = v => Number.isFinite(v) && v > 0 ? Math.min(v, 4e12) : 0;
+function ucounts(x, keys) {
+  const o = plainObj(x), out = {};
+  for (const k of keys) if (hasOwn(o, k)) { const v = ucount(o[k]); if (v) out[k] = v; }
+  return out;
+}
+function cleanUsageDay(x, noteTypes) {
+  const o = plainObj(x), F = plainObj(o.f), Q = plainObj(o.q), f = {}, q = {};
+  for (const k of USAGE_FEATURES) if (hasOwn(F, k)) {
+    const v = ucounts(F[k], FEAT_FIELDS), t = ucounts(plainObj(F[k]).t, USAGE_TIERS), x2 = ucounts(plainObj(F[k]).x, USAGE_FAILS);
+    if (Object.keys(t).length) v.t = t;
+    if (Object.keys(x2).length) v.x = x2;
+    if (Object.keys(v).length) f[k] = v;
+  }
+  for (const k of noteTypes || []) if (typeof k === 'string' && hasOwn(Q, k)) {
+    const v = ucounts(Q[k], NOTE_FIELDS), w = ucounts(plainObj(Q[k]).w, NOTE_WHY);
+    if (Object.keys(w).length) v.w = w;
+    if (Object.keys(v).length) q[k] = v;
+  }
+  return {f, q, e: ucounts(o.e, ['js', 'save'])};
+}
+function cleanUsage(x, noteTypes) {
+  const r = plainObj(x);
+  if (r.kind !== 'usage') return null;
+  const D = plainObj(r.days), days = {};
+  for (const k of Object.keys(D).filter(k => DAY_RE.test(k)).sort().slice(-USAGE_KEEP - 7)) days[k] = cleanUsageDay(D[k], noteTypes);
+  const errs = (Array.isArray(r.errs) ? r.errs : []).slice(-10).map(e0 => {
+    const e = plainObj(e0);
+    return {at: uts(e.at), n: typeof e.n === 'string' && /^[A-Za-z][A-Za-z0-9:_ -]{0,39}$/.test(e.n) ? e.n : 'Error',
+      l: Number.isInteger(e.l) && e.l >= 0 && e.l < 1e7 ? e.l : 0, c: Number.isInteger(e.c) && e.c >= 0 && e.c < 1e7 ? e.c : 0};
+  });
+  return {name: clip(r.name, 80), own: r.own === true, since: uts(r.since), at: uts(r.at), days, old: cleanUsageDay(r.old, noteTypes), errs};
+}
+const emptyDay = () => ({f: {}, q: {}, e: {}});
+function addCounts(a, b, keys) { for (const k of keys) if (hasOwn(b, k)) a[k] = ucount((hasOwn(a, k) ? a[k] : 0) + b[k]); return a; }
+// a += b, for two clean days.
+function usageAddDay(a, b) {
+  for (const k of USAGE_FEATURES) if (hasOwn(b.f, k)) {
+    const t = hasOwn(a.f, k) ? a.f[k] : (a.f[k] = {}), v = b.f[k];
+    addCounts(t, v, FEAT_FIELDS);
+    if (v.t) addCounts(t.t || (t.t = {}), v.t, USAGE_TIERS);
+    if (v.x) addCounts(t.x || (t.x = {}), v.x, USAGE_FAILS);
+  }
+  for (const k of Object.keys(b.q)) {
+    const t = hasOwn(a.q, k) ? a.q[k] : (a.q[k] = {}), v = b.q[k];
+    addCounts(t, v, NOTE_FIELDS);
+    if (v.w) addCounts(t.w || (t.w = {}), v.w, NOTE_WHY);
+  }
+  addCounts(a.e, b.e, ['js', 'save']);
+  return a;
+}
+// Adds what this browser counted since the last write (delta: {days, errs}) to the stored record, and rolls days
+// older than USAGE_KEEP into old, so the record stays small however long someone uses Throughline.
+function usageMerge(rec, delta, today, info) {
+  const u = rec || {name: '', own: false, since: 0, at: 0, days: {}, old: emptyDay(), errs: []};
+  for (const k of Object.keys(delta.days || {})) if (DAY_RE.test(k)) usageAddDay(hasOwn(u.days, k) ? u.days[k] : (u.days[k] = emptyDay()), delta.days[k]);
+  const cut = new Date(today + 'T00:00:00Z'); cut.setUTCDate(cut.getUTCDate() - USAGE_KEEP);
+  const cutKey = cut.toISOString().slice(0, 10);
+  for (const k of Object.keys(u.days)) if (k < cutKey) { usageAddDay(u.old, u.days[k]); delete u.days[k]; }
+  u.errs = u.errs.concat(delta.errs || []).slice(-10);
+  if (info) { u.name = clip(info.name, 80); u.own = info.own === true; u.at = uts(info.at); if (!u.since) u.since = uts(info.at); }
+  return u;
+}
+// Calendar weeks start on Monday (UTC); a week is named by its Monday.
+function weekOf(day) { const d = new Date(day + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); }
+function lastWeeks(today, n) {
+  const w = new Date(weekOf(today) + 'T00:00:00Z'), out = [];
+  for (let i = n - 1; i >= 0; i--) { const x = new Date(w); x.setUTCDate(w.getUTCDate() - 7 * i); out.push(x.toISOString().slice(0, 10)); }
+  return out;
+}
+const dayCalls = (day, real) => USAGE_FEATURES.reduce((s, k) => s + (hasOwn(day.f, k) ? (day.f[k].n || 0) - (real ? day.f[k].s || 0 : 0) : 0), 0);
+// The weeks someone ran at least one AI action (real: on an essay of their own, not the sample).
+function activeWeeks(u, real) { const s = new Set(); for (const k of Object.keys(u.days)) if (dayCalls(u.days[k], real) > 0) s.add(weekOf(k)); return s; }
+// Everything counted from one day to another (inclusive), as one day.
+function usageSum(u, from, to) { const out = emptyDay(); for (const k of Object.keys(u.days)) if (k >= from && k <= to) usageAddDay(out, u.days[k]); return out; }
+// Estimated cost in US dollars of one feature's counts, from characters (cpt characters to a token) and prices per
+// million tokens; a model with a long-prompt price uses it when the average prompt is over its limit.
+function usageCost(v, price, cpt) {
+  if (!v || !price) return 0;
+  const tin = (v.i || 0) / cpt, tout = (v.o || 0) / cpt, p = price.long && v.n && tin / v.n > price.long.over ? price.long : price;
+  return (tin * p.in + tout * p.out) / 1e6;
+}
+// Nearest-rank percentile of numbers.
+function pctile(list, p) { const s = list.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.max(0, Math.ceil(p / 100 * s.length) - 1))] : 0; }

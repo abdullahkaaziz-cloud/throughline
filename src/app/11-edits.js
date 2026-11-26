@@ -10,12 +10,15 @@ function replaceRange(s, e, text, quiet) {
 function applyIssue(is) {
   const an = st.anchors.get(is.id); if (!an || !an.a) return;
   const d = st.cur; d.marks = d.marks || {}; d.marks[is.id] = 'applied';
+  if (countsNotes(d)) usageNote(is.type, 'f');
   st.active = null;
   appEdit('ai', is.suggestion, () => replaceRange(an.a[0], an.a[1], is.suggestion));
   persist(ensureReal(d));
 }
 function markIssue(id, how) {
   const d = ensureReal(st.cur); d.marks = d.marks || {};
+  const was = d.marks[id], is = d.review && d.review.issues.find(x => x.id === id);
+  if (is && countsNotes(d) && (was === 'dismissed') !== (how === 'dismissed')) usageNote(is.type, 'x', how === 'dismissed' ? 1 : -1);
   if (how) d.marks[id] = how; else delete d.marks[id];
   if (st.active === id) st.active = null;
   d.updatedAt = Date.now(); persist(d);

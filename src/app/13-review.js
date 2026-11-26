@@ -72,8 +72,9 @@ function mergeRecheck(d, raw, text, ctx, tier, plan) {
   const keys = new Set(kept.map(is => noteKey(is.type, is.qa)));
   const issues = kept.concat(fresh.issues.filter(is => touches(is) && !keys.has(noteKey(is.type, is.qa)))).slice(0, 60);
   const marks = Object.create(null);
-  for (const is of kept) if (d.marks && d.marks[is.id]) marks[is.id] = d.marks[is.id];
-  d.marks = marks;
+  const rates = Object.create(null);
+  for (const is of kept) { if (d.marks && d.marks[is.id]) marks[is.id] = d.marks[is.id]; if (d.rates && hasOwn(d.rates, is.id)) rates[is.id] = d.rates[is.id]; }
+  d.marks = marks; d.rates = rates;
   return Object.assign({}, prev, {at: fresh.at, tier: fresh.tier, textHash: fresh.textHash, checked: fresh.checked, sources: fresh.sources, issues,
     links: prev.links.filter(l => intact(l.qa)).concat(fresh.links.filter(l => changed.has(at(l.qa)))).slice(0, 20),
     recheck: {changed: plan.changed.length, of: textParas(text).length}});
@@ -132,17 +133,18 @@ async function runReview(how) {
     R.src = ctx.filter(c => c.doc.role === 'source').length; R.lib = ctx.length - R.src; updateProgress();
     const opts = {signal: R.ctl.signal, onText: ({text: t}) => { if (st.reviewing !== R) return; R.writing = true; R.found = (t.match(/"type"\s*:/g) || []).length; updateProgress(); }};
     if (tier) opts.modelTier = tier;
-    const raw = await sampleFn.json(prompt, opts);
+    const raw = await askClaude(plan ? 'recheck' : 'review', d, prompt, opts);
     markLastDraft(d);
     if (plan) d.review = mergeRecheck(d, raw, text, ctx, tier || 'default', plan);
     else {
       const before = lastDraft(d), gone = new Set(before && d.review && d.review.draft === before.id ? before.notes.filter(x => x.m === 'dismissed').map(x => x.k) : []);
-      d.review = buildReview(raw, text, ctx, tier || 'default'); d.marks = Object.create(null);
+      d.review = buildReview(raw, text, ctx, tier || 'default'); d.marks = Object.create(null); d.rates = Object.create(null);
       // Notes you dismissed stay dismissed when a full review finds them again.
       for (const is of d.review.issues) if (gone.has(noteKey(is.type, is.qa))) d.marks[is.id] = 'dismissed';
     }
     d.review.ctxSig = ctxSig(d);
     snapshot(d, text, plan ? 'recheck' : 'full');
+    countReviewNotes(d);
     st.tlSel = -1; d.updatedAt = Date.now();
     persist(d, 0);
     const n = d.review.issues.length;

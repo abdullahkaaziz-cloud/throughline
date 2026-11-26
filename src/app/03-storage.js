@@ -26,6 +26,7 @@ async function writeDoc(id, body, json, retried) {
   } catch (e) {
     const c = e && e.code;
     if (c === 'unavailable' && !retried) { await wait(700 + Math.random() * 900); return writeDoc(id, body, json, true); }
+    if (c !== 'unavailable') usageErr('save', typeof c === 'string' ? c : 'Error');
     if (c === 'invalid_argument' || c === 'revoked') st.store = 'memory';
     setSave(c === 'quota_exceeded' ? 'Storage is full' : c === 'invalid_argument' ? 'View only: changes aren’t saved' : c === 'revoked' ? 'Saving is off in this view' : c === 'local' ? 'Browser storage is full' : 'Couldn’t save; will retry on your next change');
   }

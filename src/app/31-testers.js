@@ -25,18 +25,22 @@ dlgEl.addEventListener('pointerdown', e => { if (e.target === dlgEl) closeDlg();
 // ---- the welcome, once per browser, for anyone but the owner ----
 function maybeWelcome() {
   if (st.isOwner || !dlgEl.hidden) return;
-  try { if (localStorage.getItem(WKEY)) return; localStorage.setItem(WKEY, '1'); } catch (e) {}
-  const ai = st.ai === 'ready';
+  let seen = false;
+  try { seen = !!localStorage.getItem(WKEY); if (!seen) localStorage.setItem(WKEY, '1'); } catch (e) {}
+  if (seen) { maybeTellUsage(); return; }
+  const ai = st.ai === 'ready', counting = st.store === 'db' && !!dbApi && !!myId;
   openDlg('Welcome to Throughline',
     h('p', {class: 'wlead'}, 'Throughline reads your essay and marks what needs work, right where it is: contradictions, gaps in the argument, claims that need evidence, unclear sentences. It never rewrites your essay.'),
     h('ul', {class: 'wlist'},
       h('li', null, h('b', null, 'Your own Claude plan. '), ai ? 'Reviews run on your Claude plan, so they count toward your usage, not anyone else’s.' : 'Sign in to Claude to run reviews. They use your own plan.'),
       h('li', null, h('b', null, 'Private to you. '), st.store === 'db' ? 'Your essays are saved in your own space. Nobody else can open them, including whoever shared Throughline with you.'
         : 'Your essays are saved in this browser only, so use the same browser to come back to them.'),
-      h('li', null, h('b', null, 'A test version. '), 'Tell us what works and what doesn’t: ', h('b', null, 'Send feedback'), ' is in the essay menu.')),
+      h('li', null, h('b', null, 'A test version. '), 'Tell us what works and what doesn’t: ', h('b', null, 'Send feedback'), ' is in the essay menu.'),
+      counting ? h('li', null, h('b', null, 'Usage counts. '), 'To work out what Throughline should cost, it counts which features you use and how much text goes to Claude, never the text itself. Only whoever shared Throughline sees the counts. Switch them off in ', h('b', null, 'Privacy and your data'), ', in the essay menu.') : null),
     h('div', {class: 'wacts'},
       h('button', {class: 'btn primary', type: 'button', id: 'welcomeSample', onclick: () => { closeDlg(); if (!(st.cur && st.cur.isSample)) openDoc(makeSample()); }}, 'Try the sample essay'),
       h('button', {class: 'btn', type: 'button', onclick: () => { closeDlg(); newEssay(); }}, 'Start my own essay')));
+  if (counting && !trackPrefs().told) setTracking(trackPrefs().track, Date.now());
 }
 
 // ---- feedback ----
@@ -67,10 +71,11 @@ async function sendFeedback(about, ta, status) {
   if (!text) { status.textContent = 'Write something first.'; ta.focus(); return; }
   if (btn) btn.disabled = true; status.textContent = 'Sending…';
   try {
-    const ref = dbApi.doc('feedback/' + myId), snap = await ref.get();
-    const prev = snap && snap.exists ? cleanFeedback(snap.data()) : null, items = prev ? prev.items : [];
-    items.push({at: Date.now(), about, text: text.slice(0, 2000)});
-    await ref.set({kind: 'feedback', v: 1, name: myName, items: items.slice(-50)});
+    await mineWrite(raw => {
+      const prev = raw ? cleanFeedback(raw) : null, items = prev ? prev.items : [];
+      items.push({at: Date.now(), about, text: text.slice(0, 2000)});
+      return mineRecord(items, raw);
+    });
     closeDlg(); toast('Thanks. Your feedback was sent.');
   } catch (e) {
     if (btn) btn.disabled = false;
@@ -78,24 +83,46 @@ async function sendFeedback(about, ta, status) {
   }
 }
 
-// ---- the owner's inbox ----
-let inboxSub = null;
-function openInbox() {
-  closeMenus();
-  if (!inboxSub && dbApi) {
-    st.inbox = null;
-    inboxSub = true;
-    try {
-      dbApi.collection('feedback').onSnapshot(snap => {
-        const list = [];
-        for (const d of snap.docs) { let f = null; try { f = cleanFeedback(structuredClone(d.data())); } catch (e) {} if (f && f.items.length) list.push(f); }
-        st.inbox = list.sort((a, b) => b.items[b.items.length - 1].at - a.items[a.items.length - 1].at);
-        renderInbox(); if (!docMenu.hidden) renderDocMenu();
-      }, () => { st.inbox = []; st.inboxErr = true; renderInbox(); });
-    } catch (e) { st.inbox = []; st.inboxErr = true; }
-  }
-  setMode('inbox');
+// ---- each tester's own record at feedback/<id>: what they sent, and their usage counts (37-usage.js) ----
+// Every change to it reads it, changes it and writes it back, one change at a time, so feedback and counts never
+// overwrite each other. change(raw) returns the new record, or null to delete it.
+function mineWrite(change) {
+  const run = async () => {
+    const ref = dbApi.doc('feedback/' + myId), snap = await ref.get();
+    let raw = null; if (snap && snap.exists) { try { raw = structuredClone(snap.data()); } catch (e) {} }
+    const next = change(raw);
+    if (next === null) { if (raw) await ref.delete(); }
+    else if (next) await ref.set(next);
+  };
+  return uChain = uChain.then(run, run);
 }
+function mineRecord(items, raw, usage) {
+  const out = {kind: 'feedback', v: 1, name: myName, items: items.slice(-50)};
+  const u = usage !== undefined ? usage : raw && raw.usage ? cleanUsage(raw.usage, Object.keys(TYPES)) : null;
+  if (u) out.usage = Object.assign({kind: 'usage', v: 1}, u);
+  return out;
+}
+// ---- the owner's inbox; the same subscription feeds the Usage view ----
+let inboxSub = null;
+function watchTesters() {
+  if (inboxSub || !dbApi) return;
+  inboxSub = true; st.inbox = null; st.usage = null;
+  try {
+    dbApi.collection('feedback').onSnapshot(snap => {
+      const list = [], uses = [];
+      for (const d of snap.docs) {
+        let raw = null; try { raw = structuredClone(d.data()); } catch (e) { continue; }
+        const f = cleanFeedback(raw); if (f && f.items.length) list.push(f);
+        const u = raw && raw.kind === 'feedback' && raw.usage ? cleanUsage(raw.usage, Object.keys(TYPES)) : null;
+        if (u && safeId(d.id) && (Object.keys(u.days).length || Object.keys(u.old.f).length)) uses.push(Object.assign(u, {id: d.id}));
+      }
+      st.inbox = list.sort((a, b) => b.items[b.items.length - 1].at - a.items[a.items.length - 1].at);
+      st.usage = uses;
+      renderInbox(); renderUsage(); if (!docMenu.hidden) renderDocMenu();
+    }, () => { st.inbox = []; st.usage = []; st.inboxErr = true; st.usageErr = true; renderInbox(); renderUsage(); });
+  } catch (e) { st.inbox = []; st.usage = []; st.inboxErr = true; st.usageErr = true; }
+}
+function openInbox() { closeMenus(); watchTesters(); setMode('inbox'); }
 function renderInbox() {
   if (st.mode !== 'inbox') return;
   const list = st.inbox, n = list ? list.reduce((s, f) => s + f.items.length, 0) : 0;

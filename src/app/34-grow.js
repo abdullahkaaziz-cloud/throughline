@@ -150,8 +150,7 @@ async function growAsk(p, k, again) {
   renderGrow();
   try {
     const opts = {signal: R.ctl.signal}, tier = pickTier(); if (tier) opts.modelTier = tier;
-    const v = validateGrowQ(await sampleFn.json(growPrompt(d, G, p, k, prev), opts));
-    if (!v) throw Object.assign(new Error('No question came back.'), {code: 'bad_output'});
+    const v = await askClaude('grow', d, growPrompt(d, G, p, k, prev), opts, raw => { const q = validateGrowQ(raw); if (!q) throw Object.assign(new Error('No question came back.'), {code: 'bad_output'}); return q; });
     if (st.growRun === R) G.ask = {p, k, q: v.question, why: v.why || tpl.why, src: 'ai'};
   } catch (err) {
     if (st.growRun === R) G.ask = {p, k, q: tpl.q, why: tpl.why, src: 'tpl', err: !(err && err.code === 'cancelled')};

@@ -21,7 +21,7 @@ function indexDoc(d) {
     st.indexing.set(d.id, 'reading'); renderSources();
     const text = d.text;
     try {
-      const ix = validateIndex(await sampleFn.json(indexPrompt(d), {modelTier: 'default'}), text);
+      const ix = await askClaude('index', d, indexPrompt(d), {modelTier: 'default'}, raw => validateIndex(raw, text));
       st.indexing.delete(d.id);
       if (d.text !== text || !st.docs.has(d.id)) return false;
       d.index = {hash: hash(text), at: Date.now(), meta: ix.meta, claims: ix.claims};
