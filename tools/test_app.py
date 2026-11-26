@@ -762,7 +762,7 @@ with sync_playwright() as p:
     def flush_usage(pg):
         ev(pg, "() => { Object.defineProperty(document, 'visibilityState', {value: 'hidden', configurable: true}); document.dispatchEvent(new Event('visibilitychange')); delete document.visibilityState; }")
         pg.wait_for_timeout(400)
-    def usage_rec(pg): return ev(pg, "(window.__dbDump().filter(d => d.kind === 'usage')[0]) || null")
+    def usage_rec(pg): return ev(pg, "(window.__dbDump().filter(d => d.kind === 'feedback' && d.usage).map(d => d.usage)[0]) || null")
     def set_text(pg, t): ev(pg, "t => { const ed = document.getElementById('ed'); ed.value = t; ed.dispatchEvent(new Event('input', {bubbles: true})); }", t)
     today = time.strftime('%Y-%m-%d', time.gmtime())
     uctx = browser.new_context(viewport={'width': 1280, 'height': 900}); route(uctx)
@@ -803,6 +803,12 @@ with sync_playwright() as p:
     check('a page error is counted with its kind and place, never its message', u and u['errs'][-1]['n'] == 'TypeError' and u['errs'][-1]['l'] == 12 and day.get('e', {}).get('js') == 1)
     blob = json.dumps(u)
     check('the record holds counts only: no essay, note or error text', u and u['name'] == 'Sam' and u['own'] is False and 'secret' not in blob and 'Mock' not in blob and 'Libraries' not in blob and 'libraries' not in blob)
+    up.click('#docBtn'); up.wait_for_timeout(200); up.click('#menuFeedback'); up.wait_for_timeout(200)
+    up.fill('#fbText', 'Reviews are quick.'); up.click('#fbSend'); up.wait_for_timeout(500)
+    ev(up, "document.getElementById('reviewBtn').click()"); up.wait_for_timeout(2500); flush_usage(up)
+    rec = ev(up, "window.__dbDump().filter(d => d.kind === 'feedback')")
+    check('feedback and counts share the tester’s record without overwriting each other', len(rec) == 1 and [i['text'] for i in rec[0]['items']] == ['Reviews are quick.']
+      and rec[0]['usage']['days'][today]['f']['review']['n'] == 2, rec and rec[0].get('usage', {}).get('days'))
     up.click('#docBtn'); up.wait_for_timeout(200)
     check('everyone gets Privacy and your data', ev(up, "!!document.getElementById('menuPrivacy')"))
     up.click('#menuPrivacy'); up.wait_for_timeout(300)
@@ -810,7 +816,8 @@ with sync_playwright() as p:
     check('the privacy notice says where essays live, what Claude gets, and what’s counted', 'Nobody else can open them' in ptext and 'own Claude plan' in ptext and 'Never your writing' in ptext and ev(up, "document.getElementById('trackOn').checked"))
     up.screenshot(path=SHOTS + '/26b-privacy.png')
     up.click('#trackOn'); up.wait_for_timeout(500)
-    check('switching counting off deletes what was counted', usage_rec(up) is None and ev(up, "window.__dbDump().filter(d => d.kind === 'settings')[0].track") is False)
+    check('switching counting off deletes what was counted, and keeps their feedback', usage_rec(up) is None and ev(up, "window.__dbDump().filter(d => d.kind === 'settings')[0].track") is False
+      and ev(up, "window.__dbDump().filter(d => d.kind === 'feedback').map(d => d.items.length)") == [1])
     up.keyboard.press('Escape'); up.wait_for_timeout(200)
     up.click('#reviewBtn'); up.wait_for_timeout(2500); flush_usage(up)
     check('and nothing more is counted', usage_rec(up) is None)
@@ -851,8 +858,11 @@ with sync_playwright() as p:
                     'q': {'logic': {'s': 4, 'u': 3, 'd': 1, 'w': {'minor': 1}}, 'grammar': {'s': 2, 'u': 1, 'f': 1}}, 'e': {'js': 1} if errs else {}}
         return {'kind': 'usage', 'v': 1, 'name': name, 'own': own, 'since': int((time.time() - max(days) * 86400) * 1000), 'at': int(time.time() * 1000), 'days': D,
                 'errs': [{'at': int(time.time() * 1000), 'n': 'TypeError', 'l': 40, 'c': 2}] if errs else []}
-    seed_u = {'usage/u_test': urec('Me', [0], own=True), 'usage/u_a': urec('Ana', [0, 7, 14, 21]), 'usage/u_b': urec('<img src=x onerror="window.__pwned=1">', [1, 8, 15], errs=True),
-      'usage/u_c': urec('Cal', [2]), 'usage/u_x': {'kind': 'nope', 'days': {}}, 'usage/u_y': {'kind': 'usage', 'days': {'soon': {'f': {'review': {'n': 99}}}}}}
+    fbu = lambda name, u, items=[]: {'kind': 'feedback', 'v': 1, 'name': name, 'items': items, 'usage': u}
+    seed_u = {'feedback/u_test': fbu('Me', urec('Me', [0], own=True)), 'feedback/u_a': fbu('Ana', urec('Ana', [0, 7, 14, 21]), [{'at': 1763000000000, 'about': 'review', 'text': 'Good.'}]),
+      'feedback/u_b': fbu('B', urec('<img src=x onerror="window.__pwned=1">', [1, 8, 15], errs=True)), 'feedback/u_c': fbu('Cal', urec('Cal', [2])),
+      'feedback/u_x': fbu('X', {'kind': 'nope', 'days': {}}), 'feedback/u_y': fbu('Y', {'kind': 'usage', 'days': {'soon': {'f': {'review': {'n': 99}}}}}),
+      'feedback/u_z': {'kind': 'other', 'usage': urec('Zed', [0])}}
     gctx2 = browser.new_context(viewport={'width': 1280, 'height': 900}); route(gctx2)
     gctx2.add_init_script('window.__seedDb = JSON.parse(' + json.dumps(json.dumps(seed_u)) + ');')
     gctx2.add_init_script(MOCK)
@@ -868,9 +878,11 @@ with sync_playwright() as p:
     gq.click('#usageMine'); gq.wait_for_timeout(200)
     check('“Include my own use” adds the owner, marked as theirs', ev(gq, "[...document.querySelectorAll('#usagePeople tbody tr td:first-child')].map(t => t.textContent)") == ['Ana', 'Meyou', '<img src=x onerror="window.__pwned=1">', 'Cal'])
     gq.screenshot(path=SHOTS + '/26c-usage.png', full_page=True)
+    gq.click('#usage .chead2 button'); gq.wait_for_timeout(200); gq.click('#docBtn'); gq.wait_for_timeout(200); gq.click('#menuInbox'); gq.wait_for_timeout(300)
+    check('records holding only counts stay out of the inbox', ev(gq, "[...document.querySelectorAll('#inbox .icard h3')].map(h => h.textContent)") == ['Ana'])
     gq.click('#docBtn'); gq.wait_for_timeout(200); gq.click('#docMenu button:has-text("New essay")'); gq.wait_for_timeout(300)
     gq.keyboard.type('Owner essay'); set_text(gq, DRAFT_ESSAY); gq.click('#reviewBtn'); gq.wait_for_timeout(2500); flush_usage(gq)
-    mine = ev(gq, "window.__dbDump().filter(d => d.kind === 'usage' && d.own)")
+    mine = ev(gq, "window.__dbDump().filter(d => d.kind === 'feedback' && d.usage && d.usage.own).map(d => d.usage)")
     check('the owner’s own use is counted too, added to what was there', len(mine) == 1 and mine[0]['days'][today]['f']['review']['n'] == 3, mine)
     gctx2.close()
 

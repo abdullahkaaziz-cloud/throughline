@@ -1,5 +1,5 @@
 // ---- the owner's Usage view: who uses Throughline, what for, what it would cost on the website, how good the notes
-// are, and how close Phase 1 is to its gate. Everything comes from the testers' usage records (37-usage.js).
+// are, and how close Phase 1 is to its gate. Everything comes from the counts in testers' own records (37-usage.js).
 // Costs are estimates: tokens from characters (CPT to a token), priced with the model each feature would use on the
 // website (FEATURES, PRICES in 00-config.js). The weeks are calendar weeks from Monday, in UTC.
 const usageEl = $('#usage');
@@ -11,24 +11,7 @@ const featCost = (k, v) => hasOwn(FEATURES, k) ? usageCost(v, PRICES[FEATURES[k]
 const dayMinus = (day, n) => { const d = new Date(day + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
 const fmtUtc = k => new Date(k + 'T00:00:00Z').toLocaleDateString(undefined, {day: 'numeric', month: 'short', timeZone: 'UTC'});
 const pctOf = (a, b) => b ? Math.round(a / b * 100) : 0;
-let usageSub = false;
-function openUsage() {
-  closeMenus();
-  if (!usageSub && dbApi) {
-    usageSub = true; st.usage = null; st.usageErr = false;
-    try {
-      dbApi.collection('usage').onSnapshot(snap => {
-        const list = [];
-        for (const d of snap.docs) {
-          let u = null; try { u = cleanUsage(structuredClone(d.data()), Object.keys(TYPES)); } catch (e) {}
-          if (u && safeId(d.id) && (Object.keys(u.days).length || Object.keys(u.old.f).length)) list.push(Object.assign(u, {id: d.id}));
-        }
-        st.usage = list; renderUsage();
-      }, () => { st.usage = []; st.usageErr = true; renderUsage(); });
-    } catch (e) { st.usage = []; st.usageErr = true; }
-  }
-  setMode('usage');
-}
+function openUsage() { closeMenus(); watchTesters(); setMode('usage'); }
 
 // ---- the numbers ----
 function usageStats(list, today) {

@@ -2,9 +2,10 @@
 // Every call to Claude goes through askClaude(), which counts the feature, the tier, how much text went each way
 // (as a number of characters), how long it took and how it ended: never any text. Notes count too: how many each
 // review shows, which ones the writer rates useful or not, fixes or dismisses. The counts collect per day in this
-// browser and go, a few seconds later, into one record per tester at usage/<their id>, which only the owner can read
-// (like feedback). Testers are told first, in the welcome, and can switch it off in Privacy and your data; then
-// nothing is counted and their record is deleted. The owner's own use is counted too, marked as theirs.
+// browser and go, a few seconds later, into the tester's own record at feedback/<their id> (beside what they sent
+// with Send feedback), which only the owner can read. Testers are told first, in the welcome, and can switch it off
+// in Privacy and your data; then nothing is counted and their counts are deleted. The owner's own use is counted
+// too, marked as theirs.
 let uDelta = null, uTimer = 0, uChain = Promise.resolve();
 const utcDay = () => new Date().toISOString().slice(0, 10);
 
@@ -19,8 +20,8 @@ async function setTracking(on, told) {
   try { await saveSpecial('settings'); } catch (e) {}
   if (!on) {
     clearTimeout(uTimer); uDelta = null;
-    // Switching it off deletes what has been counted so far.
-    if (dbApi && myId) { const del = () => dbApi.doc('usage/' + myId).delete().catch(() => {}); uChain = uChain.then(del, del); await uChain; }
+    // Switching it off deletes what has been counted so far (and the record, if it held nothing else).
+    if (dbApi && myId) { try { await mineWrite(raw => { if (!raw) return undefined; const f = cleanFeedback(raw); return f && f.items.length ? mineRecord(f.items, raw, null) : null; }); } catch (e) {} }
   }
 }
 
@@ -82,23 +83,24 @@ addEventListener('unhandledrejection', e => {
 function scheduleUsage() { clearTimeout(uTimer); uTimer = setTimeout(flushUsage, 5000); }
 function flushUsage() {
   clearTimeout(uTimer);
-  if (!uDelta || !usageOn()) return uChain;
+  if (!uDelta || !usageOn()) return uChain.catch(() => {});
   const delta = uDelta; uDelta = null;
-  const run = async () => {
-    try {
-      const ref = dbApi.doc('usage/' + myId), snap = await ref.get();
-      let cur = null; if (snap && snap.exists) { try { cur = cleanUsage(structuredClone(snap.data()), Object.keys(TYPES)); } catch (e) {} }
-      const u = usageMerge(cur, delta, utcDay(), {name: myName, own: st.isOwner, at: Date.now()});
-      await ref.set(Object.assign({kind: 'usage', v: 1}, u));
-    } catch (e) {
-      // Not allowed here: stop counting. Anything else: keep the counts for the next try.
-      if (e && ['permission_denied', 'not_granted', 'unauthenticated', 'invalid_argument', 'revoked'].includes(e.code)) { st.usageOff = true; return; }
-      if (!uDelta) uDelta = {days: {}, errs: []};
-      for (const k of Object.keys(delta.days)) usageAddDay(hasOwn(uDelta.days, k) ? uDelta.days[k] : (uDelta.days[k] = {f: {}, q: {}, e: {}}), delta.days[k]);
-      uDelta.errs = delta.errs.concat(uDelta.errs).slice(-10);
+  return mineWrite(raw => {
+    const f = raw ? cleanFeedback(raw) : null, cur = raw && raw.usage ? cleanUsage(raw.usage, Object.keys(TYPES)) : null;
+    const u = usageMerge(cur, delta, utcDay(), {name: myName, own: st.isOwner, at: Date.now()});
+    // The record holds feedback too: if it ever grows too big, the oldest days roll into the total early.
+    let out = mineRecord(f ? f.items : [], null, u);
+    for (let k = Object.keys(u.days).sort(); bytes(JSON.stringify(out)) > 240000 && k.length > 35; k = k.slice(1)) {
+      usageAddDay(u.old, u.days[k[0]]); delete u.days[k[0]]; out = mineRecord(f ? f.items : [], null, u);
     }
-  };
-  return uChain = uChain.then(run, run);
+    return out;
+  }).catch(e => {
+    // Not allowed here: stop counting. Anything else: keep the counts for the next try.
+    if (e && ['permission_denied', 'not_granted', 'unauthenticated', 'invalid_argument', 'revoked'].includes(e.code)) { st.usageOff = true; return; }
+    if (!uDelta) uDelta = {days: {}, errs: []};
+    for (const k of Object.keys(delta.days)) usageAddDay(hasOwn(uDelta.days, k) ? uDelta.days[k] : (uDelta.days[k] = {f: {}, q: {}, e: {}}), delta.days[k]);
+    uDelta.errs = delta.errs.concat(uDelta.errs).slice(-10);
+  });
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushUsage(); });
 

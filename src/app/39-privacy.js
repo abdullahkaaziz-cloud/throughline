@@ -29,12 +29,12 @@ async function exportData() {
   const get = async p => { try { const s = await dbApi.doc(p).get(); return s && s.exists ? structuredClone(s.data()) : null; } catch (e) { return null; } };
   const ok = st.store === 'db' && dbApi && myId;
   if (ok) await flushUsage();
-  const [fb, us] = ok ? await Promise.all([get('feedback/' + myId), get('usage/' + myId)]) : [null, null];
+  const fb = ok ? await get('feedback/' + myId) : null;
   const records = {};
   for (const k of Object.keys(SPECIAL)) { const r = SPECIAL[k].out(); if (r) records[k] = r; }
   return {kind: 'throughline-export', v: 1, at: new Date().toISOString(), name: myName || '',
     documents: sortedDocs().map(d => Object.assign({id: d.id}, serial(d))), records,
-    feedback: fb ? cleanFeedback(fb) : null, usage: us ? cleanUsage(us, Object.keys(TYPES)) : null};
+    feedback: fb ? cleanFeedback(fb) : null, usage: fb && fb.usage ? cleanUsage(fb.usage, Object.keys(TYPES)) : null};
 }
 async function exportAll() {
   if (!st.dl) { toast('Downloads aren’t available in this view.'); return; }
@@ -70,7 +70,7 @@ async function deleteAll() {
   let failed = 0;
   if (st.store === 'db' && col) {
     for (const id of ids.concat(specials)) { try { await col.doc(id).delete(); } catch (e) { failed++; } }
-    if (dbApi && myId) for (const p of ['feedback/' + myId, 'usage/' + myId]) { try { await dbApi.doc(p).delete(); } catch (e) {} }
+    if (dbApi && myId) { try { await dbApi.doc('feedback/' + myId).delete(); } catch (e) {} }
   }
   try { localStorage.removeItem(LKEY); localStorage.removeItem(PKEY); } catch (e) {}
   st.docs.clear(); st.asks.clear(); written.clear();
