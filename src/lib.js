@@ -1085,7 +1085,7 @@ function essayNotes(parts) {
   if (!marks.size || marks.size !== entries.size || [...marks].some(n => !entries.has(n))) return null;
   return entries;
 }
-const xmlEsc = s => String(s == null ? '' : s).replace(/[^\t\n\r\x20-퟿-�\u{10000}-\u{10FFFF}]/gu, '')
+const xmlEsc = s => String(s == null ? '' : s).replace(/[^\t\n\r\x20-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 // The files of a Word document, as text, by path: A4, Times New Roman 12 pt at 1.5 lines, headings, footnotes, and
 // reference entries with a hanging indent.
