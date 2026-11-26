@@ -1,8 +1,8 @@
 // ---- menus ----
-function closeMenus() { docMenu.hidden = true; aiMenu.hidden = true; docBtn.setAttribute('aria-expanded', 'false'); aiBtn.setAttribute('aria-expanded', 'false'); }
+function closeMenus() { for (const [m, b] of [[docMenu, docBtn], [aiMenu, aiBtn], [moreMenu, moreBtn]]) { m.hidden = true; b.setAttribute('aria-expanded', 'false'); } }
 function openMenu(menu, btn, right) {
   const was = !menu.hidden; closeMenus(); if (was) return;
-  (menu === docMenu ? renderDocMenu : renderAiMenu)();
+  (menu === docMenu ? renderDocMenu : menu === moreMenu ? renderMoreMenu : renderAiMenu)();
   menu.hidden = false; btn.setAttribute('aria-expanded', 'true');
   const r = btn.getBoundingClientRect(), w = menu.offsetWidth;
   menu.style.left = Math.max(8, Math.min(right ? r.right - w : r.left, innerWidth - w - 8)) + 'px';
@@ -21,20 +21,38 @@ function renderDocMenu() {
     items.push(h('div', {class: 'mi' + (d === st.cur ? ' cur' : ''), role: 'button', tabindex: '0', onclick: () => openDoc(d), onkeydown: e => { if (e.key === 'Enter') openDoc(d); }},
       h('span', {class: 'mt'}, h('b', null, d.title || 'Untitled essay'), h('span', {class: 'sub'}, [words(d.text).toLocaleString() + ' words', d.review ? plural(n, 'open note') : 'not reviewed', ago(d.updatedAt)].filter(Boolean).join(' · '))), del));
   }
+  const c = st.cur, has = !!(c && !c.isSample && c.text.trim());
   items.push(h('hr'),
-    st.cur && !st.cur.isSample && st.cur.role !== 'source' && st.cur.text.trim() ? h('button', {class: 'mi', id: 'menuRecord', onclick: openRecord}, h('span', {class: 'mt'}, h('b', null, 'Writing record'), h('span', {class: 'sub'}, 'How this essay was written: time, typed and pasted text, drafts, vivas and AI use'))) : null,
-    st.cur && st.cur.role !== 'source' && textParas(st.cur.text).length >= 3 ? h('button', {class: 'mi', id: 'menuLoom', onclick: openLoom}, h('span', {class: 'mt'}, h('b', null, 'The loom'), h('span', {class: 'sub'}, 'Your ideas as threads through the paragraphs'))) : null,
-    st.cur && st.cur.role !== 'source' && textParas(st.cur.text).length >= 3 ? h('button', {class: 'mi', id: 'menuBuild', onclick: openBuild}, h('span', {class: 'mt'}, h('b', null, 'Build-up'), h('span', {class: 'sub'}, 'How your essay leads to its point'))) : null,
-    docs.some(d => !d.isSample && (d.review || (d.history && d.history.list.length))) ? h('button', {class: 'mi', id: 'menuProgress', onclick: openProgress}, h('span', {class: 'mt'}, h('b', null, 'Your progress'), h('span', {class: 'sub'}, 'How your writing is changing from essay to essay, and the habits behind your notes'))) : null,
-    h('button', {class: 'mi', onclick: newEssay}, h('span', {class: 'mt'}, h('b', null, 'New essay'))),
-    h('button', {class: 'mi', onclick: () => { closeMenus(); pickFiles('essay'); }}, h('span', {class: 'mt'}, h('b', null, 'Upload essays'), h('span', {class: 'sub'}, 'Word, PDF or text, several at once. Each one joins your library.'))));
-  if (!(st.cur && st.cur.isSample)) items.push(h('button', {class: 'mi', onclick: () => openDoc(makeSample())}, h('span', {class: 'mt'}, h('b', null, 'Open the sample essay'))));
-  items.push(h('hr'), st.isOwner
-    ? h('button', {class: 'mi', id: 'menuInbox', onclick: openInbox}, h('span', {class: 'mt'}, h('b', null, 'Feedback from testers'), h('span', {class: 'sub'}, st.inbox ? plural(st.inbox.reduce((s, f) => s + f.items.length, 0), 'message') : 'What people you share Throughline with have sent')))
-    : h('button', {class: 'mi', id: 'menuFeedback', onclick: openFeedback}, h('span', {class: 'mt'}, h('b', null, 'Send feedback'), h('span', {class: 'sub'}, 'What works, what doesn’t, and what would make it better'))),
-    st.isOwner && dbApi ? h('button', {class: 'mi', id: 'menuUsage', onclick: openUsage}, h('span', {class: 'mt'}, h('b', null, 'Usage'), h('span', {class: 'sub'}, 'Who uses Throughline, what for, and what it would cost'))) : null,
-    h('button', {class: 'mi', id: 'menuPrivacy', onclick: openPrivacy}, h('span', {class: 'mt'}, h('b', null, 'Privacy and your data'), h('span', {class: 'sub'}, 'What’s kept and sent, usage counts, and downloading or deleting your data'))));
+    menuItem('menuNew', 'New essay', null, newEssay),
+    menuItem('menuUpload', 'Upload essays', 'Word, PDF or text, several at once. Each one joins your library.', () => { closeMenus(); pickFiles('essay'); }),
+    c && c.isSample ? null : menuItem('menuSample', 'Open the sample essay', null, () => openDoc(makeSample())),
+    has ? h('hr') : null,
+    has && st.dl ? menuItem('menuWord', 'Download as Word', 'This essay as a .docx, with its headings, footnotes and references', () => downloadWord()) : null,
+    has ? menuItem('menuCopy', 'Copy with formatting', 'To paste into Word or Google Docs', () => copyFormatted()) : null);
   fill(docMenu, items);
+}
+function menuItem(id, title, sub, fn) {
+  return h('button', {class: 'mi', id, type: 'button', onclick: fn}, h('span', {class: 'mt'}, h('b', null, title), sub ? h('span', {class: 'sub'}, sub) : null));
+}
+// More: the tools people use now and then, help, feedback and settings, so the essay menu stays about essays.
+function renderMoreMenu() {
+  const c = st.cur, mine = !!c && c.role !== 'source', paras = c ? textParas(c.text).length : 0;
+  const record = mine && !c.isSample && !!c.text.trim(), deep = mine && paras >= 3;
+  const progress = essayDocs().some(d => !d.isSample && (d.review || (d.history && d.history.list.length)));
+  fill(moreMenu,
+    record || deep ? h('div', {class: 'msec'}, 'This essay') : null,
+    deep ? menuItem('menuLoom', 'The loom', 'Your ideas as threads through the paragraphs', openLoom) : null,
+    deep ? menuItem('menuBuild', 'Build-up', 'How your essay leads to its point', openBuild) : null,
+    record ? menuItem('menuRecord', 'Writing record', 'How this essay was written: time, typed and pasted text, drafts, vivas and AI use', openRecord) : null,
+    progress ? h('div', {class: 'msec'}, 'Across your essays') : null,
+    progress ? menuItem('menuProgress', 'Your progress', 'How your writing is changing from essay to essay, and the habits behind your notes', openProgress) : null,
+    record || deep || progress ? h('hr') : null,
+    menuItem('menuHelp', 'Help', 'What each part of Throughline does, with short clips', openHelp),
+    st.isOwner
+      ? menuItem('menuInbox', 'Feedback from testers', st.inbox ? plural(st.inbox.reduce((s, f) => s + f.items.length, 0), 'message') : 'What people you share Throughline with have sent', openInbox)
+      : menuItem('menuFeedback', 'Send feedback', 'What works, what doesn’t, and what would make it better', openFeedback),
+    st.isOwner && dbApi ? menuItem('menuUsage', 'Usage', 'Who uses Throughline, what for, and what it would cost', openUsage) : null,
+    menuItem('menuPrivacy', 'Privacy and your data', 'What’s kept and sent, usage counts, and downloading or deleting your data', openPrivacy));
 }
 function renderAiMenu() {
   const tiersOk = !st.tiers || st.tiers.includes('complex');

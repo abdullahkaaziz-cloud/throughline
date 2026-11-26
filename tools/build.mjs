@@ -13,6 +13,9 @@ const script = html.match(/<script>([\s\S]*)<\/script>/);
 new vm.Script(script[1], {filename: 'dist/index.html#script'});
 fs.mkdirSync(new URL('dist/', root), {recursive: true});
 fs.writeFileSync(new URL('dist/index.html', root), html);
+// The help clips and their captions ship beside the page (published as its own files: help/<id>.mp4 and .vtt).
+fs.mkdirSync(new URL('dist/help/', root), {recursive: true});
+for (const f of fs.readdirSync(new URL('assets/help/', root))) if (/^[a-z]+\.(mp4|vtt)$/.test(f)) fs.copyFileSync(new URL('assets/help/' + f, root), new URL('dist/help/' + f, root));
 // seed/ holds private essays for local tests only. It is never copied into dist/, so it can't be published.
 fs.rmSync(new URL('dist/seed/', root), {recursive: true, force: true});
 console.log('dist/index.html', html.length, 'bytes from', parts.length, 'app parts');

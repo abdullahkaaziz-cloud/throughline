@@ -10,6 +10,8 @@
   // window.__dbPut(path, record) adds a record while the page is open, as another device would.
   window.__dbPut = (p, v) => { mem.set(p, JSON.parse(JSON.stringify(v))); notify(); };
   window.__dbWrites = 0; window.__calls = [];
+  // The first-review nudge and tour stay out of the way of other tests; window.__tour shows them.
+  if (!window.__tour) { try { localStorage.setItem('throughline.tour.v1', '1'); } catch (e) {} }
   window.__dbDump = () => [...mem.values()].map(clone);
   const clone = x => JSON.parse(JSON.stringify(x));
   function snapFor(l) {
@@ -235,6 +237,7 @@
       active: () => on, onFinal: f => { fin.push(f); return () => {}; }, onPartial: f => { par.push(f); return () => {}; }, onState: f => { sta.push(f); return () => {}; }};
   })();
   // window.__saveFail = 'some_code' makes the next save fail with that code, as the real runtime would.
-  const downloads = {save: async ({filename, data}) => { if (window.__saveFail) { const code = window.__saveFail; window.__saveFail = null; throw {code, message: code}; } window.__saved.push({filename, size: typeof data === 'string' ? data.length : (data.size || data.byteLength || 0), text: typeof data === 'string' ? data : ''}); return {status: 'saved'}; }};
+  const downloads = {save: async ({filename, data}) => { if (window.__saveFail) { const code = window.__saveFail; window.__saveFail = null; throw {code, message: code}; } const bin = data instanceof Uint8Array ? data : data instanceof ArrayBuffer ? new Uint8Array(data) : null;
+    window.__saved.push({filename, size: typeof data === 'string' ? data.length : (data.size || data.byteLength || 0), text: typeof data === 'string' ? data : '', b64: bin ? btoa(Array.from(bin, c => String.fromCharCode(c)).join('')) : ''}); return {status: 'saved'}; }};
   window.claude = {use: async n => { await sleep(60); return n === 'sample' ? sample : n === 'db' ? db : n === 'user' ? user : n === 'tts' ? tts : n === 'dictation' ? dictation : n === 'downloads' ? downloads : null; }};
 })();

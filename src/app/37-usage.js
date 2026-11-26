@@ -10,13 +10,13 @@ let uDelta = null, uTimer = 0, uChain = Promise.resolve();
 const utcDay = () => new Date().toISOString().slice(0, 10);
 
 // Whether this person has been told and has left counting on. Kept in their own private space ('settings').
-const trackPrefs = () => st.settings || {track: true, told: 0};
+const trackPrefs = () => st.settings || {track: true, told: 0, tour: 0};
 const usageOn = () => st.store === 'db' && !!dbApi && !!myId && !st.usageOff && trackPrefs().track && (trackPrefs().told > 0 || st.isOwner);
-function cleanSettings(x) { const r = plainObj(x); return r.kind === 'settings' ? {track: r.track !== false, told: num(r.told, 0)} : null; }
+function cleanSettings(x) { const r = plainObj(x); return r.kind === 'settings' ? {track: r.track !== false, told: num(r.told, 0), tour: num(r.tour, 0)} : null; }
 SPECIAL.settings = {load: x => { st.settings = x ? cleanSettings(x) : null; },
-  out: () => st.settings ? {kind: 'settings', v: 1, track: st.settings.track, told: st.settings.told} : null, render: () => {}};
+  out: () => st.settings ? {kind: 'settings', v: 1, track: st.settings.track, told: st.settings.told, tour: st.settings.tour || 0} : null, render: () => {}};
 async function setTracking(on, told) {
-  st.settings = {track: !!on, told: told || trackPrefs().told || Date.now()};
+  st.settings = {track: !!on, told: told || trackPrefs().told || Date.now(), tour: (st.settings && st.settings.tour) || 0};
   try { await saveSpecial('settings'); } catch (e) {}
   if (!on) {
     clearTimeout(uTimer); uDelta = null;

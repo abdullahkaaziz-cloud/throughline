@@ -12,6 +12,7 @@ ed.addEventListener('input', e => {
   ed.scrollTop = 0;
   if (document.activeElement === ed) keepCaret();
   persist(d);
+  maybeNudge();
 });
 function keepCaret() {
   const r = caretRect(ed.selectionEnd); if (!r) return;
@@ -42,13 +43,14 @@ $('#selform').addEventListener('submit', e => { e.preventDefault(); const q = se
 reviewBtn.addEventListener('click', runReview);
 docBtn.addEventListener('click', () => openMenu(docMenu, docBtn, false));
 aiBtn.addEventListener('click', () => openMenu(aiMenu, aiBtn, true));
+moreBtn.addEventListener('click', () => openMenu(moreMenu, moreBtn, true));
 $('#rhead').addEventListener('click', e => { if (narrow.matches && !e.target.closest('.chip, .rtab')) rail.classList.toggle('open'); });
 fileIn.addEventListener('change', () => { const fs = [...fileIn.files], role = st.importRole; fileIn.value = ''; st.importRole = 'essay'; if (fs.length) importFiles(fs, role); });
 $('#readerClose').addEventListener('click', closeReader);
 $('#readerOpen').addEventListener('click', () => { const d = readerDoc; closeReader(); if (d) openDoc(d); });
 reader.addEventListener('click', e => { if (e.target === reader) closeReader(); });
 document.addEventListener('pointerdown', e => {
-  if (!e.target.closest('.menu, #docBtn, #aiBtn')) closeMenus();
+  if (!e.target.closest('.menu, #docBtn, #aiBtn, #moreBtn')) closeMenus();
   if (!selbar.hidden && !e.target.closest('#selbar') && e.target !== ed) hideSelbar();
   if (!chipPop.hidden && !e.target.closest('#chipPop, .chip-src')) closePop();
 });
@@ -58,7 +60,8 @@ addEventListener('keydown', e => {
     else if (!reader.hidden) closeReader();
     else if (!chipPop.hidden) closePop();
     else if (!srcWrap.hidden) closeSources();
-    else if (!docMenu.hidden || !aiMenu.hidden) closeMenus();
+    else if (!docMenu.hidden || !aiMenu.hidden || !moreMenu.hidden) { const b = !docMenu.hidden ? docBtn : !aiMenu.hidden ? aiBtn : moreBtn; closeMenus(); b.focus(); }
+    else if (coach) { const tour = !!coach.step; closeCoach(); if (tour) markTour(); }
     else if (!selbar.hidden) hideSelbar();
     else if (SUB_MODES.includes(st.mode)) setMode('write');
     else if (st.mode === 'map' && st.mapSel) { st.mapSel = null; renderMap(); }

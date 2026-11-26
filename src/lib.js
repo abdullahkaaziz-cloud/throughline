@@ -1042,3 +1042,156 @@ function usageCost(v, price, cpt) {
 }
 // Nearest-rank percentile of numbers.
 function pctile(list, p) { const s = list.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.max(0, Math.ceil(p / 100 * s.length) - 1))] : 0; }
+
+// ---- essays out: Word files and formatted copies that keep headings, footnotes and reference lists ----
+// The editor holds plain paragraphs, so the parts are worked out from the text: headings (the ones a Word file came
+// in with, in heads, and short lines that read like headings), entries in a reference list, and footnotes written as
+// [1] in the text with a Notes section at the end.
+const HEAD_NAMES = /^(introduction|conclusion|conclusions|abstract|summary|background|literature review|method|methods|methodology|results|findings|discussion|analysis|references|reference list|bibliography|works cited|sources|literature cited|notes|footnotes|endnotes|appendix( [a-z0-9]+)?|acknowledg(e)?ments)$/i;
+const REF_HEAD = /^(references|reference list|bibliography|works cited|sources|literature cited)\s*:?$/i;
+const NOTE_HEAD = /^(notes|footnotes|endnotes)\s*:?$/i;
+function looksHeading(p, next) {
+  const t = String(p).trim(), named = HEAD_NAMES.test(t.replace(/\s*:$/, ''));
+  if (!t || t.length > 120 || words(t) > 14 || /^\[\d+\]/.test(t)) return false;
+  if (named) return true;
+  if (/[.!?;,:"”’)\]]$/.test(t) || !/^[\p{Lu}\d"“‘'(]/u.test(t)) return false;
+  return !!next && next.length > t.length;
+}
+// heads: [{t, l}] from an imported Word file. Returns [{kind: 'head'|'body'|'ref'|'note', level, text}].
+function essayParts(text, heads) {
+  const paras = textParas(text), known = new Map();
+  for (const x of Array.isArray(heads) ? heads : []) if (x && typeof x.t === 'string') known.set(x.t.trim(), x.l === 2 ? 2 : 1);
+  let sec = null;
+  return paras.map((p, i) => {
+    const kl = known.get(p), named = HEAD_NAMES.test(p.replace(/\s*:$/, ''));
+    // Inside a reference list or notes, only a named heading (or one the Word file had) ends it.
+    const head = kl != null || (sec ? named && looksHeading(p, paras[i + 1]) : looksHeading(p, paras[i + 1]));
+    if (!head) return {kind: sec || 'body', level: 0, text: p};
+    sec = REF_HEAD.test(p) ? 'ref' : NOTE_HEAD.test(p) ? 'note' : null;
+    return {kind: 'head', level: kl || (/^\d+\.\d+/.test(p) ? 2 : 1), text: p};
+  });
+}
+// Footnotes become real ones only when every [n] in the text has exactly one entry in the notes, and every entry a
+// marker. Returns the entries by number, or null to leave everything as written.
+function essayNotes(parts) {
+  const entries = new Map(), marks = new Set();
+  for (const x of parts) {
+    if (x.kind !== 'note') continue;
+    const m = x.text.match(/^\[?(\d{1,3})[\].):]?\s+([\s\S]+)$/);
+    if (!m || entries.has(+m[1])) return null;
+    entries.set(+m[1], m[2].trim());
+  }
+  for (const x of parts) if (x.kind === 'body' || x.kind === 'head') for (const m of x.text.matchAll(/\[(\d{1,3})\]/g)) marks.add(+m[1]);
+  if (!marks.size || marks.size !== entries.size || [...marks].some(n => !entries.has(n))) return null;
+  return entries;
+}
+const xmlEsc = s => String(s == null ? '' : s).replace(/[^\t\n\r\x20-퟿-�\u{10000}-\u{10FFFF}]/gu, '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// The files of a Word document, as text, by path: A4, Times New Roman 12 pt at 1.5 lines, headings, footnotes, and
+// reference entries with a hanging indent.
+function docxFiles(title, text, heads, when) {
+  const parts = essayParts(text, heads), notes = essayNotes(parts), W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const ids = new Map(), foot = [];
+  const run = s => s ? '<w:r><w:t xml:space="preserve">' + xmlEsc(s) + '</w:t></w:r>' : '';
+  const runs = s => {
+    if (!notes) return run(s);
+    let out = '', at = 0;
+    for (const m of s.matchAll(/ ?\[(\d{1,3})\]/g)) {
+      const n = +m[1];
+      if (!ids.has(n)) { ids.set(n, ids.size + 1); foot.push(notes.get(n)); }
+      out += run(s.slice(at, m.index)) + '<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="' + ids.get(n) + '"/></w:r>';
+      at = m.index + m[0].length;
+    }
+    return out + run(s.slice(at));
+  };
+  const para = (style, s) => '<w:p>' + (style ? '<w:pPr><w:pStyle w:val="' + style + '"/></w:pPr>' : '') + runs(s) + '</w:p>';
+  const body = [title ? para('Title', title) : ''];
+  for (const x of parts) {
+    if (notes && (x.kind === 'note' || (x.kind === 'head' && NOTE_HEAD.test(x.text)))) continue;
+    body.push(para(x.kind === 'head' ? 'Heading' + x.level : x.kind === 'ref' ? 'Bibliography' : '', x.text));
+  }
+  const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const rel = (id, type, target) => '<Relationship Id="' + id + '" Type="http://schemas.openxmlformats.org/' + type + '" Target="' + target + '"/>';
+  const style = (id, name, ppr, rpr, type) => '<w:style w:type="' + (type || 'paragraph') + '" w:styleId="' + id + '"><w:name w:val="' + name + '"/>' +
+    (type === 'character' ? '' : '<w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/>') + (ppr ? '<w:pPr>' + ppr + '</w:pPr>' : '') + (rpr ? '<w:rPr>' + rpr + '</w:rPr>' : '') + '</w:style>';
+  const sep = (type, id, tag) => '<w:footnote w:type="' + type + '" w:id="' + id + '"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:' + tag + '/></w:r></w:p></w:footnote>';
+  return {
+    '[Content_Types].xml': xml + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+      '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>' +
+      '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>',
+    '_rels/.rels': xml + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + rel('rId1', 'officeDocument/2006/relationships/officeDocument', 'word/document.xml') +
+      rel('rId2', 'package/2006/relationships/metadata/core-properties', 'docProps/core.xml') + '</Relationships>',
+    'docProps/core.xml': xml + '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
+      '<dc:title>' + xmlEsc(title) + '</dc:title><dcterms:created xsi:type="dcterms:W3CDTF">' + xmlEsc(when) + '</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">' + xmlEsc(when) + '</dcterms:modified></cp:coreProperties>',
+    'word/_rels/document.xml.rels': xml + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + rel('rId1', 'officeDocument/2006/relationships/styles', 'styles.xml') +
+      rel('rId2', 'officeDocument/2006/relationships/settings', 'settings.xml') + rel('rId3', 'officeDocument/2006/relationships/footnotes', 'footnotes.xml') + '</Relationships>',
+    'word/document.xml': xml + '<w:document xmlns:w="' + W + '" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>' + body.join('') +
+      '<w:sectPr><w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>',
+    'word/styles.xml': xml + '<w:styles xmlns:w="' + W + '"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="en-GB"/></w:rPr></w:rPrDefault>' +
+      '<w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="360" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>' +
+      '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>' +
+      style('Title', 'Title', '<w:jc w:val="center"/><w:spacing w:after="360"/>', '<w:b/><w:sz w:val="32"/><w:szCs w:val="32"/>') +
+      style('Heading1', 'heading 1', '<w:keepNext/><w:spacing w:before="360" w:after="120"/><w:outlineLvl w:val="0"/>', '<w:b/><w:sz w:val="28"/><w:szCs w:val="28"/>') +
+      style('Heading2', 'heading 2', '<w:keepNext/><w:spacing w:before="240" w:after="120"/><w:outlineLvl w:val="1"/>', '<w:b/><w:i/><w:sz w:val="24"/><w:szCs w:val="24"/>') +
+      style('Bibliography', 'Bibliography', '<w:ind w:left="720" w:hanging="720"/>') +
+      style('FootnoteText', 'footnote text', '<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>', '<w:sz w:val="20"/><w:szCs w:val="20"/>') +
+      style('FootnoteReference', 'footnote reference', '', '<w:vertAlign w:val="superscript"/>', 'character') + '</w:styles>',
+    'word/settings.xml': xml + '<w:settings xmlns:w="' + W + '"><w:defaultTabStop w:val="720"/><w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr>' +
+      '<w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>',
+    'word/footnotes.xml': xml + '<w:footnotes xmlns:w="' + W + '">' + sep('separator', -1, 'separator') + sep('continuationSeparator', 0, 'continuationSeparator') +
+      foot.map((t, i) => '<w:footnote w:id="' + (i + 1) + '"><w:p><w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr><w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r>' + run(' ' + t) + '</w:p></w:footnote>').join('') + '</w:footnotes>'};
+}
+// A zip file with its entries stored as they are (Word reads these): files is [[path, Uint8Array]].
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(files) {
+  const enc = new TextEncoder(), chunks = [], central = [];
+  let off = 0;
+  for (const [name, data] of files) {
+    const nb = enc.encode(name), crc = crc32(data), lh = new Uint8Array(30 + nb.length), v = new DataView(lh.buffer);
+    v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true); v.setUint16(12, 0x21, true);
+    v.setUint32(14, crc, true); v.setUint32(18, data.length, true); v.setUint32(22, data.length, true); v.setUint16(26, nb.length, true); lh.set(nb, 30);
+    const ch = new Uint8Array(46 + nb.length), w = new DataView(ch.buffer);
+    w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true); w.setUint16(8, 0x0800, true); w.setUint16(14, 0x21, true);
+    w.setUint32(16, crc, true); w.setUint32(20, data.length, true); w.setUint32(24, data.length, true); w.setUint16(28, nb.length, true); w.setUint32(42, off, true); ch.set(nb, 46);
+    chunks.push(lh, data); central.push(ch); off += lh.length + data.length;
+  }
+  const size = central.reduce((n, c) => n + c.length, 0), end = new Uint8Array(22), e = new DataView(end.buffer);
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, size, true); e.setUint32(16, off, true);
+  const out = new Uint8Array(off + size + 22);
+  let p = 0;
+  for (const x of chunks.concat(central, [end])) { out.set(x, p); p += x.length; }
+  return out;
+}
+function docxBytes(title, text, heads, when) {
+  const f = docxFiles(title, text, heads, when), enc = new TextEncoder();
+  return zipStore(Object.keys(f).map(k => [k, enc.encode(f[k])]));
+}
+// The same parts as HTML, for pasting into Word or Google Docs: notes become numbered superscripts and a list.
+function essayHtml(title, text, heads) {
+  const parts = essayParts(text, heads), notes = essayNotes(parts), esc = s => xmlEsc(s).replace(/'/g, '&#39;'), num = new Map(), list = [];
+  const inline = s => {
+    if (!notes) return esc(s);
+    let out = '', at = 0;
+    for (const m of s.matchAll(/ ?\[(\d{1,3})\]/g)) {
+      const n = +m[1];
+      if (!num.has(n)) { num.set(n, num.size + 1); list.push(notes.get(n)); }
+      out += esc(s.slice(at, m.index)) + '<sup>' + num.get(n) + '</sup>'; at = m.index + m[0].length;
+    }
+    return out + esc(s.slice(at));
+  };
+  const out = [title ? '<h1>' + esc(title) + '</h1>' : ''];
+  for (const x of parts) {
+    if (notes && (x.kind === 'note' || (x.kind === 'head' && NOTE_HEAD.test(x.text)))) continue;
+    out.push(x.kind === 'head' ? '<h' + (x.level + 1) + '>' + esc(x.text) + '</h' + (x.level + 1) + '>'
+      : x.kind === 'ref' ? '<p style="margin-left:0.5in;text-indent:-0.5in">' + esc(x.text) + '</p>' : '<p>' + inline(x.text) + '</p>');
+  }
+  if (notes && list.length) out.push('<h2>Notes</h2><ol>' + list.map(t => '<li>' + esc(t) + '</li>').join('') + '</ol>');
+  return out.join('');
+}
+// Headings an imported Word file came with, as kept with the essay.
+function cleanHeads(x) {
+  return (Array.isArray(x) ? x : []).slice(0, 200).map(h => plainObj(h)).filter(h => typeof h.t === 'string' && h.t.trim())
+    .map(h => ({t: h.t.trim().slice(0, 300), l: h.l === 2 ? 2 : 1}));
+}

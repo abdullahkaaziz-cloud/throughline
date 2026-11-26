@@ -12,6 +12,8 @@ function renderHead() {
     chipsEl.append(h('button', {class: 'chip', 'aria-pressed': String(st.filter === g), onclick: e => { e.stopPropagation(); st.filter = st.filter === g ? 'all' : g; st.active = null; renderBackdrop(); renderRail(); scheduleLines(); }},
       g !== 'all' ? h('span', {class: 'sw', html: SW[g]}) : null, label, h('span', {class: 'n'}, n)));
   }
+  chipsEl.append(h('button', {class: 'chip keychip', id: 'keyBtn', type: 'button', 'aria-pressed': String(!!st.showKey), title: 'What the lines mean',
+    onclick: e => { e.stopPropagation(); st.showKey = !st.showKey; renderRail(); }}, 'Key'));
 }
 function renderRail() {
   if (!st.cur) return;
@@ -26,6 +28,7 @@ function renderRail() {
   for (const a of st.asks.get(d.id) || []) kids.push(askEl(a));
   if (!rv) { if (!busy) kids.push(emptyEl()); }
   else {
+    if (st.showKey) kids.push(keyEl());
     kids.push(summaryEl(rv), timelineEl(d));
     const open = openIssues(), shown = open.filter(is => st.filter === 'all' || TYPES[is.type].g === st.filter);
     const done = rv.issues.filter(is => !isOpen(is));

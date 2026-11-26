@@ -13,10 +13,11 @@ function openDoc(d) {
   else if (st.mode === 'record') renderRecord();
   else if (st.mode === 'loom') renderLoom();
   else if (st.mode === 'build') renderBuild();
-  else if (st.mode === 'progress' || st.mode === 'inbox' || st.mode === 'usage') setMode('write');
+  else if (st.mode === 'progress' || st.mode === 'inbox' || st.mode === 'usage' || st.mode === 'help') setMode('write');
   if (!srcWrap.hidden) buildSources();
   updateTermCount();
   window.scrollTo(0, 0);
+  closeCoach(); maybeNudge();
 }
 function loadEditor() {
   const d = st.cur;
