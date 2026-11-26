@@ -24,6 +24,7 @@ const SW = {
   evid: '<svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true"><path d="M2 4H21" stroke="var(--evid)" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="0.1 4.4"/></svg>',
   clar: '<svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true"><path d="M1 2.5H21M1 5.5H21" stroke="var(--clar)" stroke-width="1.3"/></svg>',
   gram: '<svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true"><path d="M1 4H21" stroke="var(--gram)" stroke-width="1.5"/></svg>',
+  tension: '<svg width="22" height="8" viewBox="0 0 22 8" aria-hidden="true"><path d="M1 4H21" stroke="var(--rel)" stroke-width="2" stroke-dasharray="4 3"/></svg>',
 };
 const SEVR = {high: 0, medium: 1, low: 2};
 const ASKS = {
@@ -117,7 +118,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const ed = $('#ed'), back = $('#backdrop'), gut = $('#gutter'), paper = $('#paper'), titleIn = $('#title'), metaEl = $('#meta');
 const rail = $('#rail'), rbody = $('#rbody'), chipsEl = $('#chips'), rcount = $('#rcount'), selbar = $('#selbar'), selq = $('#selq');
 const toastEl = $('#toast'), fileIn = $('#file'), reviewBtn = $('#reviewBtn'), docBtn = $('#docBtn'), aiBtn = $('#aiBtn');
-const docMenu = $('#docMenu'), aiMenu = $('#aiMenu'), reader = $('#reader'), dropEl = $('#drop');
+const docMenu = $('#docMenu'), aiMenu = $('#aiMenu'), moreMenu = $('#moreMenu'), moreBtn = $('#moreBtn'), reader = $('#reader'), dropEl = $('#drop');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const coarse = matchMedia('(pointer: coarse)').matches;
 const narrow = matchMedia('(max-width: 1000px)');
@@ -127,7 +128,7 @@ if (ios) { back.style.paddingLeft = '3px'; back.style.paddingRight = '3px'; }
 
 const st = {docs: new Map(), cur: null, filter: 'all', active: null, hover: null, anchors: new Map(), pstarts: [],
   asks: new Map(), askHover: null, reviewing: null, reviewError: null, tier: 'complex', store: 'none', importRole: 'essay', indexing: new Map(), supHi: null, view: 'notes', argRun: null, argErr: null, argHover: [], argSel: [], argHere: 0, mode: 'write', ideaRun: null, ideaErr: null, dragId: null, focusAdd: null, tlSel: -1, cmp: null, rmap: null, mapRun: null, mapErr: null, mapSel: null, mapFilter: 'all', viva: null, vivaStyle: 'tutor', vivaN: 5, vivaVoice: true, vivaView: null, dict: null, dictOn: false, tts: null, dl: null,
-  growth: null, habitRun: null, habitErr: null, settings: null, usage: null, usageMine: false, usageOff: false,
+  growth: null, habitRun: null, habitErr: null, settings: null, usage: null, usageMine: false, usageOff: false, showKey: false,
   loaded: false, touched: false, isOwner: false, ai: 'pending', aiWhy: '', tiers: null, sel: null, lastSig: '', readOnly: false, saveText: ''};
 let sampleFn = null, col = null;
 try { const p = JSON.parse(localStorage.getItem(PKEY) || '{}'); if (p.tier === 'default' || p.tier === 'complex') st.tier = p.tier; } catch (e) {}

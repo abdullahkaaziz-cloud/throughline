@@ -7,13 +7,14 @@ import vm from 'node:vm';
 
 const root = new URL('../', import.meta.url);
 const read = p => readFileSync(new URL(p, root), 'utf8');
-const ctx = vm.createContext({});
+const ctx = vm.createContext({TextEncoder});
 vm.runInContext(read('src/lib.js') + `
 this.L = {reflow, tidyText, anchorFuzzy, anchorExact, wordDiff, paraStarts, paraIndex, safeId, clip, cleanFlags,
   fence, planContext, validateIndex, parseReview, validateArgmap, validateIdeas, textParas, paraHash, noteKey, gist, alignParas, compareNotes, recheckPlan, validateRmap, validateExam, validateJudge, validateHabits, hash, words,
   termKey, termText, termTokens, termFind, termSame, termFit, termMatches, termWays, termGroups, validateTerms, cleanTermRules, cleanTermCache,
   cleanGrow, growNext, growReasons, validateGrowQ, validateLoom, loomFacts, cleanLoom, validateBuild, buildSteps, buildIdeal, cleanBuild,
-  cleanUsage, usageMerge, weekOf, lastWeeks, activeWeeks, usageSum, usageCost, pctile};`, ctx);
+  cleanUsage, usageMerge, weekOf, lastWeeks, activeWeeks, usageSum, usageCost, pctile,
+  essayParts, essayNotes, docxFiles, docxBytes, zipStore, crc32, essayHtml, cleanHeads};`, ctx);
 const L = ctx.L;
 const J = x => JSON.parse(JSON.stringify(x)); // values from the vm realm, compared as plain data
 
@@ -591,4 +592,56 @@ test('pctile takes the nearest rank', () => {
   assert.equal(L.pctile([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 90), 9);
   assert.equal(L.pctile([4], 90), 4);
   assert.equal(L.pctile([], 50), 0);
+});
+
+// ---- essays out ----
+const ESSAY_OUT = ['Introduction', 'Remote work changed offices after 2020 [1]. This essay asks whether it should become the default.',
+  'Why offices still matter', 'Teams that meet in person mentor junior staff faster [2]. That cost is real & it matters < "more".',
+  '2.1 A closer look', 'Mentoring is slower over video calls, though not impossible.', 'A short line that is just text.',
+  'Notes', '[1] Office attendance figures are from national surveys.', '[2] See the surveys below.',
+  'References', 'Bloom, N. (2021) How working from home works out', 'World Bank 2022'].join('\n\n');
+test('essayParts finds headings, reference entries and notes from plain paragraphs', () => {
+  const parts = J(L.essayParts(ESSAY_OUT, [])).map(p => p.kind + (p.level || ''));
+  assert.deepEqual(parts, ['head1', 'body', 'head1', 'body', 'head2', 'body', 'body', 'head1', 'note', 'note', 'head1', 'ref', 'ref']);
+  // A heading the Word file had is a heading even when it reads like a sentence.
+  assert.equal(J(L.essayParts('Is remote work better?\n\nA paragraph that follows the question heading here.', [{t: 'Is remote work better?', l: 2}]))[0].kind, 'head');
+  assert.equal(J(L.essayParts('Is remote work better?\n\nA paragraph that follows the question heading here.', []))[0].kind, 'body');
+});
+test('essayNotes turns [n] markers into footnotes only when markers and entries match', () => {
+  assert.deepEqual(J([...L.essayNotes(L.essayParts(ESSAY_OUT, []))]), [[1, 'Office attendance figures are from national surveys.'], [2, 'See the surveys below.']]);
+  assert.equal(L.essayNotes(L.essayParts(ESSAY_OUT.replace(' [2]', ''), [])), null);       // an entry with no marker
+  assert.equal(L.essayNotes(L.essayParts(ESSAY_OUT.replace('[2] See', '[3] See'), [])), null);
+  assert.equal(L.essayNotes(L.essayParts('As shown in [1], it works.\n\nReferences\n\n[1] A. Smith, A paper.', [])), null);   // numbered references stay as written
+});
+test('a Word file keeps the title, headings, real footnotes and the reference list', async () => {
+  const f = L.docxFiles('Should <remote> work be the default?', ESSAY_OUT, [], '2026-11-26T12:00:00Z');
+  assert.match(f['word/document.xml'], /<w:pStyle w:val="Title"\/><\/w:pPr><w:r><w:t xml:space="preserve">Should &lt;remote&gt; work be the default\?/);
+  assert.equal((f['word/document.xml'].match(/<w:footnoteReference w:id="\d"\/>/g) || []).length, 2);
+  assert.ok(!f['word/document.xml'].includes('[1]') && !f['word/document.xml'].includes('Office attendance'));
+  assert.equal((f['word/document.xml'].match(/w:val="Bibliography"/g) || []).length, 2);
+  assert.match(f['word/footnotes.xml'], /<w:footnote w:id="1">.*Office attendance figures/);
+  const mammoth = (await import('mammoth')).default;
+  const html = (await mammoth.convertToHtml({buffer: Buffer.from(L.docxBytes('Title', ESSAY_OUT, [], '2026-11-26T12:00:00Z'))})).value;
+  assert.match(html, /<h1>Introduction<\/h1>/);
+  assert.match(html, /<h2>2.1 A closer look<\/h2>/);
+  assert.match(html, /2020<sup><a href="#footnote-1"/);
+  assert.match(html, /<li id="footnote-2"><p> See the surveys below\./);
+  assert.match(html, /That cost is real &amp; it matters &lt; "more"\./);
+});
+test('zipStore writes entries a zip reader can check', () => {
+  const z = L.zipStore([['a.txt', new TextEncoder().encode('hello')]]);
+  assert.equal(L.crc32(new TextEncoder().encode('hello')), 0x3610a686);
+  assert.deepEqual([...z.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.deepEqual([...z.slice(-22, -18)], [0x50, 0x4b, 0x05, 0x06]);
+});
+test('essayHtml escapes text and numbers footnotes as superscripts with a list', () => {
+  const html = L.essayHtml('A <b>title</b>', ESSAY_OUT, []);
+  assert.ok(html.startsWith('<h1>A &lt;b&gt;title&lt;/b&gt;</h1><h2>Introduction</h2>'));
+  assert.match(html, /2020<sup>1<\/sup>\./);
+  assert.match(html, /<h2>Notes<\/h2><ol><li>Office attendance figures are from national surveys\.<\/li><li>See the surveys below\.<\/li><\/ol>$/);
+  assert.match(html, /<p style="margin-left:0.5in;text-indent:-0.5in">World Bank 2022<\/p>/);
+});
+test('cleanHeads keeps headings as short text with level 1 or 2', () => {
+  assert.deepEqual(J(L.cleanHeads([{t: ' Intro ', l: 1}, {t: 'Sub', l: 7}, {t: ''}, 'x', {t: 5}, {t: 'x'.repeat(400), l: 2}])),
+    [{t: 'Intro', l: 1}, {t: 'Sub', l: 1}, {t: 'x'.repeat(300), l: 2}]);
 });

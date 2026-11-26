@@ -966,3 +966,34 @@ button.gstem:hover{background:color-mix(in srgb,var(--ink) 88%,var(--paper))}
 .rtable tr.tot td{font-weight:600;border-top:1px solid var(--line2)}
 .rtable .tag{margin-left:6px;font-size:12px}
 .usage .tog{margin:0 0 22px}
+/* More: occasional tools, help and settings */
+.morebtn{color:var(--ink2);padding:0 10px}
+@media (max-width:760px){.morebtn .morelabel{display:none}}
+.offscreen{position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0}
+/* the guided first review */
+.coach{position:fixed;z-index:60;width:min(340px,calc(100vw - 16px));display:grid;gap:8px;padding:14px 16px;border-radius:12px;background:var(--paper);color:var(--ink);border:1px solid var(--line2);box-shadow:0 10px 30px var(--sh)}
+.coach.free{left:8px!important;right:8px;top:70px!important;width:auto}
+.coach .chd{display:grid;gap:2px}
+.coach .chd b{font-size:15px}
+.coach .cstep{font-size:12px;color:var(--ink3)}
+.coach .cbody p{margin:0;font-size:14px;line-height:1.5;color:var(--ink2)}
+.coach .cbody .legend{margin:8px 0 0}
+.coach .cacts{display:flex;gap:6px;flex-wrap:wrap}
+/* the key to the lines */
+.keychip{margin-left:auto}
+.keybox{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+.keybox .khead{display:flex;align-items:center;justify-content:space-between}
+.keybox .legend{margin:0}
+.keyl li{align-items:baseline}
+/* help */
+.hgrid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.hitem{display:grid;align-content:start;gap:6px;padding:14px 16px;border:1px solid var(--line);border-radius:12px}
+.hitem h4{margin:0;font-size:15px}
+.hitem p{margin:0;font-size:14px;line-height:1.5;color:var(--ink2)}
+.hclip{margin-top:4px}
+.hclip video{display:block;width:100%;border-radius:8px;background:#000}
+.hkeys{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:14px}
+.hkeys li{display:flex;gap:10px;align-items:baseline}
+kbd{display:inline-block;min-width:28px;padding:1px 6px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:6px;font:500 12.5px/1.6 Inter,system-ui,sans-serif;text-align:center;color:var(--ink);background:var(--hover);white-space:nowrap}
+.hitem.playing{grid-column:1/-1}
+.hitem.playing video{max-width:900px}

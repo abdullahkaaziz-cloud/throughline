@@ -5,7 +5,7 @@ const newId = () => 'e' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g,
 function makeDoc(title, text, role) {
   const now = Date.now();
   return {id: newId(), role: role === 'source' ? 'source' : 'essay', title: title || '', text: text || '', review: null,
-    marks: Object.create(null), rates: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, plan: null, history: null, defences: null, activity: null, terms: null, grow: null, loom: null, build: null, createdAt: now, updatedAt: now};
+    marks: Object.create(null), rates: Object.create(null), brief: null, use: Object.create(null), index: null, argmap: null, plan: null, history: null, defences: null, activity: null, terms: null, grow: null, loom: null, build: null, heads: null, createdAt: now, updatedAt: now};
 }
 function makeSample() {
   return Object.assign(makeDoc('Should remote work become the default?', SAMPLE_TEXT),
@@ -18,7 +18,7 @@ function sourceDocs() { return sortedDocs().filter(d => d.role === 'source'); }
 function serial(d) {
   const body = {kind: 'doc', v: 2, role: d.role === 'source' ? 'source' : 'essay', title: d.title || '', text: d.text || '',
     review: d.review || null, marks: Object.assign({}, d.marks), rates: Object.assign({}, d.rates), brief: d.brief || null, use: Object.assign({}, d.use),
-    index: d.index || null, argmap: null, plan: d.plan || null, history: null, defences: null, activity: null, terms: d.terms || null, grow: d.grow || null, loom: d.loom || null, build: d.build || null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
+    index: d.index || null, argmap: null, plan: d.plan || null, history: null, defences: null, activity: null, terms: d.terms || null, grow: d.grow || null, loom: d.loom || null, build: d.build || null, heads: d.heads && d.heads.length ? d.heads : null, createdAt: d.createdAt || 0, updatedAt: d.updatedAt || 0};
   // The writing record, vivas, drafts and the argument map go in as far as there's room, so a long essay never becomes too big to save:
   // vivas and drafts keep their verdicts and notes before their text, and the argument map, which can be rebuilt,
   // comes last.
@@ -187,7 +187,7 @@ function fromStored(id, x) {
   if (!x || (x.kind !== 'doc' && x.kind !== 'essay') || typeof x.text !== 'string' || !safeId(id)) return null;
   return {id, role: x.role === 'source' ? 'source' : 'essay', title: clip(x.title, 300), text: x.text.slice(0, LIMITS.docChars),
     review: cleanReview(x.review), marks: cleanFlags(x.marks, ['dismissed', 'applied']), rates: cleanFlags(x.rates, RATE_VALUES), brief: cleanBrief(x.brief),
-    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), plan: cleanPlan(x.plan), history: cleanHistory(x.history), defences: cleanDefences(x.defences), activity: x.activity ? cleanActivity(x.activity) : null, terms: x.terms ? cleanTermCache(x.terms) : null, grow: x.grow ? cleanGrow(x.grow) : null, loom: x.loom ? cleanLoom(x.loom, textParas(x.text)) : null, build: x.build ? cleanBuild(x.build, textParas(x.text)) : null, createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
+    use: cleanFlags(x.use), index: cleanIndex(x.index), argmap: cleanArgmap(x.argmap), plan: cleanPlan(x.plan), history: cleanHistory(x.history), defences: cleanDefences(x.defences), activity: x.activity ? cleanActivity(x.activity) : null, terms: x.terms ? cleanTermCache(x.terms) : null, grow: x.grow ? cleanGrow(x.grow) : null, loom: x.loom ? cleanLoom(x.loom, textParas(x.text)) : null, build: x.build ? cleanBuild(x.build, textParas(x.text)) : null, heads: x.heads ? cleanHeads(x.heads) : null, createdAt: +x.createdAt || 0, updatedAt: +x.updatedAt || 0};
 }
 function ensureReal(d) {
   if (!d.unsaved) return d;

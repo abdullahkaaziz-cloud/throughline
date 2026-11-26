@@ -148,6 +148,7 @@ async function runReview(how) {
     st.tlSel = -1; d.updatedAt = Date.now();
     persist(d, 0);
     const n = d.review.issues.length;
+    maybeTour(d);
     toast(plan ? 'Re-checked ' + plural(plan.changed.length, 'changed paragraph') + ' · ' + plural(n, 'note') : n ? plural(n, 'note') + ' on “' + trunc(d.title || 'your essay', 40) + '”' : 'No problems found.');
   } catch (err) {
     if (!(err && err.code === 'cancelled')) { st.reviewError = {doc: d, err}; noteAiError(err); }

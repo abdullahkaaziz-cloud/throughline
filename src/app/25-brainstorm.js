@@ -13,16 +13,17 @@ const headingFrom = t => trunc(String(t || '').replace(/\s+/g, ' ').replace(/[.!
 // Plan shows the board, Write the essay, Compare (opened from the drafts strip) two drafts side by side, and Map
 // the whole library.
 // Defend it (opened from the notes or the argument map) is a viva on the open essay.
-const SUB_MODES = ['compare', 'defend', 'record', 'progress', 'inbox', 'loom', 'build', 'usage'];
+const SUB_MODES = ['compare', 'defend', 'record', 'progress', 'inbox', 'loom', 'build', 'usage', 'help'];
 function setMode(m) {
-  if (!['plan', 'write', 'compare', 'map', 'defend', 'record', 'progress', 'inbox', 'loom', 'build', 'usage'].includes(m)) return;
+  if (!['plan', 'write', 'compare', 'map', 'defend', 'record', 'progress', 'inbox', 'loom', 'build', 'usage', 'help'].includes(m)) return;
+  if (m !== st.mode) closeCoach();
   if (st.mode === 'defend' && m !== 'defend') { hush(); stopDictation(); }
   if (st.mode === 'plan' && m !== 'plan') stopDictation();
   st.mode = m;
   layoutEl.classList.toggle('planning', m === 'plan');
   layoutEl.classList.toggle('comparing', SUB_MODES.includes(m));
   layoutEl.classList.toggle('mapping', m === 'map');
-  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend'; recEl.hidden = m !== 'record'; progEl.hidden = m !== 'progress'; inboxEl.hidden = m !== 'inbox'; loomEl.hidden = m !== 'loom'; buildEl.hidden = m !== 'build'; usageEl.hidden = m !== 'usage';
+  boardEl.hidden = m !== 'plan'; cmpEl.hidden = m !== 'compare'; mapEl.hidden = m !== 'map'; defEl.hidden = m !== 'defend'; recEl.hidden = m !== 'record'; progEl.hidden = m !== 'progress'; inboxEl.hidden = m !== 'inbox'; loomEl.hidden = m !== 'loom'; buildEl.hidden = m !== 'build'; usageEl.hidden = m !== 'usage'; helpEl.hidden = m !== 'help';
   for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === (SUB_MODES.includes(m) ? 'write' : m)));
   hideSelbar(); closePop();
   if (m === 'plan') { closeSheet(); renderBoard(); window.scrollTo(0, 0); }
@@ -35,6 +36,7 @@ function setMode(m) {
   else if (m === 'loom') { closeSheet(); renderLoom(); window.scrollTo(0, 0); }
   else if (m === 'build') { closeSheet(); renderBuild(); window.scrollTo(0, 0); }
   else if (m === 'usage') { closeSheet(); renderUsage(); window.scrollTo(0, 0); }
+  else if (m === 'help') { closeSheet(); renderHelp(); window.scrollTo(0, 0); }
   else { fitTitle(); refresh(); }
 }
 function savePlan() { const d = ensureReal(st.cur); planOf(d).at = Date.now(); d.updatedAt = Date.now(); persist(d); }

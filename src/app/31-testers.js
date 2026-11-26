@@ -118,7 +118,7 @@ function watchTesters() {
       }
       st.inbox = list.sort((a, b) => b.items[b.items.length - 1].at - a.items[a.items.length - 1].at);
       st.usage = uses;
-      renderInbox(); renderUsage(); if (!docMenu.hidden) renderDocMenu();
+      renderInbox(); renderUsage(); if (!moreMenu.hidden) renderMoreMenu();
     }, () => { st.inbox = []; st.usage = []; st.inboxErr = true; st.usageErr = true; renderInbox(); renderUsage(); });
   } catch (e) { st.inbox = []; st.usage = []; st.inboxErr = true; st.usageErr = true; }
 }
