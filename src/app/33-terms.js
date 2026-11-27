@@ -88,7 +88,7 @@ function removeRule(id) {
   const R = st.termRules, r = R && R.rules.find(x => x.id === id); if (!r) return;
   R.rules = R.rules.filter(x => x !== r);
   termsChanged();
-  toast('Stopped checking “' + trunc(r.keep, 40) + '”.');
+  toast('Stopped checking “' + trunc(r.keep, 40) + '”.', () => { if (!st.termRules || st.termRules.rules.includes(r)) return; st.termRules.rules.unshift(r); termsChanged(); });
 }
 
 // ---- the tab ----
@@ -107,7 +107,7 @@ function scheduleTerms() {
 function renderTerms() {
   const d = st.cur, keep = rbody.scrollTop;
   if (d.role === 'source') {
-    fill(rbody, h('section', {class: 'empty'}, h('h3', null, 'Terms'), h('p', null, 'Terms are checked in your essays. A source stays as its author wrote it.')));
+    fill(rbody, h('section', {class: 'empty'}, h('h2', null, 'Terms'), h('p', null, 'Terms are checked in your essays. A source stays as its author wrote it.')));
     return;
   }
   const marks = termMarks(), found = foundGroups(), rules = termList(), kids = [], by = new Map();
@@ -115,11 +115,11 @@ function renderTerms() {
   if (st.termErr && st.termErr.doc === d) kids.push(h('section', {class: 'errc', role: 'alert'}, h('b', null, 'The check didn’t finish'),
     h('p', null, errText(st.termErr.err)), isHard(st.termErr.err) ? null : h('button', {class: 'btn sm', type: 'button', onclick: runTerms}, 'Try again')));
   for (const m of marks) { let a = by.get(m.ri); if (!a) by.set(m.ri, a = []); a.push(m); }
-  if (by.size) kids.push(h('h3', {class: 'tmsec'}, 'Your terms, written another way'), [...by].map(([ri, ms]) => termRuleCard(rules[ri], ms)));
-  if (found.length) kids.push(h('h3', {class: 'tmsec'}, 'Written more than one way'), found.map(termFoundCard));
+  if (by.size) kids.push(h('h2', {class: 'tmsec'}, 'Your terms, written another way'), [...by].map(([ri, ms]) => termRuleCard(rules[ri], ms)));
+  if (found.length) kids.push(h('h2', {class: 'tmsec'}, 'Written more than one way'), found.map(termFoundCard));
   if (!by.size && !found.length && !(st.termRun && st.termRun.doc === d)) kids.push(rules.length
-    ? h('section', {class: 'empty'}, h('h3', null, 'Each term is written one way'), h('p', null, 'Your terms are written as you keep them, and nothing else is written two ways.'))
-    : h('section', {class: 'empty'}, h('h3', null, 'Write each term one way'),
+    ? h('section', {class: 'empty'}, h('h2', null, 'Each term is written one way'), h('p', null, 'Your terms are written as you keep them, and nothing else is written two ways.'))
+    : h('section', {class: 'empty'}, h('h2', null, 'Write each term one way'),
       h('p', null, 'Throughline looks for terms you’ve written more than one way, like “e-mail” and “email”. Choose the way to keep, and the others are marked in blue as you write.')));
   kids.push(termFindEl(d), termAddEl(), termAllEl());
   fill(rbody, kids);
@@ -278,7 +278,7 @@ function termProgressEl() {
 function termFindEl(d) {
   const c = d.terms, off = st.ai === 'denied' || st.ai === 'off', fresh = c && c.sig === hash(ed.value);
   return h('section', {class: 'tmfind'},
-    h('h3', {class: 'tmsec'}, 'Different words, one idea'),
+    h('h2', {class: 'tmsec'}, 'Different words, one idea'),
     h('p', null, !c ? 'Claude can look for ideas you’ve given more than one name, like “remote work” and “working from home”, which a reader may take for different things.'
       : 'Checked ' + ago(c.at) + (fresh ? (c.groups.length ? '.' : ': each idea has one name.') : ', before your latest changes.')),
     off ? h('p', {class: 'tmnote'}, st.aiWhy || 'AI isn’t available in this view.')

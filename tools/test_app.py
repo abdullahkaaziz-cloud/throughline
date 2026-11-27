@@ -963,6 +963,233 @@ with sync_playwright() as p:
     mp.click('#moreBtn'); mp.wait_for_timeout(200); mp.click('#menuHelp'); mp.wait_for_timeout(300)
     check('mobile: Help fits the screen', ev(mp, "document.documentElement.scrollWidth <= innerWidth + 1"))
     mctx.close()
+    nctx2 = browser.new_context(viewport={'width': 1280, 'height': 900}); route(nctx2); nctx2.add_init_script(MOCK)
+    nctx2.route('**/dist/help/**', lambda r: r.fulfill(status=404, body=''))
+    np2 = nctx2.new_page(); watch(np2, 'no-clips')
+    np2.goto(URL); np2.wait_for_timeout(900)
+    np2.click('#moreBtn'); np2.wait_for_timeout(200); np2.click('#menuHelp'); np2.wait_for_timeout(600)
+    check('without the clips published, Help still explains everything, with no Watch buttons', ev(np2, "document.querySelectorAll('#help .hitem').length") == 17 and ev(np2, "document.querySelectorAll('#help .hclip').length") == 0)
+    nctx2.close()
+
+    # 13g. reliability: undo, saves that fail and come back, plain errors; review quality: length, the last review's notes
+    rctx = browser.new_context(viewport={'width': 1280, 'height': 900}); route(rctx)
+    rctx.add_init_script("window.__persistDb = true;"); rctx.add_init_script(MOCK)
+    rp = rctx.new_page(); watch(rp, 'reliable')
+    rp.goto(URL); rp.wait_for_timeout(1000)
+    rp.click('.card .cbtn >> nth=0'); rp.wait_for_timeout(250)
+    rp.click('.card.on .cmore button:has-text("Dismiss")'); rp.wait_for_timeout(250)
+    check('dismissing a note offers Undo', 'Dismissed.' in ev(rp, "document.getElementById('toast').textContent") and ev(rp, "document.querySelectorAll('.card').length") == 7)
+    rp.click('#toast .tundo'); rp.wait_for_timeout(250)
+    check('and Undo brings it back', ev(rp, "document.querySelectorAll('.card').length") == 8)
+    rp.click('.card:has-text("Irregardless") .cbtn'); rp.wait_for_timeout(250)
+    rp.click('.card.on .sugg button'); rp.wait_for_timeout(300)
+    check('applying a suggestion offers Undo', ev(rp, "document.getElementById('ed').value.includes('Companies regardless of size')") and 'Applied.' in ev(rp, "document.getElementById('toast').textContent"))
+    rp.click('#toast .tundo'); rp.wait_for_timeout(300)
+    check('and Undo puts the words back and reopens the note', ev(rp, "document.getElementById('ed').value.includes('Companies irregardless of size')") and ev(rp, "document.querySelectorAll('.card').length") == 8)
+    rp.click('#docBtn'); rp.wait_for_timeout(200); rp.click('#menuNew'); rp.wait_for_timeout(300)
+    rp.keyboard.type('Keep me'); set_text(rp, DRAFT_ESSAY); rp.wait_for_timeout(1300)
+    rp.click('#docBtn'); rp.wait_for_timeout(200)
+    rp.click('#docMenu .mi:has-text("Keep me") .del'); rp.click('#docMenu .mi:has-text("Keep me") .del'); rp.wait_for_timeout(400)
+    check('deleting an essay offers Undo', 'Deleted “Keep me”.' in ev(rp, "document.getElementById('toast').textContent") and not ev(rp, "window.__dbDump().some(d => d.title === 'Keep me')"))
+    rp.click('#toast .tundo'); rp.wait_for_timeout(500)
+    check('and Undo restores it, saved', ev(rp, "window.__dbDump().some(d => d.title === 'Keep me' && d.text.startsWith('Libraries should stay open'))") and ev(rp, "document.getElementById('title').value") == 'Keep me')
+    ev(rp, "window.__dbFail = 1")
+    ev(rp, "() => { const ed = document.getElementById('ed'); ed.value = ed.value + ' One more sentence.'; ed.dispatchEvent(new Event('input', {bubbles: true})); }"); rp.wait_for_timeout(1300)
+    check('a failed save says it will try again, and keeps a copy in the browser', 'trying again' in ev(rp, "document.getElementById('save').textContent")
+      and 'One more sentence.' in ev(rp, "localStorage.getItem('throughline.unsaved.v1') || ''"))
+    rp.wait_for_timeout(5500)
+    check('then saves on its own, and drops the copy', ev(rp, "document.getElementById('save').textContent") == 'Saved' and ev(rp, "window.__dbDump().some(d => d.text && d.text.endsWith('One more sentence.'))")
+      and 'One more sentence.' not in ev(rp, "localStorage.getItem('throughline.unsaved.v1') || ''"))
+    keep_id = ev(rp, "window.__dbDump().length && Object.keys(JSON.parse(sessionStorage.getItem('__mockDb')).reduce((o, [p]) => (o[p] = 1, o), {})).find(p => p.startsWith('data/users/u_test/') && JSON.parse(sessionStorage.getItem('__mockDb')).find(([q, v]) => q === p && v.title === 'Keep me'))")
+    ev(rp, "([p, t]) => { const id = p.split('/').pop(); const rec = JSON.parse(sessionStorage.getItem('__mockDb')).find(([q]) => q === p)[1]; rec.text = t; rec.updatedAt = Date.now() + 60000; localStorage.setItem('throughline.unsaved.v1', JSON.stringify({[id]: rec})); }", [keep_id, DRAFT_ESSAY + '\n\nWritten while offline.'])
+    rp.reload(); rp.wait_for_timeout(1500)
+    check('changes that never saved come back when the page opens again', 'Restored changes that hadn’t saved.' in ev(rp, "document.getElementById('toast').textContent")
+      and ev(rp, "window.__dbDump().some(d => d.title === 'Keep me' && d.text.endsWith('Written while offline.'))"))
+    rp.click('#docBtn'); rp.wait_for_timeout(200); rp.click('#docMenu .mi:has-text("Keep me")'); rp.wait_for_timeout(300)
+    ev(rp, "window.__failNext = 'timeout'"); rp.click('#reviewBtn'); rp.wait_for_timeout(900)
+    check('a review that times out says so plainly', 'took too long' in ev(rp, "(document.querySelector('.errc') || {}).textContent || ''"))
+    rp.click('#reviewBtn'); rp.wait_for_timeout(2600)
+    first = ev(rp, "window.__calls.filter(c => c.review).slice(-1)[0]")
+    check('a review tells Claude how long the essay is', first and first['lengthLine'] == str(len(ev(rp, "document.getElementById('ed').value").split())) and not first['lastNotes'], first and first['lengthLine'])
+    rp.click('.card .cbtn >> nth=0'); rp.wait_for_timeout(200); rp.click('.card.on .cmore button:has-text("Dismiss")'); rp.wait_for_timeout(200)
+    rp.click('#reviewBtn'); rp.wait_for_timeout(2600)   # the same text again: a full review, which should agree with the first
+    second = ev(rp, "window.__calls.filter(c => c.review).slice(-1)[0]")
+    check('a second review carries the first one’s notes, the dismissed ones apart, fenced', second and second['lastNotes'] and second['dismissedNotes'] and second['notesClose'] == 2 and not second['recheck'], second)
+    rctx.close()
+    # a 10,000-word essay: reviewed, quick to type in, and saved
+    random_words = 'policy evidence workers remote office study productivity mentoring junior managers survey data growth cost budget council library evening students housing transport carbon emissions argument reason claim source journal results method sample trial effect change rate level public private sector national local region city town market price wage tax service health school teacher learning skill time week month year'.split()
+    import random as _r; _r.seed(7)
+    def _para(n):
+        out = []
+        while sum(len(x.split()) for x in out) < n:
+            k = _r.randint(12, 22); x = ' '.join(_r.choice(random_words) for _ in range(k)); out.append(x[0].upper() + x[1:] + '.')
+        return ' '.join(out)
+    LONG = '\n\n'.join(_para(100) for _ in range(100))
+    lctx2 = browser.new_context(viewport={'width': 1280, 'height': 900}); route(lctx2); lctx2.add_init_script(MOCK)
+    lp2 = lctx2.new_page(); watch(lp2, 'long')
+    lp2.goto(URL); lp2.wait_for_timeout(900)
+    lp2.click('#docBtn'); lp2.wait_for_timeout(200); lp2.click('#menuNew'); lp2.wait_for_timeout(300)
+    lp2.keyboard.type('A long essay'); set_text(lp2, LONG); lp2.click('#reviewBtn'); lp2.wait_for_timeout(3500)
+    check('a 10,000-word essay is reviewed and its notes placed', ev(lp2, "document.querySelectorAll('.card').length") >= 4 and len(LONG.split()) > 10000)
+    lat = ev(lp2, """() => { const ed = document.getElementById('ed'); ed.focus(); ed.setSelectionRange(ed.value.length / 2, ed.value.length / 2); const t = [];
+      for (let i = 0; i < 20; i++) { const a = performance.now(); ed.setRangeText('x', ed.selectionStart, ed.selectionStart, 'end'); ed.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: 'x'})); t.push(performance.now() - a); }
+      return t.reduce((s, x) => s + x, 0) / t.length; }""")
+    check('typing in it stays quick', lat < 60, round(lat, 1))
+    lp2.wait_for_timeout(1500)
+    check('and it saves, under the size limit', ev(lp2, "document.getElementById('save').textContent") == 'Saved' and ev(lp2, "JSON.stringify(window.__dbDump().filter(d => d.title === 'A long essay')[0]).length") < 250000)
+    lctx2.close()
+    # accessibility: axe finds nothing in the main views, in both themes
+    AXE = open(NM + '/axe-core/axe.min.js').read()
+    def axe(pg, label):
+        pg.add_script_tag(content=AXE)
+        v = ev(pg, "axe.run(document, {resultTypes: ['violations'], runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']}}).then(r => r.violations.map(v => v.id + ' (' + v.impact + '): ' + v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(', ')))")
+        return label + ': ' + ('; '.join(v) if v else 'none')
+    for theme in ['light', 'dark']:
+        actx = browser.new_context(viewport={'width': 1280, 'height': 900}, color_scheme=theme); route(actx); actx.add_init_script(MOCK)
+        ap = actx.new_page(); watch(ap, 'axe-' + theme)
+        ap.goto(URL); ap.wait_for_timeout(1000)
+        found = [axe(ap, 'notes')]
+        ap.click('.card .cbtn >> nth=0'); ap.wait_for_timeout(200); ap.click('#keyBtn'); ap.wait_for_timeout(200); found.append(axe(ap, 'an open note and the key'))
+        for btn, label in [('#docBtn', 'essay menu'), ('#moreBtn', 'More'), ('#aiBtn', 'AI menu')]:
+            ap.click(btn); ap.wait_for_timeout(200); found.append(axe(ap, label)); ap.keyboard.press('Escape'); ap.wait_for_timeout(100)
+        for tab, label in [('#tabArg', 'Argument tab'), ('#tabTerms', 'Terms tab')]:
+            ap.click(tab); ap.wait_for_timeout(300); found.append(axe(ap, label))
+        ap.click('#tabNotes')
+        for mode in ['plan', 'map']:
+            ap.click('.mode[data-mode=' + mode + ']'); ap.wait_for_timeout(300); found.append(axe(ap, mode))
+        ap.click('.mode[data-mode=write]'); ap.wait_for_timeout(200)
+        ap.click('#srcBtn'); ap.wait_for_timeout(300); found.append(axe(ap, 'sources')); ap.keyboard.press('Escape')
+        for item, label in [('#menuHelp', 'help'), ('#menuPrivacy', 'privacy'), ('#menuLoom', 'loom'), ('#menuBuild', 'build-up')]:
+            ap.click('#moreBtn'); ap.wait_for_timeout(200); ap.click(item); ap.wait_for_timeout(300); found.append(axe(ap, label)); ap.keyboard.press('Escape'); ap.wait_for_timeout(150)
+        bad = [f for f in found if not f.endswith(': none')]
+        check('accessibility (' + theme + '): no axe violations in the main views', not bad, bad)
+        actx.close()
+
+    # accessibility: the keyboard. Tab reaches every control in every main view, focus always shows (3:1 or more) and is
+    # never hidden, dialogs keep focus in and hand it back, and the core loop needs no mouse.
+    KB = open(ROOT + '/tools/kb.js').read()
+    def tab_round(pg, limit=220):
+        """Tab until focus comes round again: what it reached, what it missed, weak or hidden focus, and whether it stuck."""
+        ctrls = ev(pg, '__kb.controls()')
+        ev(pg, "document.activeElement && document.activeElement.blur && document.activeElement.blur()")
+        stops, seen, stuck, wraps = [], [], False, 0
+        for i in range(limit):
+            pg.keyboard.press('Tab'); pg.wait_for_timeout(15)
+            at = ev(pg, '__kb.here()')
+            if at is None:
+                wraps += 1
+                if wraps > 3: break
+                continue
+            if seen and at['p'] == seen[-1]: stuck = True; break
+            if at['p'] in seen: break
+            seen.append(at['p']); stops.append(at)
+        else: stuck = True
+        return {'missed': [c['p'] for c in ctrls if c['p'] not in seen and not c['roving']], 'stuck': stuck, 'n': len(stops),
+                'weak': [x['p'] + ' (' + x['kind'] + ' ' + str(x['cr']) + ')' for x in stops if x['kind'] == 'none' or x['cr'] < 3],
+                'hidden': [x['p'] + ': ' + x['hidden'] for x in stops if x['hidden']]}
+    def kb_page(theme='light', init=''):
+        c = browser.new_context(viewport={'width': 1280, 'height': 900}, color_scheme=theme); route(c)
+        if init: c.add_init_script(init)
+        c.add_init_script(KB); c.add_init_script(MOCK)
+        pg = c.new_page(); watch(pg, 'keys-' + theme); pg.goto(URL); pg.wait_for_timeout(1100); pg.mouse.move(4, 896)
+        return c, pg
+    for theme in ['light', 'dark']:
+        kc, kp = kb_page(theme)
+        rounds = {}
+        def sweep(label): kp.mouse.move(4, 896); rounds[label] = tab_round(kp)
+        sweep('notes')
+        kp.click('.card .cbtn >> nth=0'); kp.wait_for_timeout(250); sweep('an open note')
+        kp.click('#keyBtn'); kp.wait_for_timeout(150); sweep('the key'); kp.click('#keyBtn')
+        if theme == 'light':
+            for tab in ['#tabArg', '#tabTerms']: kp.click(tab); kp.wait_for_timeout(300); sweep(tab)
+            kp.click('#tabNotes')
+            kp.click('.mode[data-mode=plan]'); kp.wait_for_timeout(400); sweep('plan')
+            for v in ['Grow', 'Unfold']: kp.click('#board button:has-text("%s")' % v); kp.wait_for_timeout(400); sweep('plan: ' + v)
+            kp.click('#board button:has-text("Board")'); kp.click('.mode[data-mode=map]'); kp.wait_for_timeout(400); sweep('map')
+            kp.click('.mode[data-mode=write]'); kp.wait_for_timeout(300)
+            for item in ['#menuHelp', '#menuLoom', '#menuBuild', '#menuUsage', '#menuInbox', '#menuPrivacy']:
+                kp.click('#moreBtn'); kp.wait_for_timeout(150); kp.click(item); kp.wait_for_timeout(400); sweep(item)
+                kp.keyboard.press('Escape'); kp.wait_for_timeout(200)
+            kp.click('#srcBtn'); kp.wait_for_timeout(300); sweep('sources'); kp.keyboard.press('Escape'); kp.wait_for_timeout(150)
+        missed = {k: v['missed'] for k, v in rounds.items() if v['missed'] or v['stuck']}
+        check('keyboard (%s): Tab reaches every control in %d views, and never gets stuck' % (theme, len(rounds)), not missed, missed)
+        check('keyboard (%s): focus always shows, with 3:1 contrast or more' % theme, not any(v['weak'] for v in rounds.values()), {k: v['weak'] for k, v in rounds.items() if v['weak']})
+        check('keyboard (%s): focus is never hidden behind anything' % theme, not any(v['hidden'] for v in rounds.values()), {k: v['hidden'] for k, v in rounds.items() if v['hidden']})
+        if theme == 'light':
+            check('keyboard: the dialogs keep Tab inside them', rounds['#menuPrivacy']['n'] <= 8 and rounds['sources']['n'] <= 8, (rounds['#menuPrivacy']['n'], rounds['sources']['n']))
+            only = ev(kp, '__kb.clickOnly()')
+            check('keyboard: nothing needs a mouse except the margin lines and the panel’s header, which have keyboard routes', all(x.startswith('#gutter > g') or x == '#rhead' for x in only), only)
+        kc.close()
+    # the core loop with the keyboard alone: open a note, go to its passage, dismiss it, undo
+    kc, kp = kb_page()
+    kp.focus('#tabNotes'); kp.keyboard.press('Tab')
+    for i in range(12):
+        if ev(kp, "document.activeElement.matches('.card .cbtn')"): break
+        kp.keyboard.press('Tab')
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(250)
+    opened = ev(kp, "document.querySelector('.card.on') && document.querySelector('.card.on').dataset.id")
+    kp.focus('.card.on .acts button:has-text("Go to")'); label = ev(kp, "document.activeElement.textContent")
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(400)
+    want = ev(kp, "id => { const q = document.querySelector('.card.on .q .qt'); return q ? q.textContent.slice(1, 25) : '' }", opened)
+    got = ev(kp, "(() => { const ed = document.getElementById('ed'); return [document.activeElement === ed, ed.selectionStart === ed.selectionEnd, ed.value.slice(ed.selectionStart, ed.selectionStart + 24)]; })()")
+    check('keyboard: Enter opens a note, and “Go to ¶n” puts the cursor at its passage', opened and label.startswith('Go to ¶') and got[0] and got[1] and want.startswith(got[2][:20]), (label, got, want))
+    check('keyboard: the essay shows a focus ring when reached by keyboard', ev(kp, "getComputedStyle(document.getElementById('paper')).outlineStyle") == 'solid')
+    ev(kp, "document.getElementById('ed').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))")
+    check('and not once the pointer is used', ev(kp, "getComputedStyle(document.getElementById('paper')).outlineStyle") == 'none' and ev(kp, "document.activeElement.id") == 'ed')
+    kp.focus('.card.on .acts button:has-text("Dismiss")'); n_before = ev(kp, "document.querySelectorAll('.card').length")
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(300)
+    check('keyboard: dismissing a note moves focus to the next note, not the top of the page', ev(kp, "document.activeElement.matches('.card .cbtn')") and ev(kp, "document.querySelectorAll('.card').length") == n_before - 1)
+    kp.keyboard.press('Control+z'); kp.wait_for_timeout(300)
+    check('keyboard: Ctrl+Z outside the essay undoes it, and the note takes the focus again', ev(kp, "document.querySelectorAll('.card').length") == n_before
+          and ev(kp, "id => document.activeElement.closest('.card') && document.activeElement.closest('.card').dataset.id === id", opened))
+    check('a toast that has gone can’t be reached', not ev(kp, "document.getElementById('toast').classList.contains('show')") and ev(kp, "getComputedStyle(document.getElementById('toast')).visibility") == 'hidden')
+    kp.click('.card .cbtn >> nth=0'); kp.wait_for_timeout(200)
+    kp.click('.card.on .acts button:has-text("Dismiss")'); kp.wait_for_timeout(200)
+    kp.focus('#toast .tundo'); kp.wait_for_timeout(7600)
+    check('an Undo stays while the keyboard is on it', ev(kp, "document.getElementById('toast').classList.contains('show')"))
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(300)
+    check('and pressing it brings the note back, with the focus on it', ev(kp, "document.activeElement.matches('.card .cbtn')"))
+    # menus: Tab past the last item moves on to the next control in the bar; Shift+Tab from the first goes back to the button
+    kp.focus('#docBtn'); kp.keyboard.press('Enter'); kp.wait_for_timeout(200)
+    for i in range(20):
+        kp.keyboard.press('Tab')
+        if not ev(kp, "document.getElementById('docMenu').contains(document.activeElement)"): break
+    check('keyboard: Tab out of a menu closes it and moves on to the next control', ev(kp, "document.getElementById('docMenu').hidden && document.activeElement.id === 'srcBtn'"), ev(kp, "document.activeElement.id"))
+    kp.focus('#moreBtn'); kp.keyboard.press('Enter'); kp.wait_for_timeout(200); kp.keyboard.press('Shift+Tab')
+    check('and Shift+Tab from its first item goes back to its button', ev(kp, "document.getElementById('moreMenu').hidden && document.activeElement.id === 'moreBtn'"))
+    # views and dialogs opened from a menu take the focus, and give it back to the menu's button
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(200); kp.focus('#menuLoom'); kp.keyboard.press('Enter'); kp.wait_for_timeout(400)
+    check('keyboard: a view opened from More starts at its heading', ev(kp, "document.activeElement.matches('#loom h2')"))
+    kp.keyboard.press('Escape'); kp.wait_for_timeout(300)
+    check('and Esc goes back to the essay with the focus on More', ev(kp, "document.activeElement.id") == 'moreBtn' and ev(kp, "getComputedStyle(document.getElementById('paper')).display") != 'none')
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(200); kp.focus('#menuPrivacy'); kp.keyboard.press('Enter'); kp.wait_for_timeout(300)
+    inside = ev(kp, "document.getElementById('dlg').contains(document.activeElement)")
+    for i in range(12): kp.keyboard.press('Tab')
+    check('keyboard: a dialog takes the focus and keeps it', inside and ev(kp, "document.getElementById('dlg').contains(document.activeElement)"))
+    kp.keyboard.press('Escape'); kp.wait_for_timeout(200)
+    check('and gives it back when it closes', ev(kp, "document.getElementById('dlg').hidden && document.activeElement.id === 'moreBtn'"))
+    kc.close()
+    # a tester's first visit, the nudge and the tour, by keyboard
+    kc, kp = kb_page(init="window.__notOwner = true; window.__tour = true;")
+    check('keyboard: the welcome takes the focus', ev(kp, "document.getElementById('dlg').contains(document.activeElement)"))
+    kp.keyboard.press('Escape'); kp.wait_for_timeout(250)
+    check('and closing it leaves the focus in the essay', ev(kp, "document.activeElement.id") == 'ed')
+    kp.click('#docBtn'); kp.wait_for_timeout(150); kp.click('#menuNew'); kp.wait_for_timeout(300)
+    kp.keyboard.type('Late libraries'); kp.keyboard.press('Enter'); set_text(kp, DRAFT_ESSAY); kp.focus('#ed'); kp.keyboard.press('End'); kp.wait_for_timeout(1800)
+    kp.keyboard.press('Tab')
+    check('keyboard: the first-review nudge is the next stop after the essay', ev(kp, "!!document.activeElement.closest('.coach')"))
+    kp.focus('#ed'); kp.keyboard.press('Control+Enter'); kp.wait_for_timeout(2400)
+    kp.keyboard.press('Tab')
+    on_tour = ev(kp, "document.activeElement.id") == 'coachNext'
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(700)
+    check('so is the tour, and Next keeps the focus in it', on_tour and ev(kp, "document.activeElement.id") == 'coachNext' and ev(kp, "document.querySelector('.coach .cstep').textContent") == '2 of 3')
+    kp.keyboard.press('Escape'); kp.wait_for_timeout(250)
+    check('Esc ends the tour without losing the focus', not ev(kp, "!!document.querySelector('.coach')") and ev(kp, "document.activeElement !== document.body"))
+    # Defend it: after an answer, the next step has the focus
+    kp.click('#defendBtn'); kp.wait_for_timeout(300); kp.click('.vseg .chip:text-is("3")'); kp.click('#vivaStart'); kp.wait_for_timeout(1200)
+    kp.keyboard.type('Because evening hours reach people who work in the day.'); kp.keyboard.press('Control+Enter'); kp.wait_for_timeout(1300)
+    check('keyboard: a viva answer goes with Ctrl+Enter, and the focus moves on with it', ev(kp, "document.querySelectorAll('.vpill').length") == 1 and ev(kp, "document.activeElement.id") in ('vivaNext', 'vivaAns'), ev(kp, "document.activeElement.id"))
+    kc.close()
 
     # 13e. consistent terms: spellings found on the device, Claude's groups when asked, and the writer's terms in every essay
     TERMS_ESSAY = '\n\n'.join([

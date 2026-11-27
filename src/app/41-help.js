@@ -27,8 +27,16 @@ const HELP = [
     ['progress', 'Your progress', 'How your writing changes from essay to essay, and the habits behind your notes. In More.']]]];
 // Clip lengths in seconds, for the Watch buttons.
 const CLIP_S = {review: 27, fix: 13, ask: 11, drafts: 14, sources: 16, library: 10, terms: 15, argument: 18, loom: 19, build: 18, board: 18, grow: 16, unfold: 14, map: 19, defend: 29, record: 17, progress: 18};
-function openHelp() { closeMenus(); setMode('help'); }
+// Whether the clips are published beside the page: Help shows Watch buttons only if they are.
+let clipsOk = null;
+function checkClips() {
+  if (clipsOk !== null) return;
+  clipsOk = 'checking';
+  fetch('help/review.vtt', {method: 'HEAD', cache: 'no-store'}).then(r => r.ok, () => false).then(ok => { clipsOk = ok; if (st.mode === 'help') renderHelp(); });
+}
+function openHelp() { closeMenus(); checkClips(); setMode('help'); }
 function clipEl(id, title) {
+  if (clipsOk !== true) return null;
   const box = h('div', {class: 'hclip'});
   const watch = h('button', {class: 'btn sm', type: 'button', id: 'clip-' + id, onclick: () => {
     const v = h('video', {controls: true, autoplay: true, playsinline: true, preload: 'auto', src: 'help/' + id + '.mp4', 'aria-label': title + ', a short clip with captions'},
@@ -45,11 +53,11 @@ function renderHelp() {
   const key = (k, what) => h('li', null, h('kbd', null, k), h('span', null, what));
   fill(helpEl,
     h('div', {class: 'chead2'}, h('button', {class: 'btn sm ghost', type: 'button', onclick: () => setMode('write')}, '← Back to the essay'), h('h2', null, 'Help')),
-    h('p', {class: 'rsub'}, 'Throughline marks what needs work in your essay and never rewrites it. Here’s what each part does, each with a clip of about 20 seconds.'),
+    h('p', {class: 'rsub'}, 'Throughline marks what needs work in your essay and never rewrites it. Here’s what each part does' + (clipsOk === true ? ', each with a clip of about 20 seconds.' : '.')),
     HELP.map(([sec, items]) => h('section', {class: 'rsec'}, h('h3', null, sec),
       h('div', {class: 'hgrid2'}, items.map(([id, title, text]) => h('article', {class: 'hitem'}, h('h4', null, title), h('p', null, text), clipEl(id, title)))))),
     h('section', {class: 'rsec'}, h('h3', null, 'Keys'),
-      h('ul', {class: 'hkeys'}, key((mac ? '⌘' : 'Ctrl') + '+Enter', 'Review the essay'), key((mac ? '⌘' : 'Ctrl') + '+Z', 'Undo, including anything Throughline put into the essay'),
+      h('ul', {class: 'hkeys'}, key((mac ? '⌘' : 'Ctrl') + '+Enter', 'Review the essay'), key((mac ? '⌘' : 'Ctrl') + '+Z', 'Undo: in the essay, your last change, including anything Throughline put in; anywhere else, what you just dismissed or deleted'),
         key('Esc', 'Close what’s open, or go back to the essay'), key('← →', 'Read a chart or a strip of drafts, one step at a time'))),
     h('section', {class: 'rsec'}, h('h3', null, 'More'),
       h('div', {class: 'wacts'},

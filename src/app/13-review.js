@@ -28,12 +28,25 @@ function ctxResolver(ctx) {
     return d ? {id: d.id, title: d.title || 'Untitled', text: d.text, role: d.role, claims: d.index ? d.index.claims : []} : null;
   };
 }
+// A full review of an essay reviewed before carries the last review's notes, so the two agree: the ones still open
+// (their passage is still there) to keep, and the ones the writer dismissed, to leave alone.
+function lastNotes(d, text) {
+  const rv = d.review; if (!rv || rv.tier === 'sample' || !rv.issues.length) return '';
+  const marks = d.marks || {}, open = [], gone = [];
+  for (const is of rv.issues.slice(0, 40)) {
+    const m = marks[is.id], line = '- ' + is.type + ' | ' + (is.title || TYPES[is.type].label) + ' | "' + clip(is.qa, 200) + '"';
+    if (m === 'dismissed') gone.push(line); else if (!m && anchorExact(text, is.qa)) open.push(line);
+  }
+  if (!open.length && !gone.length) return '';
+  return '\n\nNOTES FROM YOUR LAST REVIEW (kind | title | the passage it quoted):\n<notes>\n' + fence(open.join('\n') || '(none still open)') + '\n</notes>' +
+    (gone.length ? '\nThe writer dismissed these, so raise them again only if their passage has changed:\n<notes>\n' + fence(gone.join('\n')) + '\n</notes>' : '');
+}
 function reviewPrompt(essay, text, ctx) {
   const numbered = text.split('\n').map(x => x.trim()).filter(Boolean).map((x, i) => '[' + (i + 1) + '] ' + x).join('\n\n');
   const brief = essay.brief && essay.brief.text.trim()
     ? '\n\nBRIEF (the assignment question or marking criteria):\n<brief>\n' + fence(essay.brief.text) + '\n</brief>' : '';
   const docs = docsBlock(ctx);
-  return REVIEW_RULES + '\n\nESSAY TITLE: ' + docLabel(essay) + brief +
+  return REVIEW_RULES + '\n\nESSAY TITLE: ' + docLabel(essay) + brief + '\n\nESSAY LENGTH: about ' + words(text) + ' words.' + lastNotes(essay, text) +
     '\n\nESSAY (each paragraph starts with its number in brackets; never include these numbers in a quote):\n' + fence(numbered) + '\n\n' +
     (ctx.length ? 'OTHER DOCUMENTS (role "essay": the writer’s earlier essays; role "source": material the writer uses):\n' + docs : 'OTHER DOCUMENTS: none.');
 }
@@ -96,7 +109,10 @@ function errText(e) {
     not_declared: 'This page can’t call Claude right now.',
     capability_disabled: 'This page can’t call Claude in this view.',
     capability_removed: 'Update the Claude app to use AI review here.',
-    rate_limited: e && e.reason === 'usage_limit' ? 'You’ve reached your Claude usage limit. Try again when it resets.' : 'Too many requests at once. Wait a moment, then try again.',
+    rate_limited: e && e.reason === 'usage_limit' ? 'You’ve reached your Claude plan’s usage limit for now. Your essay is saved: try again when the limit resets.' : 'Claude is busy. Wait a moment, then try again.',
+    timeout: 'Claude took too long to answer. Try again, or try the faster review depth.',
+    deadline_exceeded: 'Claude took too long to answer. Try again, or try the faster review depth.',
+    bad_output: 'Claude’s answer didn’t match your essay. Try again.',
     session_expired: 'Your Claude session expired. Sign in again, then retry.',
     refused: 'Claude declined to review this text.',
     empty_completion: 'Claude returned nothing. Try again, or review a shorter piece.',
@@ -104,7 +120,7 @@ function errText(e) {
     prompt_too_large: 'Too much text for one review. Switch off some sources, or shorten the essay.',
     upstream_error: 'The connection dropped. Try again.',
   };
-  return hasOwn(M, c) ? M[c] : 'Something went wrong. Try again.';
+  return hasOwn(M, c) ? M[c] : 'Something went wrong. Your essay is saved: try again.';
 }
 function noteAiError(e) { if (isHard(e)) { st.ai = 'denied'; st.aiWhy = errText(e); renderAiBtn(); setReviewBtn(); hideSelbar(); } }
 async function runReview(how) {

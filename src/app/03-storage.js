@@ -15,20 +15,45 @@ function flush(id) {
   const run = () => writeDoc(id, body, json, false);
   chains.set(id, (chains.get(id) || Promise.resolve()).then(run, run));
 }
+const retries = new Map(), BKEY = 'throughline.unsaved.v1';
+// While a save to your space fails, the latest version waits in this browser, and comes back when the page next opens.
+function keepLocal(id, body) {
+  if (st.store !== 'db') return;
+  try { const all = JSON.parse(localStorage.getItem(BKEY) || '{}'); all[id] = body; const ids = Object.keys(all).sort((a, b) => (all[b].updatedAt || 0) - (all[a].updatedAt || 0)); for (const k of ids.slice(5)) delete all[k]; localStorage.setItem(BKEY, JSON.stringify(all)); } catch (e) {}
+}
+function dropLocal(id) { try { const all = JSON.parse(localStorage.getItem(BKEY) || '{}'); if (hasOwn(all, id)) { delete all[id]; localStorage.setItem(BKEY, JSON.stringify(all)); } } catch (e) {} }
+function restoreLocal() {
+  let all = {}; try { all = JSON.parse(localStorage.getItem(BKEY) || '{}') || {}; } catch (e) {}
+  let n = 0;
+  for (const id of Object.keys(all)) {
+    const d = fromStored(id, all[id]), have = st.docs.get(id);
+    if (d && (!have || (d.updatedAt || 0) > (have.updatedAt || 0))) { st.docs.set(id, d); written.delete(id); persist(d, 0); n++; } else dropLocal(id);
+  }
+  if (n) toast(n > 1 ? 'Restored ' + n + ' essays with changes that hadn’t saved.' : 'Restored changes that hadn’t saved.');
+}
+function retryLater(id) {
+  const k = (retries.get(id) || 0) + 1; retries.set(id, k);
+  setTimeout(() => { if (st.docs.has(id) && !pending.has(id)) flush(id); }, [5000, 15000, 60000][k - 1] || 120000);
+}
+function flushAll() { for (const [id, t] of [...pending]) { clearTimeout(t); pending.delete(id); flush(id); } }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushAll(); });
+addEventListener('pagehide', flushAll);
 async function writeDoc(id, body, json, retried) {
-  if (bytes(json) > 250000) { setSave('Too long to save'); return; }
+  if (bytes(json) > 250000) { setSave('Too long to save'); keepLocal(id, body); return; }
   try {
     if (st.store === 'db') await col.doc(id).set(body);
     else if (st.store === 'local') { if (!writeLocal()) throw {code: 'local'}; }
     else { setSave(savedText()); return; }
-    written.set(id, json);
+    written.set(id, json); retries.delete(id); dropLocal(id);
     if (!pending.size) setSave(savedText());
   } catch (e) {
     const c = e && e.code;
     if (c === 'unavailable' && !retried) { await wait(700 + Math.random() * 900); return writeDoc(id, body, json, true); }
     if (c !== 'unavailable') usageErr('save', typeof c === 'string' ? c : 'Error');
+    keepLocal(id, body);
     if (c === 'invalid_argument' || c === 'revoked') st.store = 'memory';
-    setSave(c === 'quota_exceeded' ? 'Storage is full' : c === 'invalid_argument' ? 'View only: changes aren’t saved' : c === 'revoked' ? 'Saving is off in this view' : c === 'local' ? 'Browser storage is full' : 'Couldn’t save; will retry on your next change');
+    else if (c !== 'quota_exceeded' && c !== 'local') retryLater(id);
+    setSave(c === 'quota_exceeded' ? 'Storage is full' : c === 'invalid_argument' ? 'View only: changes aren’t saved' : c === 'revoked' ? 'Saving is off in this view' : c === 'local' ? 'Browser storage is full' : 'Couldn’t save yet: trying again, and kept in this browser meanwhile');
   }
 }
 // Records kept beside the documents (the research map, your habits): each module registers
@@ -96,6 +121,7 @@ function startDb(db, uid) {
   });
 }
 function onFirstLoad() {
+  if (st.store === 'db') restoreLocal();
   setTimeout(maybeWelcome, 300);
   if (st.cur && st.cur.unsaved && !st.touched) { const r = sortedDocs()[0]; if (r) { openDoc(r); return; } }
   renderRail();

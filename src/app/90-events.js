@@ -70,7 +70,13 @@ addEventListener('keydown', e => {
     else closeSheet();
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); runReview(); }
+  // Ctrl+Z outside a text field undoes what the toast offers to undo (a dismissed note, a deleted essay…);
+  // in the essay it stays the essay's own undo.
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z' && toastUndo && !e.target.closest('textarea, input, select, [contenteditable="true"]')) { e.preventDefault(); toastUndo(); }
 });
+// The essay and title show a focus ring only when reached with the keyboard: Tab turns it on, the pointer off.
+addEventListener('keydown', e => { if (e.key === 'Tab') document.documentElement.classList.add('kbd'); }, true);
+addEventListener('pointerdown', () => document.documentElement.classList.remove('kbd'), true);
 const hasFiles = e => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
 let dragN = 0;
 addEventListener('dragenter', e => { if (hasFiles(e)) { dragN++; dropEl.hidden = false; } });

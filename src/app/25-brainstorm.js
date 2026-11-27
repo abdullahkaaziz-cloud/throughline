@@ -16,6 +16,8 @@ const headingFrom = t => trunc(String(t || '').replace(/\s+/g, ' ').replace(/[.!
 const SUB_MODES = ['compare', 'defend', 'record', 'progress', 'inbox', 'loom', 'build', 'usage', 'help'];
 function setMode(m) {
   if (!['plan', 'write', 'compare', 'map', 'defend', 'record', 'progress', 'inbox', 'loom', 'build', 'usage', 'help'].includes(m)) return;
+  const from = st.mode, was = document.activeElement;
+  if (SUB_MODES.includes(m) && !SUB_MODES.includes(from)) st.modeBack = menuBtnOf(was) || (was !== document.body ? was : null);
   if (m !== st.mode) closeCoach();
   if (st.mode === 'defend' && m !== 'defend') { hush(); stopDictation(); }
   if (st.mode === 'plan' && m !== 'plan') stopDictation();
@@ -38,6 +40,16 @@ function setMode(m) {
   else if (m === 'usage') { closeSheet(); renderUsage(); window.scrollTo(0, 0); }
   else if (m === 'help') { closeSheet(); renderHelp(); window.scrollTo(0, 0); }
   else { fitTitle(); refresh(); }
+  if (m === from) return;
+  // A view that takes the essay's place takes the focus at its heading; leaving it hands focus back to whatever opened it.
+  const view = {compare: cmpEl, defend: defEl, record: recEl, progress: progEl, inbox: inboxEl, loom: loomEl, build: buildEl, usage: usageEl, help: helpEl}[m];
+  const lost = () => { const a = document.activeElement; return !a || a === document.body || !a.isConnected || !!a.closest('[hidden]') || !a.getClientRects().length; };
+  if (view) { if (lost() || !view.contains(document.activeElement)) { const t = view.querySelector('h2'); if (t) { t.setAttribute('tabindex', '-1'); t.focus({preventScroll: true}); } } }
+  else if (SUB_MODES.includes(from) && lost()) {
+    let b = st.modeBack; st.modeBack = null;
+    if (b && !b.isConnected && b.id) b = document.getElementById(b.id);   // drawn again while away
+    (b && b.isConnected && !b.closest('[hidden]') && b.getClientRects().length ? b : m === 'write' && !ed.readOnly ? ed : docBtn).focus({preventScroll: true});
+  }
 }
 function savePlan() { const d = ensureReal(st.cur); planOf(d).at = Date.now(); d.updatedAt = Date.now(); persist(d); }
 function defaultQuestion(d) {
@@ -146,7 +158,7 @@ function openSource(src) { const d = st.docs.get(src.id); if (d) openReader(d, s
 // ---- the outline ----
 function outlineEl(P) {
   const byId = new Map(P.cards.map(c => [c.id, c]));
-  return h('aside', {class: 'outline', 'aria-label': 'Outline', ondragover: onOutlineOver, ondragleave: onOutlineLeave, ondrop: onOutlineDrop},
+  return h('section', {class: 'outline', 'aria-label': 'Outline', ondragover: onOutlineOver, ondragleave: onOutlineLeave, ondrop: onOutlineDrop},
     h('div', {class: 'chead'}, h('b', null, 'Outline'), h('span', {class: 'n'}, P.outline.length || '')),
     P.outline.length ? h('ol', {class: 'oitems'}, P.outline.map((o, i) => outlineItemEl(o, i, byId, P.outline.length)))
       : h('p', {class: 'khint ohint'}, 'Drag cards here, or press “Outline →” on a card. Drop a card onto a point to group it under that point.'),

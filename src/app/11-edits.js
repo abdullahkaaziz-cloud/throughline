@@ -5,15 +5,23 @@ function replaceRange(s, e, text, quiet) {
   let ok = false; try { ok = document.execCommand('insertText', false, text); } catch (err) {}
   if (!ok) { ed.setRangeText(text, s, e, 'end'); ed.dispatchEvent(new Event('input', {bubbles: true})); }
   ed.readOnly = ro; if (ro) ed.blur();
-  if (!quiet) toast('Applied. ' + (mac ? '⌘Z' : 'Ctrl+Z') + ' undoes it.');
+  if (!quiet) toast('Applied.', undoEdit);
+}
+// Undo the last change the app made to the essay, as Ctrl+Z would.
+function undoEdit() {
+  const ro = ed.readOnly; ed.readOnly = false; ed.focus({preventScroll: true});
+  let ok = false; try { ok = document.execCommand('undo'); } catch (e) {}
+  ed.readOnly = ro; if (ro) ed.blur();
+  if (!ok) toast('Press ' + (mac ? '⌘Z' : 'Ctrl+Z') + ' in the essay to undo.');
 }
 function applyIssue(is) {
   const an = st.anchors.get(is.id); if (!an || !an.a) return;
   const d = st.cur; d.marks = d.marks || {}; d.marks[is.id] = 'applied';
   if (countsNotes(d)) usageNote(is.type, 'f');
   st.active = null;
-  appEdit('ai', is.suggestion, () => replaceRange(an.a[0], an.a[1], is.suggestion));
+  appEdit('ai', is.suggestion, () => replaceRange(an.a[0], an.a[1], is.suggestion, true));
   persist(ensureReal(d));
+  toast('Applied.', () => { undoEdit(); if ((d.marks || {})[is.id] === 'applied') { markIssue(is.id, null); if (countsNotes(d)) usageNote(is.type, 'f', -1); } });
 }
 function markIssue(id, how) {
   const d = ensureReal(st.cur); d.marks = d.marks || {};

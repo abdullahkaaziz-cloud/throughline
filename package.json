@@ -1,6 +1,6 @@
 {
   "name": "throughline",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "private": true,
   "description": "A visual essay editor: AI review that marks problems in place and never rewrites your work.",
   "engines": {
@@ -14,6 +14,7 @@
     "sync-prompt-doc": "node tools/sync-prompt-doc.mjs"
   },
   "devDependencies": {
+    "axe-core": "4.10.2",
     "mammoth": "1.8.0",
     "pdfjs-dist": "3.11.174"
   }

@@ -1,4 +1,6 @@
 // ---- menus ----
+// The button a menu belongs to, for an element inside one (a menu closes, so focus goes back to its button).
+const menuBtnOf = el => { const m = el && el.closest && el.closest('.menu'); return !m ? null : m === docMenu ? docBtn : m === aiMenu ? aiBtn : moreBtn; };
 function closeMenus() { for (const [m, b] of [[docMenu, docBtn], [aiMenu, aiBtn], [moreMenu, moreBtn]]) { m.hidden = true; b.setAttribute('aria-expanded', 'false'); } }
 function openMenu(menu, btn, right) {
   const was = !menu.hidden; closeMenus(); if (was) return;
@@ -8,6 +10,20 @@ function openMenu(menu, btn, right) {
   menu.style.left = Math.max(8, Math.min(right ? r.right - w : r.left, innerWidth - w - 8)) + 'px';
   menu.style.top = r.bottom + 6 + 'px';
   const f = menu.querySelector('button, input'); if (f) f.focus({preventScroll: true});
+}
+// The menus sit at the end of the page, so Tab is steered as if each followed its button: past the last item to the
+// control after the button, back from the first to the button. A menu closes once focus has left it.
+for (const [m, b] of [[docMenu, docBtn], [aiMenu, aiBtn], [moreMenu, moreBtn]]) {
+  m.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const f = tabbables(m), i = f.indexOf(document.activeElement);
+    if (e.shiftKey ? i > 0 : i < f.length - 1 && i !== -1) return;
+    e.preventDefault(); closeMenus();
+    if (e.shiftKey) { b.focus(); return; }
+    const all = tabbables(document.body).filter(x => !x.closest('.menu')), next = all[all.indexOf(b) + 1];
+    (next || b).focus();
+  });
+  m.addEventListener('focusout', e => { const t = e.relatedTarget; if (!m.hidden && t && !m.contains(t) && t !== b) closeMenus(); });
 }
 function renderDocMenu() {
   const docs = essayDocs(), items = [h('div', {class: 'msec'}, docs.length ? 'Your essays' : 'Your essays will appear here')];
@@ -74,12 +90,20 @@ function newEssay() {
   openDoc(d); st.readOnly = false; ed.readOnly = false; renderMeta(); titleIn.focus();
 }
 async function removeDoc(id) {
-  if (!st.docs.has(id)) return;
-  st.docs.delete(id); clearTimeout(pending.get(id)); pending.delete(id); st.asks.delete(id);
+  const d = st.docs.get(id); if (!d) return;
+  const was = st.cur && st.cur.id === id;
+  st.docs.delete(id); clearTimeout(pending.get(id)); pending.delete(id); st.asks.delete(id); written.delete(id);
   try { if (st.store === 'db') await col.doc(id).delete(); else if (st.store === 'local') writeLocal(); } catch (e) {}
-  if (st.cur && st.cur.id === id) openDoc(sortedDocs()[0] || makeSample());
+  if (was) openDoc(sortedDocs()[0] || makeSample());
   if (!docMenu.hidden) renderDocMenu();
   renderSources();
-  toast('Deleted');
+  // Undo puts it back, as it was.
+  toast('Deleted “' + trunc(d.title || 'Untitled essay', 40) + '”.', () => {
+    if (st.docs.has(id)) return;
+    st.docs.set(id, d); written.delete(id); persist(d, 0);
+    if (was) openDoc(d);
+    if (!docMenu.hidden) renderDocMenu();
+    renderSources(); toast('Restored.');
+  });
 }
 

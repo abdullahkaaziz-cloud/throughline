@@ -71,7 +71,10 @@ If a BRIEF is given, split it into at most 6 requirements (what the essay must d
 Rules:
 - Quote passages exactly, character for character, from the text given: at most 40 words, enough words to be unique, no ellipses, and never the bracketed paragraph numbers.
 - passage_b is required for contradiction and tension (a passage of the essay) and for library_clash and source_conflict (a passage of a document: give the document id, like "D1", and the claim id, like "c3", when it is a listed claim). For citation it is the closest passage in the cited source, or null if there is none. It is null for every other type.
-- Prefer fewer, surer flags: at most 15 issues, at most 5 of them grammar. Give each a confidence from 0 to 1.
+- Prefer fewer, surer flags: at most 15 issues (25 for an essay of more than 3,000 words), at most 5 of them grammar, most important first. Give each a confidence from 0 to 1.
+- When the same problem comes up in several places, flag it once, where it is clearest, and say in the explanation where else it happens.
+- Don't flag matters of style or taste, or anything a careful marker wouldn't mark down.
+- If NOTES FROM YOUR LAST REVIEW are given, keep each one that still applies, with the same type and, if its passage hasn't changed, the same quote: don't drop or reword a note just to vary it. Leave out the ones the writer has dealt with, raise a note the writer dismissed only if its passage has changed, and add new notes only for problems the last review missed.
 - title: 3 to 7 words naming the problem.
 - explanation: one or two short sentences on why it matters to a reader.
 - fix: one concrete instruction saying what to change. Do not rewrite the writer's paragraph.

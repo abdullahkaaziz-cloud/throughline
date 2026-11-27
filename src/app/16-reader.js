@@ -1,6 +1,7 @@
 // ---- library reader ----
-let readerDoc = null;
+let readerDoc = null, readerBack = null;
 function openReader(d, quote) {
+  if (reader.hidden) readerBack = document.activeElement;
   readerDoc = d; $('#readerTitle').textContent = d.title || 'Untitled essay';
   const body = $('#readerBody'), r = anchorFuzzy(d.text, quote); body.replaceChildren();
   let i = 0;
@@ -16,5 +17,11 @@ function openReader(d, quote) {
   const m = body.querySelector('mark'); if (m) m.scrollIntoView({block: 'center'});
   $('#readerClose').focus({preventScroll: true});
 }
-function closeReader() { reader.hidden = true; readerDoc = null; }
+function closeReader() {
+  if (reader.hidden) return;
+  reader.hidden = true; readerDoc = null;
+  if (readerBack && readerBack.isConnected && readerBack.focus) readerBack.focus({preventScroll: true});
+  readerBack = null;
+}
+trapTab(reader);
 

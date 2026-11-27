@@ -30,7 +30,10 @@
   const deliver = l => { const s = snapFor(l); if (l.first || s.docChanges().length || true) { l.first = false; l.next(s); } };
   const notify = () => { for (const l of listeners) setTimeout(() => deliver(l), 10); };
   const docRef = p => ({id: p.split('/').pop(), path: p,
-    async set(data) { await sleep(15); if (window.__dbDeny) throw {code: 'permission_denied', message: 'mock: view only'}; mem.set(p, clone(data)); window.__dbWrites++; keep(); notify(); },
+    async set(data) { await sleep(15); if (window.__dbDeny) throw {code: 'permission_denied', message: 'mock: view only'};
+      // window.__dbFail = n makes the next n saves fail, as a dropped connection would.
+      if (window.__dbFail > 0 && p.startsWith('data/')) { window.__dbFail--; throw {code: 'internal', message: 'mock: save failed'}; }
+      mem.set(p, clone(data)); window.__dbWrites++; keep(); notify(); },
     async delete() { await sleep(10); mem.delete(p); keep(); notify(); },
     async get() { return {id: p.split('/').pop(), exists: mem.has(p), data: () => mem.get(p)}; }});
   const db = {
@@ -204,7 +207,7 @@
   window.__failNext = null;
   const call = async (input, opts) => {
     window.__calls.push({review: input.includes('ESSAY (each paragraph'), index: input.includes('You index a document'), arg: input.includes('You map the argument'), ideas: input.includes('You help a writer brainstorm'), rmap: input.includes('You map how a writer'), docs: (input.match(/<document id=/g) || []).length,
-      habits: input.includes('looking across one writer'), terms: input.includes('You check one essay for terms'), grow: input.includes('You help one writer think an idea through'), loom: input.includes('trace its ideas through its paragraphs'), build: input.includes('how it builds up to its point'), askedQ: (input.split('\nASKED')[1] || '').slice(0, 3000), ideaOk: (input.match(/<\/idea>/g) || []).length === (input.match(/<idea>/g) || []).length, recheck: input.includes('THIS IS A RE-CHECK'), exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
+      habits: input.includes('looking across one writer'), terms: input.includes('You check one essay for terms'), grow: input.includes('You help one writer think an idea through'), loom: input.includes('trace its ideas through its paragraphs'), build: input.includes('how it builds up to its point'), askedQ: (input.split('\nASKED')[1] || '').slice(0, 3000), ideaOk: (input.match(/<\/idea>/g) || []).length === (input.match(/<idea>/g) || []).length, recheck: input.includes('THIS IS A RE-CHECK'), lastNotes: input.includes('NOTES FROM YOUR LAST REVIEW (kind | title'), dismissedNotes: input.includes('The writer dismissed these'), lengthLine: (input.match(/ESSAY LENGTH: about (\d+) words\./) || [])[1] || null, exam: input.includes('You are an examiner holding'), judge: input.includes('Judge their answer'),
       answerClose: (input.match(/<\/answer>/g) || []).length, notesClose: (input.match(/<\/notes>/g) || []).length, starred: (input.match(/^\[\d+\*\] /gm) || []).length,
       essayLen: input.includes('\n\nESSAY (') ? input.slice(input.indexOf('\n\nESSAY ('), input.indexOf('OTHER DOCUMENTS')).length : 0,
       questionClose: (input.match(/<\/question>/g) || []).length, planClose: (input.match(/<\/plan>/g) || []).length,

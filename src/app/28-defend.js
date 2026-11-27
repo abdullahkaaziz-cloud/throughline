@@ -130,9 +130,9 @@ async function submitAnswer() {
       V.draft = ''; V.pasted = 0; V.spoken = false; V.t0 = Date.now();
       renderDefend(); say(j.feedback + ' ' + j.follow);
       const b = $('#vivaAns'); if (b) b.focus({preventScroll: true});
-    } else { renderDefend(); say(j.feedback); }
+    } else { renderDefend(); say(j.feedback); refocus(defEl, '#vivaNext'); }
   } catch (err) {
-    V.busy = null; V.err = err; noteAiError(err); renderDefend();
+    V.busy = null; V.err = err; noteAiError(err); renderDefend(); refocus(defEl);
   }
 }
 function skipQuestion() {
@@ -148,7 +148,7 @@ function finishViva(V) {
   for (const Q of V.s.qs) { const t = Q.turns[Q.turns.length - 1]; if (!t) Q.turns.push({q: Q.q, a: '', ms: 0, pasted: 0, spoken: false, verdict: 'skipped', feedback: '', fix: ''}); else if (!t.verdict) t.verdict = 'skipped'; }
   V.s.done = true; V.doc.updatedAt = Date.now(); persist(V.doc, 0);
   st.vivaView = V.s.id; st.viva = null;
-  renderDefend();
+  renderDefend(); refocus(defEl);
 }
 // How a question went: the verdict on its last answer.
 const outcome = Q => { const t = Q.turns[Q.turns.length - 1]; return t && t.verdict ? t.verdict : 'pending'; };
