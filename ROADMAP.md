@@ -153,5 +153,25 @@ From the November 2026 review of what would make Throughline stand out: Grammarl
 - The steps of each shape (problem → answer, myth → reality, two sides → verdict) are worked out by the app from those moves (`buildSteps`), so switching shapes asks nothing more. The strong build-up is a fixed curve per shape (`buildIdeal`).
 - "Preview this order" lists the paragraphs in a better order; "Use this order" moves whole paragraphs in one undoable edit; "Go to ¶n" puts the caret there.
 
+## Ready for testers: Phase 1 of the plan
+The plan is to perfect Throughline with individual writers first, measure what it costs to run, and only then build the website and paid plans. Phase 1 is everything each tester needs, in the free Claude version.
+
+### Measure (shipped in v0.15)
+- Every AI request goes through `askClaude()` and is counted per day: the feature, the model tier, characters sent and returned (tokens are estimated from them, since the runtime reports no counts), how long it took, and whether it failed and why. Numbers only, never text. Testers are told before anything is counted and can switch it off, which deletes their counts.
+- Each note can be rated useful or not (with a reason), and fixed or dismissed notes are counted: the measure of review quality.
+- An owner-only **Usage** view: testers active each week and who keeps coming back, requests and estimated tokens by feature, the cost per tester per month at API prices (typical and heaviest 10%), how often limits were hit, and the gate to Phase 2.
+- **Your data:** a plain privacy notice, counting on or off, download everything, delete everything.
+
+### The first ten minutes (shipped in v0.16)
+- Essays out: **Download as Word** and **Copy with formatting** keep headings, footnotes and reference lists.
+- A nudge towards a first review of the writer's own essay, a three-step tour after it, and a key to the lines. The tools testers use least sit behind **More**.
+- **Help:** what each part does, each with a 20-second clip cut from the walkthrough video.
+
+### Quality, reliability and access (shipped in v0.17)
+- Reviews of essays up to 10,000 words; the number of notes grows with length; a second review of the same text agrees with the first.
+- Nothing lost: failed saves retry and wait in the browser, errors say what happened and that the essay is safe, and anything that can't be undone with Ctrl+Z offers Undo.
+- Accessibility checked by the tests: axe-core finds nothing in either theme, and a keyboard pass Tabs through every main view. Notes can be opened, reached in the essay ("Go to ¶n"), dismissed and brought back without a mouse; dialogs keep focus and hand it back; views start at their heading.
+- Testers are called every two weeks (a 15-minute guide and a call log sit with the plan, outside the repo).
+
 ## Order
 The claims index and feature 1 come first, because features 2, 3 and 5 all read from them. Feature 4 makes the core loop sticky and cheaper. Feature 5 ties everything together: it is where planning, writing and checking meet.

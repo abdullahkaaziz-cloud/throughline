@@ -57,7 +57,7 @@ function renderHelp() {
     HELP.map(([sec, items]) => h('section', {class: 'rsec'}, h('h3', null, sec),
       h('div', {class: 'hgrid2'}, items.map(([id, title, text]) => h('article', {class: 'hitem'}, h('h4', null, title), h('p', null, text), clipEl(id, title)))))),
     h('section', {class: 'rsec'}, h('h3', null, 'Keys'),
-      h('ul', {class: 'hkeys'}, key((mac ? '⌘' : 'Ctrl') + '+Enter', 'Review the essay'), key((mac ? '⌘' : 'Ctrl') + '+Z', 'Undo, including anything Throughline put into the essay'),
+      h('ul', {class: 'hkeys'}, key((mac ? '⌘' : 'Ctrl') + '+Enter', 'Review the essay'), key((mac ? '⌘' : 'Ctrl') + '+Z', 'Undo: in the essay, your last change, including anything Throughline put in; anywhere else, what you just dismissed or deleted'),
         key('Esc', 'Close what’s open, or go back to the essay'), key('← →', 'Read a chart or a strip of drafts, one step at a time'))),
     h('section', {class: 'rsec'}, h('h3', null, 'More'),
       h('div', {class: 'wacts'},

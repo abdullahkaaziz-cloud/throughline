@@ -8,16 +8,19 @@ const FB_ABOUT = [['general', 'Throughline in general'], ['review', 'Review note
 const FB_FOR_MODE = {plan: 'plan', compare: 'drafts', map: 'map', defend: 'viva', record: 'record', progress: 'progress'};
 let dlgBack = null;
 function openDlg(title, ...kids) {
-  dlgBack = document.activeElement;
+  dlgBack = menuBtnOf(document.activeElement) || document.activeElement;
   fill(dlgEl.querySelector('.sheet'), h('div', {class: 'shead'}, h('h2', {id: 'dlgTitle', class: 'dtitle'}, title), h('button', {class: 'btn sm ghost', type: 'button', onclick: closeDlg}, 'Close')),
     h('div', {class: 'dlgbody'}, kids));
   dlgEl.hidden = false;
-  const f = dlgEl.querySelector('textarea, .btn.primary'); if (f) f.focus({preventScroll: true});
+  const f = dlgEl.querySelector('textarea, .btn.primary') || tabbables(dlgEl)[0]; if (f) f.focus({preventScroll: true});
 }
+trapTab(dlgEl);
 function closeDlg() {
   if (dlgEl.hidden) return;
   dlgEl.hidden = true;
-  if (dlgBack && dlgBack.isConnected && dlgBack.focus) dlgBack.focus({preventScroll: true});
+  // Back to whatever opened it; a dialog that opened by itself (the welcome) hands focus to the essay.
+  const back = dlgBack && dlgBack !== document.body && dlgBack.isConnected && dlgBack.focus ? dlgBack : !ed.readOnly && st.mode === 'write' ? ed : docBtn;
+  if (document.activeElement === document.body || dlgEl.contains(document.activeElement)) back.focus({preventScroll: true});
   dlgBack = null;
 }
 dlgEl.addEventListener('pointerdown', e => { if (e.target === dlgEl) closeDlg(); });

@@ -1065,6 +1065,132 @@ with sync_playwright() as p:
         check('accessibility (' + theme + '): no axe violations in the main views', not bad, bad)
         actx.close()
 
+    # accessibility: the keyboard. Tab reaches every control in every main view, focus always shows (3:1 or more) and is
+    # never hidden, dialogs keep focus in and hand it back, and the core loop needs no mouse.
+    KB = open(ROOT + '/tools/kb.js').read()
+    def tab_round(pg, limit=220):
+        """Tab until focus comes round again: what it reached, what it missed, weak or hidden focus, and whether it stuck."""
+        ctrls = ev(pg, '__kb.controls()')
+        ev(pg, "document.activeElement && document.activeElement.blur && document.activeElement.blur()")
+        stops, seen, stuck, wraps = [], [], False, 0
+        for i in range(limit):
+            pg.keyboard.press('Tab'); pg.wait_for_timeout(15)
+            at = ev(pg, '__kb.here()')
+            if at is None:
+                wraps += 1
+                if wraps > 3: break
+                continue
+            if seen and at['p'] == seen[-1]: stuck = True; break
+            if at['p'] in seen: break
+            seen.append(at['p']); stops.append(at)
+        else: stuck = True
+        return {'missed': [c['p'] for c in ctrls if c['p'] not in seen and not c['roving']], 'stuck': stuck, 'n': len(stops),
+                'weak': [x['p'] + ' (' + x['kind'] + ' ' + str(x['cr']) + ')' for x in stops if x['kind'] == 'none' or x['cr'] < 3],
+                'hidden': [x['p'] + ': ' + x['hidden'] for x in stops if x['hidden']]}
+    def kb_page(theme='light', init=''):
+        c = browser.new_context(viewport={'width': 1280, 'height': 900}, color_scheme=theme); route(c)
+        if init: c.add_init_script(init)
+        c.add_init_script(KB); c.add_init_script(MOCK)
+        pg = c.new_page(); watch(pg, 'keys-' + theme); pg.goto(URL); pg.wait_for_timeout(1100); pg.mouse.move(4, 896)
+        return c, pg
+    for theme in ['light', 'dark']:
+        kc, kp = kb_page(theme)
+        rounds = {}
+        def sweep(label): kp.mouse.move(4, 896); rounds[label] = tab_round(kp)
+        sweep('notes')
+        kp.click('.card .cbtn >> nth=0'); kp.wait_for_timeout(250); sweep('an open note')
+        kp.click('#keyBtn'); kp.wait_for_timeout(150); sweep('the key'); kp.click('#keyBtn')
+        if theme == 'light':
+            for tab in ['#tabArg', '#tabTerms']: kp.click(tab); kp.wait_for_timeout(300); sweep(tab)
+            kp.click('#tabNotes')
+            kp.click('.mode[data-mode=plan]'); kp.wait_for_timeout(400); sweep('plan')
+            for v in ['Grow', 'Unfold']: kp.click('#board button:has-text("%s")' % v); kp.wait_for_timeout(400); sweep('plan: ' + v)
+            kp.click('#board button:has-text("Board")'); kp.click('.mode[data-mode=map]'); kp.wait_for_timeout(400); sweep('map')
+            kp.click('.mode[data-mode=write]'); kp.wait_for_timeout(300)
+            for item in ['#menuHelp', '#menuLoom', '#menuBuild', '#menuUsage', '#menuInbox', '#menuPrivacy']:
+                kp.click('#moreBtn'); kp.wait_for_timeout(150); kp.click(item); kp.wait_for_timeout(400); sweep(item)
+                kp.keyboard.press('Escape'); kp.wait_for_timeout(200)
+            kp.click('#srcBtn'); kp.wait_for_timeout(300); sweep('sources'); kp.keyboard.press('Escape'); kp.wait_for_timeout(150)
+        missed = {k: v['missed'] for k, v in rounds.items() if v['missed'] or v['stuck']}
+        check('keyboard (%s): Tab reaches every control in %d views, and never gets stuck' % (theme, len(rounds)), not missed, missed)
+        check('keyboard (%s): focus always shows, with 3:1 contrast or more' % theme, not any(v['weak'] for v in rounds.values()), {k: v['weak'] for k, v in rounds.items() if v['weak']})
+        check('keyboard (%s): focus is never hidden behind anything' % theme, not any(v['hidden'] for v in rounds.values()), {k: v['hidden'] for k, v in rounds.items() if v['hidden']})
+        if theme == 'light':
+            check('keyboard: the dialogs keep Tab inside them', rounds['#menuPrivacy']['n'] <= 8 and rounds['sources']['n'] <= 8, (rounds['#menuPrivacy']['n'], rounds['sources']['n']))
+            only = ev(kp, '__kb.clickOnly()')
+            check('keyboard: nothing needs a mouse except the margin lines and the panel’s header, which have keyboard routes', all(x.startswith('#gutter > g') or x == '#rhead' for x in only), only)
+        kc.close()
+    # the core loop with the keyboard alone: open a note, go to its passage, dismiss it, undo
+    kc, kp = kb_page()
+    kp.focus('#tabNotes'); kp.keyboard.press('Tab')
+    for i in range(12):
+        if ev(kp, "document.activeElement.matches('.card .cbtn')"): break
+        kp.keyboard.press('Tab')
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(250)
+    opened = ev(kp, "document.querySelector('.card.on') && document.querySelector('.card.on').dataset.id")
+    kp.focus('.card.on .acts button:has-text("Go to")'); label = ev(kp, "document.activeElement.textContent")
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(400)
+    want = ev(kp, "id => { const q = document.querySelector('.card.on .q .qt'); return q ? q.textContent.slice(1, 25) : '' }", opened)
+    got = ev(kp, "(() => { const ed = document.getElementById('ed'); return [document.activeElement === ed, ed.selectionStart === ed.selectionEnd, ed.value.slice(ed.selectionStart, ed.selectionStart + 24)]; })()")
+    check('keyboard: Enter opens a note, and “Go to ¶n” puts the cursor at its passage', opened and label.startswith('Go to ¶') and got[0] and got[1] and want.startswith(got[2][:20]), (label, got, want))
+    check('keyboard: the essay shows a focus ring when reached by keyboard', ev(kp, "getComputedStyle(document.getElementById('paper')).outlineStyle") == 'solid')
+    ev(kp, "document.getElementById('ed').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))")
+    check('and not once the pointer is used', ev(kp, "getComputedStyle(document.getElementById('paper')).outlineStyle") == 'none' and ev(kp, "document.activeElement.id") == 'ed')
+    kp.focus('.card.on .acts button:has-text("Dismiss")'); n_before = ev(kp, "document.querySelectorAll('.card').length")
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(300)
+    check('keyboard: dismissing a note moves focus to the next note, not the top of the page', ev(kp, "document.activeElement.matches('.card .cbtn')") and ev(kp, "document.querySelectorAll('.card').length") == n_before - 1)
+    kp.keyboard.press('Control+z'); kp.wait_for_timeout(300)
+    check('keyboard: Ctrl+Z outside the essay undoes it, and the note takes the focus again', ev(kp, "document.querySelectorAll('.card').length") == n_before
+          and ev(kp, "id => document.activeElement.closest('.card') && document.activeElement.closest('.card').dataset.id === id", opened))
+    check('a toast that has gone can’t be reached', not ev(kp, "document.getElementById('toast').classList.contains('show')") and ev(kp, "getComputedStyle(document.getElementById('toast')).visibility") == 'hidden')
+    kp.click('.card .cbtn >> nth=0'); kp.wait_for_timeout(200)
+    kp.click('.card.on .acts button:has-text("Dismiss")'); kp.wait_for_timeout(200)
+    kp.focus('#toast .tundo'); kp.wait_for_timeout(7600)
+    check('an Undo stays while the keyboard is on it', ev(kp, "document.getElementById('toast').classList.contains('show')"))
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(300)
+    check('and pressing it brings the note back, with the focus on it', ev(kp, "document.activeElement.matches('.card .cbtn')"))
+    # menus: Tab past the last item moves on to the next control in the bar; Shift+Tab from the first goes back to the button
+    kp.focus('#docBtn'); kp.keyboard.press('Enter'); kp.wait_for_timeout(200)
+    for i in range(20):
+        kp.keyboard.press('Tab')
+        if not ev(kp, "document.getElementById('docMenu').contains(document.activeElement)"): break
+    check('keyboard: Tab out of a menu closes it and moves on to the next control', ev(kp, "document.getElementById('docMenu').hidden && document.activeElement.id === 'srcBtn'"), ev(kp, "document.activeElement.id"))
+    kp.focus('#moreBtn'); kp.keyboard.press('Enter'); kp.wait_for_timeout(200); kp.keyboard.press('Shift+Tab')
+    check('and Shift+Tab from its first item goes back to its button', ev(kp, "document.getElementById('moreMenu').hidden && document.activeElement.id === 'moreBtn'"))
+    # views and dialogs opened from a menu take the focus, and give it back to the menu's button
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(200); kp.focus('#menuLoom'); kp.keyboard.press('Enter'); kp.wait_for_timeout(400)
+    check('keyboard: a view opened from More starts at its heading', ev(kp, "document.activeElement.matches('#loom h2')"))
+    kp.keyboard.press('Escape'); kp.wait_for_timeout(300)
+    check('and Esc goes back to the essay with the focus on More', ev(kp, "document.activeElement.id") == 'moreBtn' and ev(kp, "getComputedStyle(document.getElementById('paper')).display") != 'none')
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(200); kp.focus('#menuPrivacy'); kp.keyboard.press('Enter'); kp.wait_for_timeout(300)
+    inside = ev(kp, "document.getElementById('dlg').contains(document.activeElement)")
+    for i in range(12): kp.keyboard.press('Tab')
+    check('keyboard: a dialog takes the focus and keeps it', inside and ev(kp, "document.getElementById('dlg').contains(document.activeElement)"))
+    kp.keyboard.press('Escape'); kp.wait_for_timeout(200)
+    check('and gives it back when it closes', ev(kp, "document.getElementById('dlg').hidden && document.activeElement.id === 'moreBtn'"))
+    kc.close()
+    # a tester's first visit, the nudge and the tour, by keyboard
+    kc, kp = kb_page(init="window.__notOwner = true; window.__tour = true;")
+    check('keyboard: the welcome takes the focus', ev(kp, "document.getElementById('dlg').contains(document.activeElement)"))
+    kp.keyboard.press('Escape'); kp.wait_for_timeout(250)
+    check('and closing it leaves the focus in the essay', ev(kp, "document.activeElement.id") == 'ed')
+    kp.click('#docBtn'); kp.wait_for_timeout(150); kp.click('#menuNew'); kp.wait_for_timeout(300)
+    kp.keyboard.type('Late libraries'); kp.keyboard.press('Enter'); set_text(kp, DRAFT_ESSAY); kp.focus('#ed'); kp.keyboard.press('End'); kp.wait_for_timeout(1800)
+    kp.keyboard.press('Tab')
+    check('keyboard: the first-review nudge is the next stop after the essay', ev(kp, "!!document.activeElement.closest('.coach')"))
+    kp.focus('#ed'); kp.keyboard.press('Control+Enter'); kp.wait_for_timeout(2400)
+    kp.keyboard.press('Tab')
+    on_tour = ev(kp, "document.activeElement.id") == 'coachNext'
+    kp.keyboard.press('Enter'); kp.wait_for_timeout(700)
+    check('so is the tour, and Next keeps the focus in it', on_tour and ev(kp, "document.activeElement.id") == 'coachNext' and ev(kp, "document.querySelector('.coach .cstep').textContent") == '2 of 3')
+    kp.keyboard.press('Escape'); kp.wait_for_timeout(250)
+    check('Esc ends the tour without losing the focus', not ev(kp, "!!document.querySelector('.coach')") and ev(kp, "document.activeElement !== document.body"))
+    # Defend it: after an answer, the next step has the focus
+    kp.click('#defendBtn'); kp.wait_for_timeout(300); kp.click('.vseg .chip:text-is("3")'); kp.click('#vivaStart'); kp.wait_for_timeout(1200)
+    kp.keyboard.type('Because evening hours reach people who work in the day.'); kp.keyboard.press('Control+Enter'); kp.wait_for_timeout(1300)
+    check('keyboard: a viva answer goes with Ctrl+Enter, and the focus moves on with it', ev(kp, "document.querySelectorAll('.vpill').length") == 1 and ev(kp, "document.activeElement.id") in ('vivaNext', 'vivaAns'), ev(kp, "document.activeElement.id"))
+    kc.close()
+
     # 13e. consistent terms: spellings found on the device, Claude's groups when asked, and the writer's terms in every essay
     TERMS_ESSAY = '\n\n'.join([
         'Free public transport would help cities. Free public-transport schemes have run in several places, and fare-free buses are popular.',

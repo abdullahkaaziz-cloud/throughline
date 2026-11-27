@@ -108,15 +108,37 @@ function moreEl(is) {
       h('button', {class: 'btn sm primary', onclick: () => applyIssue(is)}, 'Apply')));
   }
   box.append(h('div', {class: 'acts'},
-    narrow.matches ? h('button', {class: 'btn sm', onclick: () => { closeSheet(); scrollToIssue(is.id, 0.25); }}, 'Show in essay') : null,
-    h('button', {class: 'btn sm ghost', onclick: () => { markIssue(is.id, 'dismissed'); toast('Dismissed.', () => markIssue(is.id, null)); }}, 'Dismiss')), rateEl(is));
+    h('button', {class: 'btn sm', type: 'button', title: 'Put the cursor at this passage in the essay', onclick: () => goToIssue(is.id)}, 'Go to ¶' + para(an.a[0])),
+    h('button', {class: 'btn sm ghost', type: 'button', onclick: () => { focusAfter(is.id, () => markIssue(is.id, 'dismissed')); toast('Dismissed.', () => { markIssue(is.id, null); focusCard(is.id); }); }}, 'Dismiss')), rateEl(is));
   return box;
+}
+// Put the caret at the start of a note's passage, so the writer can work on it straight away.
+function goToIssue(id) {
+  const an = st.anchors.get(id); if (!an || !an.a) return;
+  closeSheet();
+  if (!coarse) { ed.focus({preventScroll: true}); ed.setSelectionRange(an.a[0], an.a[0]); }   // a touch screen just scrolls, so no keyboard pops up
+  scrollToIssue(id, narrow.matches ? 0.25 : 0.35);
+}
+// When a note leaves the list, focus moves to the note that took its place (or the one before it), never to the top
+// of the page.
+function focusAfter(id, fn) {
+  const was = rbody.contains(document.activeElement), ids = [...rbody.querySelectorAll('.card')].map(c => c.dataset.id), i = ids.indexOf(id);
+  fn();
+  if (!was || rbody.contains(document.activeElement)) return;
+  const next = [...ids.slice(i + 1), ...ids.slice(0, Math.max(0, i)).reverse()].map(x => rbody.querySelector('.card[data-id="' + CSS.escape(x) + '"] .cbtn')).find(Boolean);
+  (next || rbody.querySelector('.done summary') || $('#tabNotes')).focus({preventScroll: true});
+}
+// After an undo brings a note back, its card takes the focus, unless the writer is busy in the essay.
+function focusCard(id) {
+  const a = document.activeElement;
+  if (a && a !== document.body && !rbody.contains(a) && !toastEl.contains(a)) return;
+  const b = rbody.querySelector('.card[data-id="' + CSS.escape(id) + '"] .cbtn'); if (b) b.focus({preventScroll: true});
 }
 function doneEl(done) {
   const marks = st.cur.marks || {};
   return h('details', {class: 'done'}, h('summary', null, `Dealt with (${done.length})`),
     h('ul', null, done.map(is => h('li', null, h('span', null, is.title || TYPES[is.type].label),
-      marks[is.id] === 'dismissed' ? h('button', {class: 'btn sm ghost', onclick: () => markIssue(is.id, null)}, 'Restore') : h('span', {class: 'st'}, marks[is.id] === 'applied' ? 'Applied' : 'Changed')))));
+      marks[is.id] === 'dismissed' ? h('button', {class: 'btn sm ghost', type: 'button', onclick: () => { markIssue(is.id, null); focusCard(is.id); }}, 'Restore') : h('span', {class: 'st'}, marks[is.id] === 'applied' ? 'Applied' : 'Changed')))));
 }
 function progressEl() {
   const R = st.reviewing;

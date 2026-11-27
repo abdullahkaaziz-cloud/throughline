@@ -2,6 +2,7 @@
 // Once someone has an essay of their own with some length to it, a note by the Review button offers the first review.
 // When that review comes back, three short steps show where the notes are, how they're marked in the essay, and what
 // to do with one. It never takes focus from the essay, Esc closes it, and it's shown once (kept in 'settings').
+// Tab reaches it straight after the essay.
 const GKEY = 'throughline.tour.v1';
 let coach = null, coachRaf = 0, coachTick = 0, nudged = false, guideT = 0;
 const ownEssay = d => !!d && !d.isSample && d.role !== 'source' && !sampleCopy(d);
@@ -11,20 +12,30 @@ function markTour() {
   try { localStorage.setItem(GKEY, '1'); } catch (e) {}
   if (st.store === 'db' && dbApi && myId) { st.settings = Object.assign({}, trackPrefs(), {tour: Date.now()}); saveSpecial('settings').catch(() => {}); }
 }
-function closeCoach() { if (coach) { coach.el.remove(); coach = null; clearInterval(coachTick); } }
+// Closing it with the keyboard on it hands focus on: to back, or the note it opened, or the essay.
+function closeCoach(back) {
+  if (!coach) return;
+  const had = coach.el.contains(document.activeElement);
+  coach.el.remove(); coach = null; clearInterval(coachTick);
+  if (had) { const t = back || rbody.querySelector('.card.on .cbtn') || ed; if (t && t.isConnected) t.focus({preventScroll: true}); }
+}
 const nudgeCoach = () => { if (coach && !coachRaf) coachRaf = requestAnimationFrame(() => { coachRaf = 0; placeCoach(); }); };
 addEventListener('scroll', nudgeCoach, {passive: true, capture: true});
 addEventListener('resize', nudgeCoach);
 // One step: a small card beside what it's about (or under the bar, on a phone).
+// It sits in the page just before the notes, so Tab reaches it straight after the essay; a step that follows one
+// reached by keyboard takes the focus with it.
 function showCoach(anchor, title, body, acts, step, side) {
-  closeCoach();
+  const had = !!coach && coach.el.contains(document.activeElement);
+  if (coach) { coach.el.remove(); coach = null; clearInterval(coachTick); }
   const el = h('div', {class: 'coach', role: 'dialog', 'aria-modal': 'false', 'aria-labelledby': 'coachT', 'aria-live': 'polite'},
     h('div', {class: 'chd'}, step ? h('span', {class: 'cstep'}, step) : null, h('b', {id: 'coachT'}, title)),
     h('div', {class: 'cbody'}, body),
     h('div', {class: 'cacts'}, acts));
-  document.body.append(el);
+  rail.before(el);
   coach = {el, anchor, step, side};
   placeCoach(); coachTick = setInterval(placeCoach, 300);
+  if (had) { const f = el.querySelector('.btn.primary'); if (f) f.focus({preventScroll: true}); }
 }
 function placeCoach() {
   if (!coach) return;
@@ -50,8 +61,8 @@ function maybeNudge() {
     if (nudged || coach || tourDone() || reviewedBefore() || st.mode !== 'write' || !ownEssay(d) || d.review || st.reviewing || !dlgEl.hidden || !reader.hidden || !srcWrap.hidden || st.ai === 'denied' || st.ai === 'off' || words(ed.value) < 80) return;
     nudged = true;
     showCoach(reviewBtn, 'Ready for your first review?', h('p', null, 'Press Review and Claude reads your whole essay, then marks what needs work right where it is. It never rewrites your essay: you decide what changes.'),
-      [h('button', {class: 'btn sm primary', type: 'button', id: 'coachGo', onclick: () => { closeCoach(); runReview(); }}, 'Review now'),
-        h('button', {class: 'btn sm ghost', type: 'button', onclick: closeCoach}, 'Not now')]);
+      [h('button', {class: 'btn sm primary', type: 'button', id: 'coachGo', onclick: () => { closeCoach(reviewBtn); runReview(); }}, 'Review now'),
+        h('button', {class: 'btn sm ghost', type: 'button', onclick: () => closeCoach(ed)}, 'Not now')]);
   }, 1200);
 }
 // After it: three steps.
