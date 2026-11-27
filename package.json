@@ -16,6 +16,6 @@
   "devDependencies": {
     "axe-core": "4.10.2",
     "mammoth": "1.8.0",
-    "pdfjs-dist": "3.11.174"
+    "pdfjs-dist": "6.5.438"
   }
 }
