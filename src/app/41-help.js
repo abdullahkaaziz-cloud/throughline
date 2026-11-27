@@ -29,18 +29,29 @@ const HELP = [
 const CLIP_S = {review: 27, fix: 13, ask: 11, drafts: 14, sources: 16, library: 10, terms: 15, argument: 18, loom: 19, build: 18, board: 18, grow: 16, unfold: 14, map: 19, defend: 29, record: 17, progress: 18};
 // Whether the clips are published beside the page: Help shows Watch buttons only if they are.
 let clipsOk = null;
+// Captions by clip id, put here by the build from assets/help/<id>.vtt; each plays from a blob: URL made once.
+const HELP_VTT = /*@VTT@*/{}, capUrl = new Map();
+const captionsFor = id => {
+  if (!hasOwn(HELP_VTT, id)) return null;
+  if (!capUrl.has(id)) capUrl.set(id, URL.createObjectURL(new Blob([HELP_VTT[id]], {type: 'text/vtt'})));
+  return capUrl.get(id);
+};
 function checkClips() {
   if (clipsOk !== null) return;
   clipsOk = 'checking';
-  fetch('help/review.vtt', {method: 'HEAD', cache: 'no-store'}).then(r => r.ok, () => false).then(ok => { clipsOk = ok; if (st.mode === 'help') renderHelp(); });
+  // A HEAD request says whether the clips are published; where a server refuses HEAD, the first two bytes say it.
+  const u = 'help/review.mp4';
+  fetch(u, {method: 'HEAD', cache: 'no-store'}).then(r => r.ok || (r.status !== 404 && fetch(u, {headers: {Range: 'bytes=0-1'}, cache: 'no-store'}).then(g => g.ok, () => false)), () => false)
+    .then(ok => { clipsOk = ok; if (st.mode === 'help') renderHelp(); });
 }
 function openHelp() { closeMenus(); checkClips(); setMode('help'); }
 function clipEl(id, title) {
   if (clipsOk !== true) return null;
   const box = h('div', {class: 'hclip'});
   const watch = h('button', {class: 'btn sm', type: 'button', id: 'clip-' + id, onclick: () => {
-    const v = h('video', {controls: true, autoplay: true, playsinline: true, preload: 'auto', src: 'help/' + id + '.mp4', 'aria-label': title + ', a short clip with captions'},
-      h('track', {kind: 'captions', src: 'help/' + id + '.vtt', srclang: 'en', label: 'English', default: true}));
+    const cap = captionsFor(id);
+    const v = h('video', {controls: true, autoplay: true, playsinline: true, preload: 'auto', src: 'help/' + id + '.mp4', 'aria-label': title + (cap ? ', a short clip with captions' : ', a short clip')},
+      cap ? h('track', {kind: 'captions', src: cap, srclang: 'en', label: 'English', default: true}) : null);
     v.addEventListener('error', () => fill(box, h('p', {class: 'smeta'}, 'This clip isn’t available here.')));
     const card = box.closest('.hitem'); if (card) card.classList.add('playing');
     fill(box, v); v.focus({preventScroll: true}); v.scrollIntoView({block: 'nearest', behavior: reduce ? 'auto' : 'smooth'});
