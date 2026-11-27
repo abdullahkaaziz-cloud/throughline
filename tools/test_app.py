@@ -948,6 +948,8 @@ with sync_playwright() as p:
       and ev(xp, "document.querySelectorAll('#help .hclip button').length") == 17)
     xp.click('#clip-review'); xp.wait_for_timeout(2500)
     check('a clip plays only when asked, with captions', ev(xp, "(() => { const v = document.querySelector('#help video'); return !!v && v.readyState >= 1 && Math.round(v.duration) === 27 && v.textTracks.length === 1 && v.textTracks[0].mode === 'showing'; })()"))
+    check('its captions are built into the page, since the publisher can’t serve .vtt', ev(xp, "(() => { const v = document.querySelector('#help video'), t = v && v.querySelector('track'); return !!t && t.src.startsWith('blob:') && !!v.textTracks[0].cues && v.textTracks[0].cues.length > 3 && v.textTracks[0].cues[0].text.length > 10; })()")
+          and not any(f.endswith('.vtt') for f in os.listdir(ROOT + '/dist/help')))
     xp.screenshot(path=SHOTS + '/27c-help.png')
     xp.keyboard.press('Escape'); xp.wait_for_timeout(200)
     check('Esc goes back to the essay from Help', ev(xp, "document.getElementById('help').hidden"))
@@ -970,6 +972,13 @@ with sync_playwright() as p:
     np2.click('#moreBtn'); np2.wait_for_timeout(200); np2.click('#menuHelp'); np2.wait_for_timeout(600)
     check('without the clips published, Help still explains everything, with no Watch buttons', ev(np2, "document.querySelectorAll('#help .hitem').length") == 17 and ev(np2, "document.querySelectorAll('#help .hclip').length") == 0)
     nctx2.close()
+    nctx3 = browser.new_context(viewport={'width': 1280, 'height': 900}); route(nctx3); nctx3.add_init_script(MOCK)
+    nctx3.route('**/dist/help/**', lambda r: r.fulfill(status=405, body='') if r.request.method == 'HEAD' else r.fallback())
+    np3 = nctx3.new_page(); watch(np3, 'no-head')
+    np3.goto(URL); np3.wait_for_timeout(900)
+    np3.click('#moreBtn'); np3.wait_for_timeout(200); np3.click('#menuHelp'); np3.wait_for_timeout(800)
+    check('where the server refuses HEAD, the clips are still found', ev(np3, "document.querySelectorAll('#help .hclip button').length") == 17)
+    nctx3.close()
 
     # 13g. reliability: undo, saves that fail and come back, plain errors; review quality: length, the last review's notes
     rctx = browser.new_context(viewport={'width': 1280, 'height': 900}); route(rctx)

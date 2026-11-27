@@ -6,7 +6,10 @@ const parts = fs.readdirSync(new URL('src/app/', root)).filter(f => f.endsWith('
 const html = rd('src/index.html')
   .replace('/*@CSS@*/', () => rd('src/styles.css'))
   .replace('/*@LIB@*/', () => rd('src/lib.js'))
-  .replace('/*@APP@*/', () => parts.map(f => rd('src/app/' + f)).join(''));
+  .replace('/*@APP@*/', () => parts.map(f => rd('src/app/' + f)).join(''))
+  // The help clips' captions go into the page: the publisher serves .mp4 beside it but not .vtt.
+  .replace('/*@VTT@*/{}', () => JSON.stringify(Object.fromEntries(fs.readdirSync(new URL('assets/help/', root)).filter(f => /^[a-z]+\.vtt$/.test(f)).sort()
+    .map(f => [f.slice(0, -4), rd('assets/help/' + f)]))).replace(/</g, '\\u003c'));
 if (html.includes('/*@')) throw new Error('unreplaced placeholder');
 // Fail the build on characters the publisher refuses (U+FFFD, control characters, lone surrogates, private use):
 // write them as escapes (\\uFFFD) in the source instead.
@@ -17,9 +20,10 @@ const script = html.match(/<script>([\s\S]*)<\/script>/);
 new vm.Script(script[1], {filename: 'dist/index.html#script'});
 fs.mkdirSync(new URL('dist/', root), {recursive: true});
 fs.writeFileSync(new URL('dist/index.html', root), html);
-// The help clips and their captions ship beside the page (published as its own files: help/<id>.mp4 and .vtt).
+// The help clips ship beside the page (published as its own files: help/<id>.mp4); their captions are in the page.
+fs.rmSync(new URL('dist/help/', root), {recursive: true, force: true});
 fs.mkdirSync(new URL('dist/help/', root), {recursive: true});
-for (const f of fs.readdirSync(new URL('assets/help/', root))) if (/^[a-z]+\.(mp4|vtt)$/.test(f)) fs.copyFileSync(new URL('assets/help/' + f, root), new URL('dist/help/' + f, root));
+for (const f of fs.readdirSync(new URL('assets/help/', root))) if (/^[a-z]+\.mp4$/.test(f)) fs.copyFileSync(new URL('assets/help/' + f, root), new URL('dist/help/' + f, root));
 // seed/ holds private essays for local tests only. It is never copied into dist/, so it can't be published.
 fs.rmSync(new URL('dist/seed/', root), {recursive: true, force: true});
 console.log('dist/index.html', html.length, 'bytes from', parts.length, 'app parts');
